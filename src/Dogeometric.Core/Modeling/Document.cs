@@ -91,6 +91,9 @@ public static class Editing
         e.Instances.RemoveAll(set.Contains);
         e.Dimensions.RemoveAll(set.Contains);
         e.Texts.RemoveAll(set.Contains);
+        e.SectionPlanes.RemoveAll(set.Contains);
+        if (e.ActiveSection is { } active && set.Contains(active))
+            e.ActiveSection = null;
         e.Faces.RemoveAll(f => set.Contains(f) || f.Loops.Any(l => l.Edges.Any(x => edges.Contains(x.Edge))));
         e.Edges.RemoveAll(edges.Contains);
         RemoveOrphanVertices(e);
@@ -154,6 +157,19 @@ public static class Transforming
                     break;
                 case ComponentInstance inst:
                     inst.Transform = inst.Transform.Then(t);
+                    break;
+                case SectionPlane s:
+                    s.Point = t.ApplyPoint(s.Point);
+                    s.Normal = t.ApplyNormal(s.Normal).Normalized();
+                    break;
+                case LinearDimension d:
+                    d.Start = t.ApplyPoint(d.Start);
+                    d.End = t.ApplyPoint(d.End);
+                    d.Offset = t.ApplyVector(d.Offset);
+                    break;
+                case TextLabel x when x.ScreenPosition == null:
+                    x.Point = t.ApplyPoint(x.Point);
+                    x.Offset = t.ApplyVector(x.Offset);
                     break;
             }
         }

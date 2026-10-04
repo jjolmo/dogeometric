@@ -55,6 +55,13 @@ public static class ContextMenu
             menu.AddSeparator();
         }
 
+        if (single is SectionPlane section)
+        {
+            Item("Reverse", () => runCommand(CommandIds.ReverseSection));
+            Item(doc.Context.Entities.ActiveSection == section ? "Active Cut ✓" : "Active Cut", () => runCommand(CommandIds.ActiveSectionCut));
+            menu.AddSeparator();
+        }
+
         var faces = sel.OfType<Face>().ToList();
         if (faces.Count > 0)
         {

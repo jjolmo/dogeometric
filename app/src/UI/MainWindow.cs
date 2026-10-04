@@ -111,6 +111,27 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.DisplaySectionPlanes, () =>
+        {
+            _viewport.ShowSectionPlanes = !_viewport.ShowSectionPlanes;
+            _viewport.QueueOverlayRedraw();
+        }, () => _viewport.ShowSectionPlanes);
+        _commands.Register(CommandIds.DisplaySectionCuts, () =>
+        {
+            _viewport.ShowSectionCuts = !_viewport.ShowSectionCuts;
+            _viewport.UpdateSection();
+        }, () => _viewport.ShowSectionCuts);
+        _commands.Register(CommandIds.ReverseSection, () =>
+        {
+            var planes = Doc().Selection.Items.OfType<SectionPlane>().ToList();
+            if (planes.Count > 0)
+                Doc().Operation("Reverse Section", _ => planes.ForEach(s => s.Normal = -s.Normal));
+        });
+        _commands.Register(CommandIds.ActiveSectionCut, () =>
+        {
+            if (Doc().Selection.Items.OfType<SectionPlane>().FirstOrDefault() is { } plane)
+                Doc().Operation("Active Cut", e => e.ActiveSection = e.ActiveSection == plane ? null : plane);
+        });
         _commands.Register(CommandIds.IntersectWithModel, () => Intersect.WithModel(Doc()));
         _commands.Register(CommandIds.IntersectWithSelection, () => Intersect.WithSelection(Doc()));
         _commands.Register(CommandIds.Cut, () => Clipboard.Cut(Doc()));
@@ -268,6 +289,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Dimension, () => new DimensionTool());
         RegisterTool(CommandIds.Text, () => new TextTool());
         RegisterTool(CommandIds.ZoomWindow, () => new ZoomWindowTool());
+        RegisterTool(CommandIds.SectionPlane, () => new SectionPlaneTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }

@@ -109,4 +109,19 @@ public class DogFileTests
         Assert.Equal(new Vec3(10, 0, 50), back.Entities.Texts[0].Offset);
         Assert.Equal((0.1, 0.2), back.Entities.Texts[1].ScreenPosition);
     }
+
+    [Fact]
+    public void Section_planes_round_trip_with_the_active_one()
+    {
+        var model = new Model();
+        var a = new SectionPlane(new Vec3(0, 200, 0), new Vec3(0, 1, 0)) { Name = "Front" };
+        var b = new SectionPlane(new Vec3(0, 0, 100), new Vec3(0, 0, -1));
+        model.Entities.SectionPlanes.AddRange([a, b]);
+        model.Entities.ActiveSection = b;
+        var back = RoundTrip(model);
+        Assert.Equal(2, back.Entities.SectionPlanes.Count);
+        Assert.Equal("Front", back.Entities.SectionPlanes[0].Name);
+        Assert.Same(back.Entities.SectionPlanes[1], back.Entities.ActiveSection);
+        Assert.Equal(new Vec3(0, 0, -1), back.Entities.ActiveSection!.Normal);
+    }
 }

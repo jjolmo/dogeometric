@@ -71,6 +71,35 @@ public static class Intersect
         return created;
     }
 
+    /// <summary>
+    /// The section cut of the model's active (top-level) section plane: where it slices visible faces, in world
+    /// coordinates. Empty when no section is active.
+    /// </summary>
+    public static List<(Vec3 A, Vec3 B)> SectionCut(Model model)
+    {
+        var result = new List<(Vec3, Vec3)>();
+        if (model.Entities.ActiveSection is not { } plane)
+            return result;
+        var faces = new List<WorldFace>();
+        Collect(model.Entities, Transform.Identity, faces);
+        var n = plane.Normal;
+        var d = n.Dot(plane.Point);
+        foreach (var f in faces)
+        {
+            var dir = n.Cross(f.Normal);
+            if (dir.Length < 1e-9)
+                continue;
+            dir = dir.Normalized();
+            var nf = f.Normal;
+            var c = n.Dot(nf);
+            var det = 1 - c * c;
+            var origin = n * ((d - f.D * c) / det) + nf * ((f.D - d * c) / det);
+            foreach (var (from, to) in Intervals(f, origin, dir))
+                result.Add((origin + dir * from, origin + dir * to));
+        }
+        return result;
+    }
+
     private static void Collect(Entities e, Transform xf, List<WorldFace> output)
     {
         foreach (var f in e.Faces)

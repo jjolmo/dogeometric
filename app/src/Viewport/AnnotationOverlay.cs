@@ -25,6 +25,13 @@ public sealed class AnnotationOverlay
         if (view.Document is not { } doc)
             return;
         var font = canvas.GetThemeDefaultFont();
+
+        // Section cut: thick black lines where the active section slices the model.
+        if (view.ShowSectionCuts)
+            foreach (var (a, b) in view.SectionCut)
+                if (view.ToScreen(a) is { } sa && view.ToScreen(b) is { } sb)
+                    canvas.DrawLine(sa, sb, Ink, 3, true);
+
         Walk(doc.Model.Entities, Transform.Identity, [doc.Model.Entities]);
 
         void Walk(Entities e, Transform xf, IReadOnlyList<Entities> owners)
@@ -35,6 +42,10 @@ public sealed class AnnotationOverlay
             foreach (var t in e.Texts)
                 if (!t.Hidden && t.Tag is not { Visible: false })
                     DrawText(view, canvas, font, doc, t, xf, owners);
+            if (view.ShowSectionPlanes)
+                foreach (var s in e.SectionPlanes)
+                    if (!s.Hidden && s.Tag is not { Visible: false })
+                        DrawSectionPlane(view, canvas, doc, s, s == e.ActiveSection, xf, owners);
             foreach (var inst in e.Instances)
                 if (!inst.Hidden && inst.Tag is not { Visible: false })
                     Walk(inst.Definition.Entities, inst.Transform.Then(xf), [.. owners, inst.Definition.Entities]);
@@ -108,6 +119,43 @@ public sealed class AnnotationOverlay
         var box = new Rect2(new Vector2(left ? end.X - size.X - 3 : end.X + 3, end.Y - size.Y / 2), size);
         canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, FontSize, color);
         _drawn.Add((t, owners, box, [(anchor, end)]));
+    }
+
+    /// <summary>Half the side of the square drawn for section planes: a bit larger than the model.</summary>
+    private static double SectionHalfSize(Document doc) => Math.Max(doc.Model.Entities.Bounds().Diagonal * 0.6, 100);
+
+    /// <summary>A section plane: an orange square with an arrow at each corner pointing the way the cut is viewed.</summary>
+    public static IEnumerable<(Vec3 A, Vec3 B)> SectionPlaneLines(SectionPlane s, Transform xf, double half)
+    {
+        var n = xf.ApplyNormal(s.Normal).Normalized();
+        var c = xf.ApplyPoint(s.Point);
+        var (u, v) = Polygon.PlaneAxes(n);
+        Vec3[] corners = [c + (u + v) * half, c + (v - u) * half, c - (u + v) * half, c + (u - v) * half];
+        for (var i = 0; i < 4; i++)
+            yield return (corners[i], corners[(i + 1) % 4]);
+        var arrow = half * 0.18;
+        foreach (var corner in corners)
+        {
+            var inward = (c - corner).Normalized() * arrow * 0.35;
+            var tip = corner + n * arrow;
+            yield return (corner, tip);
+            yield return (tip, tip - n * arrow * 0.4 + inward);
+            yield return (tip, tip - n * arrow * 0.4 - inward);
+        }
+    }
+
+    private void DrawSectionPlane(ModelViewport view, Control canvas, Document doc, SectionPlane s, bool active, Transform xf, IReadOnlyList<Entities> owners)
+    {
+        var color = doc.Selection.Contains(s) ? Selected : active ? new Color("#f28c28") : new Color("#a0a0a0");
+        var lines = new List<(Vector2, Vector2)>();
+        foreach (var (a, b) in SectionPlaneLines(s, xf, SectionHalfSize(doc)))
+        {
+            if (view.ToScreen(a) is not { } sa || view.ToScreen(b) is not { } sb)
+                continue;
+            canvas.DrawLine(sa, sb, color, active ? 2 : 1, true);
+            lines.Add((sa, sb));
+        }
+        _drawn.Add((s, owners, null, [.. lines]));
     }
 
     private static void Arrow(Control canvas, Vector2 tip, Vector2 outward, Color color)

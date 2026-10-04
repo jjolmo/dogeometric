@@ -35,3 +35,16 @@ public sealed class TextLabel(string text)
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
 }
+
+/// <summary>
+/// SketchUp's section plane. Its arrows (<see cref="Normal"/>) point the way the cut is viewed: while it is the
+/// active plane of its context (<see cref="Entities.ActiveSection"/>), geometry behind the arrows is cut away.
+/// </summary>
+public sealed class SectionPlane(Vec3 point, Vec3 normal)
+{
+    public Vec3 Point { get; set; } = point;
+    public Vec3 Normal { get; set; } = normal.Normalized();
+    public string Name { get; set; } = "";
+    public Tag? Tag { get; set; }
+    public bool Hidden { get; set; }
+}

@@ -126,6 +126,10 @@ public sealed class Entities
     public List<GuidePoint> GuidePoints { get; } = [];
     public List<LinearDimension> Dimensions { get; } = [];
     public List<TextLabel> Texts { get; } = [];
+    public List<SectionPlane> SectionPlanes { get; } = [];
+
+    /// <summary>The section plane cutting this collection's contents, if any (one per context, as in SketchUp).</summary>
+    public SectionPlane? ActiveSection { get; set; }
 
     public bool IsEmpty => Edges.Count == 0 && Faces.Count == 0 && Instances.Count == 0;
 

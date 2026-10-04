@@ -320,6 +320,32 @@ public partial class ModelViewport : Control
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
 
+    /// <summary>View › Section Planes / Section Cuts.</summary>
+    public bool ShowSectionPlanes { get; set; } = true;
+    public bool ShowSectionCuts { get; set; } = true;
+
+    /// <summary>World segments where the active section cuts the model (drawn as thick lines).</summary>
+    public List<(Vec3 A, Vec3 B)> SectionCut { get; private set; } = [];
+
+    /// <summary>Applies the model's active section: the shaders' cut plane and the cut lines.</summary>
+    public void UpdateSection()
+    {
+        var plane = Document?.Model.Entities.ActiveSection;
+        if (plane == null || !ShowSectionCuts)
+        {
+            RenderingServer.GlobalShaderParameterSet("section_plane", Vector4.Zero);
+            SectionCut = [];
+        }
+        else
+        {
+            var n = Space.DirToGodot(plane.Normal);
+            var p = Space.ToGodot(plane.Point);
+            RenderingServer.GlobalShaderParameterSet("section_plane", new Vector4(n.X, n.Y, n.Z, n.Dot(p)));
+            SectionCut = Intersect.SectionCut(Document!.Model);
+        }
+        QueueOverlayRedraw();
+    }
+
     /// <summary>Model-space ray through a viewport pixel.</summary>
     public (Vec3 Origin, Vec3 Direction) ScreenRay(Vector2 screen)
     {

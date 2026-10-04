@@ -67,4 +67,19 @@ public class IntersectTests
             Assert.Equal(18, e.Faces.Count);
         }
     }
+
+    [Fact]
+    public void Active_section_cuts_a_cube_in_a_square()
+    {
+        var m = new Model();
+        Cube(m.Entities, Vec3.Zero, 10);
+        var plane = new SectionPlane(new Vec3(0, 0, 4), Vec3.UnitZ);
+        m.Entities.SectionPlanes.Add(plane);
+        Assert.Empty(Intersect.SectionCut(m));
+        m.Entities.ActiveSection = plane;
+        var cut = Intersect.SectionCut(m);
+        Assert.Equal(4, cut.Count);
+        Assert.All(cut, s => Assert.Equal(4, s.A.Z, 9));
+        Assert.Equal(40, cut.Sum(s => s.A.DistanceTo(s.B)), 6);
+    }
 }

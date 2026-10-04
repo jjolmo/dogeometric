@@ -249,6 +249,25 @@ public static class DogFile
             }
             w.WriteEndArray();
         }
+        if (e.SectionPlanes.Count > 0)
+        {
+            w.WriteStartArray("sectionPlanes");
+            foreach (var s in e.SectionPlanes)
+            {
+                w.WriteStartObject();
+                WriteVec(w, "point", s.Point);
+                WriteVec(w, "normal", s.Normal);
+                if (s.Name.Length > 0)
+                    w.WriteString("name", s.Name);
+                if (s == e.ActiveSection)
+                    w.WriteBoolean("active", true);
+                w.WriteNumber("tag", Ref(tags, s.Tag));
+                if (s.Hidden)
+                    w.WriteBoolean("hidden", true);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        }
         if (e.Texts.Count > 0)
         {
             w.WriteStartArray("texts");
@@ -473,6 +492,21 @@ public static class DogFile
                     Tag = TagAt(model, d.GetProperty("tag").GetInt32()),
                     Hidden = d.TryGetProperty("hidden", out var h) && h.GetBoolean(),
                 });
+            }
+        }
+        if (j.TryGetProperty("sectionPlanes", out var sections))
+        {
+            foreach (var s in sections.EnumerateArray())
+            {
+                var plane = new SectionPlane(ReadVec(s.GetProperty("point")), ReadVec(s.GetProperty("normal")))
+                {
+                    Name = s.TryGetProperty("name", out var nm) ? nm.GetString() ?? "" : "",
+                    Tag = TagAt(model, s.GetProperty("tag").GetInt32()),
+                    Hidden = s.TryGetProperty("hidden", out var h) && h.GetBoolean(),
+                };
+                e.SectionPlanes.Add(plane);
+                if (s.TryGetProperty("active", out var act) && act.GetBoolean())
+                    e.ActiveSection = plane;
             }
         }
         if (j.TryGetProperty("texts", out var texts))

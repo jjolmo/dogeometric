@@ -198,6 +198,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         {
             _renderer.Build(Model, viewport.ModelRoot, changed);
             RebuildSelection();
+            viewport.UpdateSection();
         };
         Document.Selection.Changed += RebuildSelection;
         Document.Context.Changed += RebuildSelection;
@@ -205,6 +206,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         viewport.Document = Document;
         viewport.ModelBounds = () => Model.Entities.Bounds();
         Rebuild();
+        viewport.UpdateSection();
         if (zoomExtents)
             viewport.ZoomExtents();
         DocumentReplaced?.Invoke();
