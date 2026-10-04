@@ -1,5 +1,6 @@
 using Dogeometric.App.Commands;
 using Dogeometric.App.Tools;
+using Dogeometric.App.UI.Tray;
 using Dogeometric.App.Viewport;
 using Dogeometric.Core.Modeling;
 using Dogeometric.Core.View;
@@ -15,6 +16,10 @@ public partial class MainWindow : Control
     private StatusBar _status = null!;
     private DocumentController _document = null!;
     private PanelContainer _leftTools = null!;
+    private PanelContainer _tray = null!;
+    private EntityInfoPanel _entityInfo = null!;
+    private MaterialsPanel _materials = null!;
+    private TagsPanel _tags = null!;
     private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
@@ -39,10 +44,15 @@ public partial class MainWindow : Control
         _leftTools.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
         middle.AddChild(_leftTools);
         middle.AddChild(_viewport);
+        _tray = new PanelContainer { CustomMinimumSize = new Vector2(280, 0) };
+        _tray.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
+        middle.AddChild(_tray);
         layout.AddChild(_status);
 
         _document = new DocumentController(this, _viewport, _status);
         _document.Changed += () => GetWindow().Title = _document.Title;
+        BuildTray();
+        _document.DocumentReplaced += HookDocument;
         _document.New();
 
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
@@ -165,6 +175,39 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.TapeMeasure, () => new TapeMeasureTool());
         RegisterTool(CommandIds.Rotate, () => new RotateTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
+        RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
+    }
+
+    /// <summary>SketchUp's Default Tray on the right: Entity Info, Materials, Tags.</summary>
+    private void BuildTray()
+    {
+        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        _tray.AddChild(scroll);
+        var list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        list.AddThemeConstantOverride("separation", 2);
+        scroll.AddChild(list);
+        list.AddChild(new Label { Text = "Default Tray" });
+        _entityInfo = EntityInfoPanel.Create(() => _document.Document);
+        _materials = MaterialsPanel.Create(() => _document.Document);
+        _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
+        list.AddChild(TraySection.Create("Entity Info", _entityInfo));
+        list.AddChild(TraySection.Create("Materials", _materials));
+        list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
+    }
+
+    /// <summary>Panels follow the current document's selection and geometry.</summary>
+    private void HookDocument()
+    {
+        var doc = _document.Document;
+        doc.Selection.Changed += _entityInfo.Refresh;
+        doc.GeometryChanged += _ =>
+        {
+            _entityInfo.Refresh();
+            _tags.Refresh();
+        };
+        _entityInfo.Refresh();
+        _materials.Refresh();
+        _tags.Refresh();
     }
 
     private void RegisterTool(int id, Func<Tool> create)

@@ -76,7 +76,14 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
         ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.skp ; SketchUp (2017 format)"],
-        Export);
+        Export, dialog =>
+        {
+            // SketchUp's "Export selection only" option, on when something is selected.
+            dialog.AddOption("Export selection only", [], Document.Selection.IsEmpty ? 0 : 1);
+            _exportOptionsDialog = dialog;
+        });
+
+    private FileDialog? _exportOptionsDialog;
 
     public void Open(string path)
     {
@@ -120,7 +127,16 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             WriteSkp(path);
             return;
         }
-        var triangles = MeshExtractor.Extract(Model);
+        var selectionOnly = _exportOptionsDialog?.GetSelectedOptions() is { } opts && opts.TryGetValue("Export selection only", out var v) && (bool)v
+            && !Document.Selection.IsEmpty;
+        var triangles = MeshExtractor.Extract(Model, selectionOnly
+            ? new ExportOptions
+            {
+                Selection = Document.Selection.Items.ToHashSet(),
+                SelectionContext = Document.Context.Entities,
+                SelectionContextTransform = Document.Context.ToWorld,
+            }
+            : null);
         Write(path, (m, p) =>
         {
             switch (ext)
@@ -196,6 +212,9 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     private void RebuildSelection() => _selectionRenderer.Build(Document, viewport.SelectionRoot);
 
+    /// <summary>Redraws everything (after a visibility change such as a tag toggled).</summary>
+    public void RebuildAll() => Rebuild();
+
     /// <summary>Import places the other file's contents into this model (materials, tags and definitions merged).</summary>
     private void Merge(Model other)
     {
@@ -227,7 +246,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private static string WithExtension(string path, string ext) =>
         System.IO.Path.GetExtension(path).Length == 0 ? path + ext : path;
 
-    private void ShowDialog(FileDialog.FileModeEnum mode, string title, string[] filters, Action<string> onPicked)
+    private void ShowDialog(FileDialog.FileModeEnum mode, string title, string[] filters, Action<string> onPicked, Action<FileDialog>? configure = null)
     {
         var dialog = new FileDialog
         {
@@ -238,6 +257,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             UseNativeDialog = true,
             CurrentDir = Path != null ? System.IO.Path.GetDirectoryName(Path) : OS.GetSystemDir(OS.SystemDir.Documents),
         };
+        configure?.Invoke(dialog);
         host.AddChild(dialog);
         dialog.FileSelected += p =>
         {

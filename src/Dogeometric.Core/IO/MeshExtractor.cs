@@ -22,6 +22,14 @@ public sealed class ExportOptions
 
     /// <summary>Also emit the back side of every face (two-sided output for renderers that cull back faces).</summary>
     public bool DoubleSided { get; init; }
+
+    /// <summary>
+    /// Entity collection the <see cref="Selection"/> belongs to (the group being edited) and its world transform;
+    /// null means the model's top level.
+    /// </summary>
+    public Entities? SelectionContext { get; init; }
+
+    public Transform SelectionContextTransform { get; init; } = Transform.Identity;
 }
 
 /// <summary>Flattens a model's faces into world-space triangles for mesh exporters (STL, OBJ, glTF, DAE).</summary>
@@ -31,7 +39,10 @@ public static class MeshExtractor
     {
         options ??= new ExportOptions();
         var result = new List<Triangle>();
-        Walk(model.Entities, Transform.Identity, null, options, result, topLevel: true);
+        if (options.SelectionContext is { } ctx)
+            Walk(ctx, options.SelectionContextTransform, null, options, result, topLevel: true);
+        else
+            Walk(model.Entities, Transform.Identity, null, options, result, topLevel: true);
         return result;
     }
 
