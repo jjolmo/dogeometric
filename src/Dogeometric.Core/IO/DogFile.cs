@@ -145,7 +145,8 @@ public static class DogFile
 
     // Entities layout:
     //   vertices: [x, y, z, ...]
-    //   edges:    [[start, end, flags, tag, material], ...]          (-1 = none)
+    //   edges:    [[start, end, flags, tag, material, curve?], ...]  (-1 = none)
+    //   curves:   [{center, normal, radius, segments, polygon, spline?}, ...] (optional; edges refer to them)
     //   faces:    [[loops, front, back, tag, hidden], ...]  loops = [[signed edge refs], ...], ref = ±(edge + 1)
     //   instances:[{def, transform[16 column-major], name, tag, material, hidden, locked}, ...]
     private static void WriteEntities(Utf8JsonWriter w, string name, Entities e,
@@ -165,6 +166,11 @@ public static class DogFile
         }
         w.WriteEndArray();
 
+        var curves = new Dictionary<Curve, int>();
+        foreach (var edge in e.Edges)
+            if (edge.Curve is { } c && !curves.ContainsKey(c))
+                curves[c] = curves.Count;
+
         w.WriteStartArray("edges");
         foreach (var edge in e.Edges)
         {
@@ -175,9 +181,44 @@ public static class DogFile
             w.WriteNumberValue((int)edge.Flags);
             w.WriteNumberValue(Ref(tags, edge.Tag));
             w.WriteNumberValue(Ref(mats, edge.Material));
+            if (edge.Curve != null)
+                w.WriteNumberValue(curves[edge.Curve]);
             w.WriteEndArray();
         }
         w.WriteEndArray();
+
+        if (curves.Count > 0)
+        {
+            w.WriteStartArray("curves");
+            foreach (var c in curves.Keys)
+            {
+                w.WriteStartObject();
+                WriteVec(w, "center", c.Center);
+                WriteVec(w, "normal", c.Normal);
+                w.WriteNumber("radius", c.Radius);
+                w.WriteNumber("segments", c.Segments);
+                w.WriteBoolean("polygon", c.IsPolygon);
+                if (c.Spline is { } sp)
+                {
+                    w.WriteStartObject("spline");
+                    w.WriteString("kind", sp.Kind.ToString());
+                    w.WriteStartArray("points");
+                    foreach (var q in sp.ControlPoints)
+                    {
+                        w.WriteNumberValue(q.X);
+                        w.WriteNumberValue(q.Y);
+                        w.WriteNumberValue(q.Z);
+                    }
+                    w.WriteEndArray();
+                    w.WriteNumber("precision", sp.Precision);
+                    w.WriteNumber("parameter", sp.Parameter);
+                    w.WriteBoolean("closed", sp.Closed);
+                    w.WriteEndObject();
+                }
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        }
 
         w.WriteStartArray("faces");
         foreach (var f in e.Faces)
@@ -451,6 +492,27 @@ public static class DogFile
             e.AddVertex(new Vec3(x, y, z));
         }
 
+        var curves = new List<Curve>();
+        if (j.TryGetProperty("curves", out var cj))
+            foreach (var c in cj.EnumerateArray())
+            {
+                var curve = new Curve
+                {
+                    Center = ReadVec(c.GetProperty("center")),
+                    Normal = ReadVec(c.GetProperty("normal")),
+                    Radius = c.GetProperty("radius").GetDouble(),
+                    Segments = c.GetProperty("segments").GetInt32(),
+                    IsPolygon = c.GetProperty("polygon").GetBoolean(),
+                };
+                if (c.TryGetProperty("spline", out var sj) && Enum.TryParse<SplineKind>(sj.GetProperty("kind").GetString(), out var kind))
+                {
+                    var flat = sj.GetProperty("points").EnumerateArray().Select(x => x.GetDouble()).ToArray();
+                    var pts = Enumerable.Range(0, flat.Length / 3).Select(i => new Vec3(flat[3 * i], flat[3 * i + 1], flat[3 * i + 2])).ToList();
+                    curve.Spline = new SplineData(kind, pts, sj.GetProperty("precision").GetInt32(), sj.GetProperty("parameter").GetDouble(), sj.GetProperty("closed").GetBoolean());
+                }
+                curves.Add(curve);
+            }
+
         foreach (var ej in j.GetProperty("edges").EnumerateArray())
         {
             var a = ej.EnumerateArray().ToArray();
@@ -458,6 +520,8 @@ public static class DogFile
             edge.Flags = (EdgeFlags)a[2].GetInt32();
             edge.Tag = TagAt(model, a[3].GetInt32());
             edge.Material = MaterialAt(model, a[4].GetInt32());
+            if (a.Length > 5 && a[5].GetInt32() is var ci && ci >= 0 && ci < curves.Count)
+                edge.Curve = curves[ci];
         }
 
         foreach (var fj in j.GetProperty("faces").EnumerateArray())

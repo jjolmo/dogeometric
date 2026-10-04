@@ -148,4 +148,26 @@ public class DogFileTests
         Assert.Equal(face.FrontMapping.Matrix, f.FrontMapping!.Matrix);
         Assert.Null(f.BackMapping);
     }
+
+    [Fact]
+    public void Curves_and_their_spline_data_survive_saving()
+    {
+        var m = new Model();
+        var circle = new Curve { Center = new Vec3(1, 2, 3), Normal = Vec3.UnitZ, Radius = 5, Segments = 24 };
+        var pts = Shapes.RegularPolygon(circle.Center, Vec3.UnitZ, Vec3.UnitX, 5, 24, false);
+        StickyGeometry.DrawEdges(m.Entities, pts, closed: true, Vec3.UnitZ, circle);
+        var spline = new Curve { Segments = 3, Spline = new SplineData(SplineKind.DogBone, [new(0, 0, 0), new(9, 0, 0), new(9, 9, 0)], 24, 1.5, false) };
+        StickyGeometry.DrawEdges(m.Entities, [new(20, 0, 0), new(25, 1, 0), new(30, 0, 0)], closed: false, null, spline);
+
+        var back = RoundTrip(m);
+        var curves = back.Entities.Edges.Select(x => x.Curve).Where(c => c != null).Distinct().ToList();
+        Assert.Equal(2, curves.Count);
+        var c1 = curves.Single(c => c!.Spline == null)!;
+        Assert.Equal(5, c1.Radius);
+        Assert.Equal(24, back.Entities.Edges.Count(x => x.Curve == c1));
+        var s1 = curves.Single(c => c!.Spline != null)!.Spline!;
+        Assert.Equal(SplineKind.DogBone, s1.Kind);
+        Assert.Equal(3, s1.ControlPoints.Count);
+        Assert.Equal(1.5, s1.Parameter);
+    }
 }
