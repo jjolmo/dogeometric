@@ -83,7 +83,8 @@ public sealed class ModelRenderer
         }
     }
 
-    private FaceStyle _faceStyle = FaceStyle.Shaded;
+    // SketchUp's default template style shows textures.
+    private FaceStyle _faceStyle = FaceStyle.ShadedWithTextures;
 
     private readonly Dictionary<(Material?, Material?, bool), ShaderMaterial> _faceMaterials = [];
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
@@ -197,7 +198,7 @@ public sealed class ModelRenderer
             var key = (face.FrontMaterial, face.BackMaterial);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
-            data.AddFace(face);
+            data.AddFace(face, face.FrontMaterial, face.BackMaterial);
         }
 
         ArrayMesh? faces = null;
@@ -211,6 +212,8 @@ public sealed class ModelRenderer
             arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices.ToArray();
             arrays[(int)Mesh.ArrayType.Normal] = data.Normals.ToArray();
+            arrays[(int)Mesh.ArrayType.TexUV] = data.Uvs.ToArray();
+            arrays[(int)Mesh.ArrayType.TexUV2] = data.Uv2s.ToArray();
             faces.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
             faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2));
             surfaces.Add(key);
@@ -246,7 +249,7 @@ public sealed class ModelRenderer
     {
         var data = new SurfaceData();
         foreach (var face in e.Faces.Where(f => f.Hidden && f.Tag is not { Visible: false }))
-            data.AddFace(face);
+            data.AddFace(face, face.FrontMaterial, face.BackMaterial);
         var lines = new List<Vector3>();
         foreach (var edge in e.Edges)
         {
@@ -349,11 +352,52 @@ public sealed class ModelRenderer
             (frontColor, backColor) = (backColor, frontColor);
         m.SetShaderParameter("front_color", frontColor);
         m.SetShaderParameter("back_color", backColor);
+        // Shaded With Textures shows the pictures; the other styles keep the material's average colour.
+        if (FaceStyle == FaceStyle.ShadedWithTextures || xray)
+        {
+            var (ft, bt) = (TextureOf(front), TextureOf(back));
+            if (flipped)
+                (ft, bt) = (bt, ft);
+            m.SetShaderParameter("front_tex", ft);
+            m.SetShaderParameter("back_tex", bt);
+            m.SetShaderParameter("has_front_tex", ft != null);
+            m.SetShaderParameter("has_back_tex", bt != null);
+            m.SetShaderParameter("swap_uv", flipped);
+        }
         // Hidden Line draws faces flat white, without shading.
         if (FaceStyle == FaceStyle.HiddenLine)
             m.SetShaderParameter("light_dir", Vector3.Zero);
         _faceMaterials[(front, back, flipped)] = m;
         return m;
+    }
+
+    private readonly Dictionary<Material, Texture2D?> _textures = [];
+
+    /// <summary>The material's picture as a Godot texture (PNG, JPEG, BMP, WebP), decoded once.</summary>
+    private Texture2D? TextureOf(Material? m)
+    {
+        if (m?.Texture is not { Data.Length: > 0 } tex)
+            return null;
+        if (_textures.TryGetValue(m, out var cached))
+            return cached;
+        var image = new Image();
+        var data = tex.Data;
+        var err = data switch
+        {
+            [0x89, 0x50, ..] => image.LoadPngFromBuffer(data),
+            [0xFF, 0xD8, ..] => image.LoadJpgFromBuffer(data),
+            [(byte)'B', (byte)'M', ..] => image.LoadBmpFromBuffer(data),
+            [(byte)'R', (byte)'I', (byte)'F', (byte)'F', ..] => image.LoadWebpFromBuffer(data),
+            _ => Error.FileUnrecognized,
+        };
+        Texture2D? texture = null;
+        if (err == Error.Ok)
+        {
+            image.GenerateMipmaps();
+            texture = ImageTexture.CreateFromImage(image);
+        }
+        _textures[m] = texture;
+        return texture;
     }
 
     private static Color ToColor(Material? m, Rgba fallback)
@@ -376,8 +420,10 @@ public sealed class ModelRenderer
     {
         public List<Vector3> Vertices { get; } = [];
         public List<Vector3> Normals { get; } = [];
+        public List<Vector2> Uvs { get; } = [];  // front side's texture coordinates
+        public List<Vector2> Uv2s { get; } = []; // back side's
 
-        public void AddFace(Face face)
+        public void AddFace(Face face, Material? front, Material? back)
         {
             var outer = face.OuterLoop.Points.ToList();
             var holes = face.InnerLoops.Select(l => (IReadOnlyList<Vec3>)l.Points.ToList()).ToList();
@@ -386,15 +432,25 @@ public sealed class ModelRenderer
                 return;
             var pts = outer.Concat(holes.SelectMany(h => h)).Select(Space.ToGodot).ToArray();
             var n = Space.DirToGodot(face.Normal);
+            var model = outer.Concat(holes.SelectMany(h => h)).ToArray();
+            // Texture coordinates as SketchUp computes them; V flips because images run top-down in Godot.
+            Vector2 Uv(Material? m, bool backSide, Vec3 p)
+            {
+                if (m?.Texture == null)
+                    return Vector2.Zero;
+                var (u, v) = Texturing.Uv(face, backSide, p, m);
+                return new Vector2((float)u, (float)-v);
+            }
             for (var i = 0; i < idx.Count; i += 3)
             {
                 // Model fronts are counter-clockwise; Godot's are clockwise.
-                Vertices.Add(pts[idx[i]]);
-                Vertices.Add(pts[idx[i + 2]]);
-                Vertices.Add(pts[idx[i + 1]]);
-                Normals.Add(n);
-                Normals.Add(n);
-                Normals.Add(n);
+                foreach (var k in new[] { idx[i], idx[i + 2], idx[i + 1] })
+                {
+                    Vertices.Add(pts[k]);
+                    Normals.Add(n);
+                    Uvs.Add(Uv(front, false, model[k]));
+                    Uv2s.Add(Uv(back, true, model[k]));
+                }
             }
         }
     }

@@ -111,6 +111,9 @@ public static class SkpImporter
             {
                 FrontMaterial = materialById(f.MaterialId),
                 BackMaterial = materialById(f.BackMaterialId),
+                // Positioned textures (SketchUp's pins); null keeps the default projection.
+                FrontMapping = f.UvTransform is { Length: 9 } fm ? new TextureMapping(fm) : null,
+                BackMapping = f.UvTransformBack is { Length: 9 } bm ? new TextureMapping(bm) : null,
                 Hidden = f.Hidden,
             };
             foreach (var loop in f.Loops)

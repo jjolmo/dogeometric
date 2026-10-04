@@ -168,7 +168,8 @@ public static class SkpExporter
                 try
                 {
                     target.AddFace(outer, ctx.Material(face.FrontMaterial), ctx.Layer(face.Tag), ctx.Material(face.BackMaterial),
-                        face.Hidden, soft, smooth, hiddenEdges, holes.Count > 0 ? holes : null);
+                        face.Hidden, soft, smooth, hiddenEdges, holes.Count > 0 ? holes : null,
+                        Pins(face, false, outerMm), Pins(face, true, outerMm));
                 }
                 catch (Sk.SkpWriteException ex)
                 {
@@ -262,6 +263,25 @@ public static class SkpExporter
         return true;
     }
 
+    /// <summary>
+    /// A positioned texture as three point ↔ (u, v) pins, which OpenSKP turns back into SketchUp's matrix; null for
+    /// the default projection (written as is).
+    /// </summary>
+    private static List<Sk.UvCorrespondence>? Pins(Face face, bool back, List<Vec3> pointsMm)
+    {
+        var mapping = back ? face.BackMapping : face.FrontMapping;
+        var material = back ? face.BackMaterial : face.FrontMaterial;
+        if (mapping == null || material?.Texture == null || pointsMm.Count < 3)
+            return null;
+        // Three points that span the plane.
+        var a = pointsMm[0];
+        var b = pointsMm.Skip(1).FirstOrDefault(p => p.DistanceTo(a) > Tolerance.Length);
+        var c = pointsMm.Skip(2).FirstOrDefault(p => (b - a).Cross(p - a).Length > 1e-6);
+        if (b == default || c == default)
+            return null;
+        return [.. new[] { a, b, c }.Select(p => new Sk.UvCorrespondence(Inches(p), Texturing.Uv(face, back, p, material)))];
+    }
+
     /// <summary>Where each vertex is written: its position, nudged when an earlier vertex already sits there.</summary>
     private static Func<Vertex, Vec3> WrittenPositions(Entities e)
     {
@@ -325,7 +345,7 @@ public static class SkpExporter
     /// <summary>Uniform view over OpenSKP's root builder and definition builders.</summary>
     private sealed class Target
     {
-        public required Action<IReadOnlyList<(double, double, double)>, int?, int?, int?, bool, bool, bool, bool, IReadOnlyList<IReadOnlyList<(double, double, double)>>?> Face { get; init; }
+        public required Action<IReadOnlyList<(double, double, double)>, int?, int?, int?, bool, bool, bool, bool, IReadOnlyList<IReadOnlyList<(double, double, double)>>?, IReadOnlyList<Sk.UvCorrespondence>?, IReadOnlyList<Sk.UvCorrespondence>?> Face { get; init; }
         public required Action<(double, double, double), (double, double, double), EdgeFlags> Edge { get; init; }
         public required Action<Sk.ComponentDefinitionBuilder, bool, string?, (double, double, double), double[], int?, int?, bool> Instance { get; init; }
         public required Action<Sk.ComponentDefinitionBuilder, (double, double, double), double[], int?, bool> Image { get; init; }
@@ -334,8 +354,9 @@ public static class SkpExporter
             Image(def, t, m3, layer, hidden);
 
         public void AddFace(IReadOnlyList<(double, double, double)> pts, int? mat, int? layer, int? back, bool hidden,
-            bool soft, bool smooth, bool hiddenEdges, IReadOnlyList<IReadOnlyList<(double, double, double)>>? holes) =>
-            Face(pts, mat, layer, back, hidden, soft, smooth, hiddenEdges, holes);
+            bool soft, bool smooth, bool hiddenEdges, IReadOnlyList<IReadOnlyList<(double, double, double)>>? holes,
+            IReadOnlyList<Sk.UvCorrespondence>? frontUv = null, IReadOnlyList<Sk.UvCorrespondence>? backUv = null) =>
+            Face(pts, mat, layer, back, hidden, soft, smooth, hiddenEdges, holes, frontUv, backUv);
 
         public void AddEdge((double, double, double) a, (double, double, double) b, EdgeFlags flags) => Edge(a, b, flags);
 
@@ -344,7 +365,7 @@ public static class SkpExporter
 
         public static Target For(Sk.SkpBuilder b) => new()
         {
-            Face = (p, m, l, bk, h, s, sm, he, holes) => b.AddFace(p, m, l, bk, h, s, sm, he, holes: holes),
+            Face = (p, m, l, bk, h, s, sm, he, holes, fu, bu) => b.AddFace(p, m, l, bk, h, s, sm, he, frontUv: fu, backUv: bu, holes: holes),
             Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
             Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>
@@ -358,7 +379,7 @@ public static class SkpExporter
 
         public static Target For(Sk.ComponentDefinitionBuilder b) => new()
         {
-            Face = (p, m, l, bk, h, s, sm, he, holes) => b.AddFace(p, m, l, bk, h, s, sm, he, holes: holes),
+            Face = (p, m, l, bk, h, s, sm, he, holes, fu, bu) => b.AddFace(p, m, l, bk, h, s, sm, he, frontUv: fu, backUv: bu, holes: holes),
             Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
             Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>

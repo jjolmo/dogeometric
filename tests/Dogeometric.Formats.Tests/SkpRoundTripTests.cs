@@ -130,6 +130,35 @@ public class SkpRoundTripTests
         Assert.Equal(6, model.Definitions.Count);
     }
 
+    [Fact]
+    public void Positioned_texture_keeps_its_placement()
+    {
+        // A label placed on a face with pins (rotated and scaled): the texture coordinates of every corner must
+        // come back the same.
+        var model = new Model();
+        var mat = new Material { Name = "Logo", Texture = new TextureImage { FileName = "logo.png", Data = Png, WidthMm = 40, HeightMm = 20 } };
+        model.Materials.Add(mat);
+        var face = model.Entities.AddFace([new(0, 0, 0), new(100, 0, 0), new(100, 60, 0), new(0, 60, 0)]);
+        face.FrontMaterial = mat;
+        var (ox, oy) = Texturing.PlanePoint(face, new Vec3(10, 5, 0));
+        var (ux, uy) = Texturing.PlanePoint(face, new Vec3(40, 25, 0));
+        var (vx, vy) = Texturing.PlanePoint(face, new Vec3(-5, 25, 0));
+        face.FrontMapping = TextureMapping.FromPlanePoints((ox, oy), (ux, uy), (vx, vy), 40, 20);
+        var before = face.OuterLoop.Points.Select(p => Texturing.Uv(face, false, p, mat)).ToList();
+
+        var back = RoundTrip(model);
+        var f = Assert.Single(back.Entities.Faces);
+        Assert.NotNull(f.FrontMapping);
+        var after = f.OuterLoop.Points.Select(p => Texturing.Uv(f, false, p, f.FrontMaterial!)).ToList();
+        foreach (var p in face.OuterLoop.Points)
+        {
+            var i = face.OuterLoop.Points.ToList().IndexOf(p);
+            var j = f.OuterLoop.Points.ToList().FindIndex(q => q.DistanceTo(p) < 1e-3);
+            Assert.Equal(before[i].U, after[j].U, 4);
+            Assert.Equal(before[i].V, after[j].V, 4);
+        }
+    }
+
     private static void TestBox(Entities e)
     {
         e.AddFace([new(0, 0, 0), new(0, 10, 0), new(10, 10, 0), new(10, 0, 0)]);

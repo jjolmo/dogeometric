@@ -136,4 +136,16 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Equal(Transform.Identity, model.Axes);
     }
+
+    [Fact]
+    public void Texture_mappings_round_trip()
+    {
+        var model = new Model();
+        var face = model.Entities.AddFace([new(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)]);
+        face.FrontMapping = new TextureMapping([2, 0, 0, 0, 3, 0, 1, 1, 1]);
+        var back = RoundTrip(model);
+        var f = Assert.Single(back.Entities.Faces);
+        Assert.Equal(face.FrontMapping.Matrix, f.FrontMapping!.Matrix);
+        Assert.Null(f.BackMapping);
+    }
 }

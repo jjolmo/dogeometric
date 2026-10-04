@@ -196,6 +196,22 @@ public static class DogFile
             w.WriteNumberValue(Ref(mats, f.BackMaterial));
             w.WriteNumberValue(Ref(tags, f.Tag));
             w.WriteNumberValue(f.Hidden ? 1 : 0);
+            // Optional: positioned textures for the front and back (SketchUp's 3×3 UV matrices).
+            if (f.FrontMapping != null || f.BackMapping != null)
+            {
+                foreach (var mapping in new[] { f.FrontMapping, f.BackMapping })
+                {
+                    if (mapping == null)
+                    {
+                        w.WriteNullValue();
+                        continue;
+                    }
+                    w.WriteStartArray();
+                    foreach (var x in mapping.Matrix)
+                        w.WriteNumberValue(x);
+                    w.WriteEndArray();
+                }
+            }
             w.WriteEndArray();
         }
         w.WriteEndArray();
@@ -453,6 +469,8 @@ public static class DogFile
                 BackMaterial = MaterialAt(model, a[2].GetInt32()),
                 Tag = TagAt(model, a[3].GetInt32()),
                 Hidden = a[4].GetInt32() != 0,
+                FrontMapping = a.Length > 5 ? ReadMapping(a[5]) : null,
+                BackMapping = a.Length > 6 ? ReadMapping(a[6]) : null,
             };
             foreach (var lj in a[0].EnumerateArray())
             {
@@ -551,6 +569,9 @@ public static class DogFile
         item != null && index.TryGetValue(item, out var i) ? i : -1;
 
     private static Material? MaterialAt(Model m, int i) => i >= 0 && i < m.Materials.Count ? m.Materials[i] : null;
+
+    private static TextureMapping? ReadMapping(JsonElement j) =>
+        j.ValueKind == JsonValueKind.Array ? new TextureMapping(j.EnumerateArray().Select(x => x.GetDouble()).ToArray()) : null;
 
     private static Tag? TagAt(Model m, int i) => i >= 0 && i < m.Tags.Count ? m.Tags[i] : null;
 

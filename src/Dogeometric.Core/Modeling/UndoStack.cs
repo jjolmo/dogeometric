@@ -153,7 +153,7 @@ public sealed class UndoStack(Model model)
         private Edge[] _edges = [];
         private (Vertex Start, Vertex End, EdgeFlags Flags, Tag? Tag, Material? Material)[] _edgeData = [];
         private Face[] _faces = [];
-        private (List<(Edge, bool)>[] Loops, Material? Front, Material? Back, Tag? Tag, bool Hidden)[] _faceData = [];
+        private (List<(Edge, bool)>[] Loops, Material? Front, Material? Back, Tag? Tag, bool Hidden, TextureMapping? FrontMap, TextureMapping? BackMap)[] _faceData = [];
         private ComponentInstance[] _instances = [];
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
@@ -171,7 +171,7 @@ public sealed class UndoStack(Model model)
             _edges = [.. e.Edges],
             _edgeData = e.Edges.Select(x => (x.Start, x.End, x.Flags, x.Tag, x.Material)).ToArray(),
             _faces = [.. e.Faces],
-            _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden)).ToArray(),
+            _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden, f.FrontMapping, f.BackMapping)).ToArray(),
             _instances = [.. e.Instances],
             _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked)).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
@@ -245,8 +245,10 @@ public sealed class UndoStack(Model model)
             Replace(_target.Faces, _faces);
             for (var i = 0; i < _faces.Length; i++)
             {
-                var (loops, front, back, tag, hidden) = _faceData[i];
+                var (loops, front, back, tag, hidden, frontMap, backMap) = _faceData[i];
                 var face = _faces[i];
+                face.FrontMapping = frontMap;
+                face.BackMapping = backMap;
                 face.Loops.Clear();
                 foreach (var l in loops)
                 {
