@@ -14,7 +14,12 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
-    public static readonly int[] ToolsOnSurface = Enum.GetValues<Dogeometric.App.Tools.SurfaceShape>().Select(Commands.ExtensionIds.SurfaceShape).ToArray();
+    public static readonly int[] ToolsOnSurface = new[]
+    {
+        Tools.SurfaceShape.Line, Tools.SurfaceShape.Rectangle, Tools.SurfaceShape.Circle, Tools.SurfaceShape.Polygon, Tools.SurfaceShape.Ellipse,
+        Tools.SurfaceShape.Parallelogram, Tools.SurfaceShape.Arc, Tools.SurfaceShape.Circle3P, Tools.SurfaceShape.Sector,
+        Tools.SurfaceShape.Polyline, Tools.SurfaceShape.Freehand,
+    }.Select(Commands.ExtensionIds.SurfaceShape).ToArray();
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
     // In the original toolbar's order.
     public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }

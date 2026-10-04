@@ -78,92 +78,200 @@ public sealed class DrapeTool : Tool
     }
 }
 
-/// <summary>Tools on Surface's shapes.</summary>
-public enum SurfaceShape { Line, Rectangle, Circle, Polygon }
+/// <summary>Tools on Surface's shapes (new ones go last: their command ids follow this order).</summary>
+public enum SurfaceShape { Line, Rectangle, Circle, Polygon, Ellipse, Parallelogram, Arc, Sector, Circle3P, Polyline, Freehand }
 
 /// <summary>
-/// Tools on Surface (Fredo6): line, rectangle, circle and polygon drawn on a surface, flat or curved. The shape is laid
-/// out in the plane touching the surface at the first click, then laid onto the faces, splitting them.
+/// Tools on Surface (Fredo6): shapes drawn on a surface, flat or curved. The shape is laid out in the plane touching
+/// the surface at the first click, then laid onto the faces, splitting them. Polyline ends with Return, a double
+/// click or a click on its start; Freehand follows a drag.
 /// </summary>
 public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
 {
     private static int _sides = 24;
-    private Vec3? _first;
+    private readonly List<Vec3> _points = [];
     private Vec3 _normal;
     private (Entities, Transform)? _target;
     private Vec3? _hover;
+    private bool _drawing;
 
     public override int CommandId => ExtensionIds.SurfaceShape(shape);
     public override string CursorImage => "pencil";
-    public override string VcbLabel => shape is SurfaceShape.Circle or SurfaceShape.Polygon && _first == null ? "Sides" : "Length";
-    public override string VcbValue => shape is SurfaceShape.Circle or SurfaceShape.Polygon ? _sides.ToString() : "";
+    private bool HasSides => shape is SurfaceShape.Circle or SurfaceShape.Polygon or SurfaceShape.Ellipse or SurfaceShape.Circle3P;
+    public override string VcbLabel => HasSides ? "Sides" : "Length";
+    public override string VcbValue => HasSides ? _sides.ToString() : "";
 
-    public override string StatusText => _first == null
-        ? $"{shape} on Surface: click a point on the surface."
-        : shape is SurfaceShape.Circle or SurfaceShape.Polygon ? "Click to set the radius." : "Click the other end / corner.";
+    /// <summary>Clicks the shape takes; 0 for Polyline (open-ended) and Freehand (a drag).</summary>
+    private int Clicks => shape switch
+    {
+        SurfaceShape.Parallelogram or SurfaceShape.Arc or SurfaceShape.Sector or SurfaceShape.Circle3P => 3,
+        SurfaceShape.Polyline or SurfaceShape.Freehand => 0,
+        _ => 2,
+    };
+
+    private bool Closed => shape is not (SurfaceShape.Line or SurfaceShape.Arc or SurfaceShape.Polyline or SurfaceShape.Freehand);
+
+    public override string StatusText => (_points.Count, shape) switch
+    {
+        (0, SurfaceShape.Freehand) => "Freehand on Surface: press and drag on the surface.",
+        (0, _) => $"{shape} on Surface: click a point on the surface.",
+        (_, SurfaceShape.Polyline) => "Click the next point; Return, a double click or the first point ends it.",
+        (_, SurfaceShape.Freehand) => "Drag, then release.",
+        (1, SurfaceShape.Circle or SurfaceShape.Polygon or SurfaceShape.Ellipse) => "Click to set the size.",
+        (1, SurfaceShape.Arc or SurfaceShape.Sector) => "Click the start of the arc.",
+        (2, SurfaceShape.Arc or SurfaceShape.Sector) => "Click the end of the arc.",
+        (_, SurfaceShape.Circle3P) => "Click the next point on the circle.",
+        _ => "Click the next corner.",
+    };
 
     public override void MouseMove(Vector2 position, Vector2 relative)
     {
         _hover = PointOnPlane(position);
+        if (shape == SurfaceShape.Freehand && _drawing && _hover is { } h && View.ToScreen(_points[^1]) is { } last && last.DistanceTo(position) > 6)
+            _points.Add(h);
         View.QueueOverlayRedraw();
     }
 
     private Vec3? PointOnPlane(Vector2 position)
     {
-        if (_first is not { } f)
+        if (_points.Count == 0)
             return View.Pick(position)?.Point;
         var ray = View.ScreenRay(position);
-        return Dogeometric.Core.Inference.InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), _normal, f);
+        return Dogeometric.Core.Inference.InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), _normal, _points[0]);
     }
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
         if (button != MouseButton.Left || View.Document is not { } doc)
             return;
-        if (_first == null)
+        if (_points.Count == 0)
         {
             if (View.Pick(position) is not { } hit || SurfaceTarget.Of(doc, hit) is not { } target || SurfaceTarget.FaceOf(hit, target.Entities) is not { } face)
                 return;
-            _first = hit.Point;
+            _points.Add(hit.Point);
             _normal = target.ToWorld.ApplyNormal(face.Normal).Normalized();
             _target = target;
+            _drawing = shape == SurfaceShape.Freehand;
             RefreshStatus();
             return;
         }
-        if (PointOnPlane(position) is not { } p || _target is not { } t)
+        if (PointOnPlane(position) is not { } p)
             return;
-        var outline = Outline(_first.Value, p);
-        if (outline.Count >= 2)
-            SurfaceTarget.Lay(doc, $"{shape} on Surface", t, outline, -_normal, closed: shape != SurfaceShape.Line);
-        _first = null;
-        _target = null;
-        RefreshStatus();
+        if (shape == SurfaceShape.Polyline)
+        {
+            var closing = _points.Count > 2 && View.ToScreen(_points[0]) is { } first && first.DistanceTo(position) < 8;
+            if (closing || (_points.Count > 1 && p.DistanceTo(_points[^1]) < Tolerance.Length))
+            {
+                Finish(doc, closing);
+                return;
+            }
+        }
+        _points.Add(p);
+        if (Clicks > 0 && _points.Count >= Clicks)
+            Finish(doc, Closed);
+        else
+            RefreshStatus();
     }
 
-    /// <summary>The shape in the touching plane, from the first click to <paramref name="p"/>.</summary>
-    private List<Vec3> Outline(Vec3 first, Vec3 p)
+    public override void MouseUp(MouseButton button, Vector2 position)
     {
+        if (shape == SurfaceShape.Freehand && _drawing && View.Document is { } doc)
+            Finish(doc, false);
+    }
+
+    private void Finish(Document doc, bool closed)
+    {
+        var outline = Outline(_points);
+        if (outline.Count >= 2 && _target is { } t)
+            SurfaceTarget.Lay(doc, $"{shape} on Surface", t, outline, -_normal, closed);
+        Reset();
+    }
+
+    private void Reset()
+    {
+        _points.Clear();
+        _target = null;
+        _drawing = false;
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+    }
+
+    /// <summary>The shape in the touching plane through <paramref name="pts"/> (the clicks, maybe plus the cursor).</summary>
+    private List<Vec3> Outline(IReadOnlyList<Vec3> pts)
+    {
+        if (pts.Count < 2)
+            return [];
+        var (u, v) = Polygon.PlaneAxes(_normal);
+        var first = pts[0];
+        var p = pts[1];
         switch (shape)
         {
             case SurfaceShape.Line:
                 return [first, p];
+            case SurfaceShape.Polyline or SurfaceShape.Freehand:
+                return [.. pts];
             case SurfaceShape.Rectangle:
             {
-                var (u, v) = Polygon.PlaneAxes(_normal);
                 var d = p - first;
                 var du = u * d.Dot(u);
                 var dv = v * d.Dot(v);
                 return [first, first + du, first + du + dv, first + dv];
             }
-            default:
+            case SurfaceShape.Ellipse:
+            {
+                var d = p - first;
+                double a = Math.Abs(d.Dot(u)), b = Math.Abs(d.Dot(v));
+                if (a < Tolerance.Length || b < Tolerance.Length)
+                    return [];
+                return Enumerable.Range(0, _sides).Select(i => 2 * Math.PI * i / _sides)
+                    .Select(t => first + u * (a * Math.Cos(t)) + v * (b * Math.Sin(t))).ToList();
+            }
+            case SurfaceShape.Parallelogram:
+                return pts.Count < 3 ? [first, p] : [first, p, pts[2], first + (pts[2] - p)];
+            case SurfaceShape.Arc or SurfaceShape.Sector:
+            {
+                if (pts.Count < 3)
+                    return [first, p];
                 var r = first.DistanceTo(p);
-                return r < Tolerance.Length ? [] : Shapes.RegularPolygon(first, _normal, p - first, r, _sides, false);
+                var a0 = Math.Atan2((p - first).Dot(v), (p - first).Dot(u));
+                var a1 = Math.Atan2((pts[2] - first).Dot(v), (pts[2] - first).Dot(u));
+                var sweep = a1 - a0;
+                if (sweep <= 0)
+                    sweep += 2 * Math.PI;
+                var segments = Math.Max(2, (int)Math.Ceiling(_sides * sweep / (2 * Math.PI)));
+                var arc = Shapes.CenterArc(first, _normal, p, sweep, segments);
+                return shape == SurfaceShape.Sector && r > Tolerance.Length ? [first, .. arc] : arc;
+            }
+            case SurfaceShape.Circle3P:
+            {
+                if (pts.Count < 3)
+                    return [first, p];
+                return Circumcircle(first, p, pts[2]) is { } c
+                    ? Shapes.RegularPolygon(c.Centre, _normal, first - c.Centre, c.Radius, _sides)
+                    : [];
+            }
+            default:
+                var radius = first.DistanceTo(p);
+                return radius < Tolerance.Length ? [] : Shapes.RegularPolygon(first, _normal, p - first, radius, _sides, false);
         }
+    }
+
+    private (Vec3 Centre, double Radius)? Circumcircle(Vec3 a, Vec3 b, Vec3 c)
+    {
+        var (u, v) = Polygon.PlaneAxes(_normal);
+        double ax = a.Dot(u), ay = a.Dot(v), bx = b.Dot(u), by = b.Dot(v), cx = c.Dot(u), cy = c.Dot(v);
+        var d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+        if (Math.Abs(d) < 1e-12)
+            return null;
+        var ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+        var uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+        var centre = u * ux + v * uy + _normal * a.Dot(_normal);
+        return (centre, centre.DistanceTo(a));
     }
 
     public override bool ApplyVcb(string text)
     {
-        if (shape is SurfaceShape.Circle or SurfaceShape.Polygon && int.TryParse(text.Trim().TrimEnd('s'), out var n) && n >= 3)
+        if (HasSides && int.TryParse(text.Trim().TrimEnd('s'), out var n) && n >= 3)
         {
             _sides = n;
             View.ShowVcbValue(VcbValue);
@@ -174,19 +282,25 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
 
     public override bool KeyDown(InputEventKey key)
     {
-        if (key.Keycode != Key.Escape || _first == null)
+        if (_points.Count == 0)
             return false;
-        _first = null;
-        RefreshStatus();
+        if (key.Keycode is Key.Enter or Key.KpEnter && shape == SurfaceShape.Polyline && View.Document is { } doc)
+        {
+            Finish(doc, false);
+            return true;
+        }
+        if (key.Keycode != Key.Escape)
+            return false;
+        Reset();
         return true;
     }
 
     public override void Draw(Control overlay)
     {
-        if (_first is not { } f || _hover is not { } h)
+        if (_points.Count == 0)
             return;
-        var pts = Outline(f, h);
-        var closed = shape != SurfaceShape.Line;
+        var pts = Outline(_hover is { } h && !_drawing ? [.. _points, h] : _points);
+        var closed = Closed && (Clicks == 0 || _points.Count + 1 >= Clicks);
         for (var i = 0; i + 1 < pts.Count + (closed ? 1 : 0); i++)
             if (View.ToScreen(pts[i]) is { } a && View.ToScreen(pts[(i + 1) % pts.Count]) is { } b)
                 overlay.DrawLine(a, b, new Color(0.85f, 0.1f, 0.1f), 1.5f, true);
