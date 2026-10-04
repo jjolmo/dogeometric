@@ -683,6 +683,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.HiddenObjects, () => _document.ShowHiddenObjects = !_document.ShowHiddenObjects, () => _document.ShowHiddenObjects);
         _commands.Register(CommandIds.FieldOfView, () => _viewport.Tools.Activate(new ZoomTool()));
         _commands.Register(CommandIds.Edges, () => _document.ShowEdges = !_document.ShowEdges, () => _document.ShowEdges);
+        _commands.Register(CommandIds.Profiles, () => _document.ShowProfiles = !_document.ShowProfiles, () => _document.ShowProfiles);
         _commands.Register(CommandIds.Shadows, () =>
         {
             var doc = Doc();

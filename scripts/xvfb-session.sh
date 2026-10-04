@@ -5,7 +5,7 @@
 #        scripts/xvfb-session.sh stop
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DISPLAY_NUM=:99
+DISPLAY_NUM=${XVFB_DISPLAY:-:99}
 GODOT="${GODOT:-$HOME/Godot/godot.x86_64}"
 case "${1:-}" in
   start)

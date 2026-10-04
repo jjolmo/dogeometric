@@ -39,6 +39,20 @@ public sealed class ModelRenderer
         get => _edgeMaterial.NextPass != null;
         set => _edgeMaterial.NextPass = value ? _backEdgeMaterial : null;
     }
+    private readonly ShaderMaterial _profileMaterial = new() { Shader = GD.Load<Shader>("res://shaders/profile.gdshader") };
+
+    /// <summary>View › Edge Style › Profiles: silhouettes drawn thick (SketchUp's default width, 3 pixels).</summary>
+    public bool ShowProfiles
+    {
+        get => _showProfiles;
+        set
+        {
+            _showProfiles = value;
+            _profileMaterial.SetShaderParameter("profile_width", value ? 3f : 0f);
+        }
+    }
+
+    private bool _showProfiles;
     private readonly ShaderMaterial _guideMaterial = new() { Shader = GD.Load<Shader>("res://shaders/guide.gdshader") };
 
     /// <summary>View › Guides.</summary>
@@ -118,7 +132,7 @@ public sealed class ModelRenderer
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
 
     /// <summary>Mesh data of one entity collection. Surfaces are keyed by (front, back) material; null = default.</summary>
-    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides, ArrayMesh? Hidden = null);
+    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides, ArrayMesh? Hidden = null, ArrayMesh? Profiles = null);
 
     /// <summary>
     /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
@@ -192,6 +206,8 @@ public sealed class ModelRenderer
             }
             parent.AddChild(faces);
         }
+        if (mesh.Profiles != null && (ShowEdges || ShowProfiles) && FaceStyle != FaceStyle.Wireframe)
+            parent.AddChild(new MeshInstance3D { Mesh = mesh.Profiles, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Edges != null && ShowEdges)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = _shadows is { Enabled: true, FromEdges: true } ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Hidden != null)
@@ -268,8 +284,76 @@ public sealed class ModelRenderer
             edges.SurfaceSetMaterial(0, _edgeMaterial);
         }
 
-        var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e), _showHidden ? HiddenMesh(e) : null);
+        var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e), _showHidden ? HiddenMesh(e) : null, ProfileMesh(e));
         _meshes[e] = mesh;
+        return mesh;
+    }
+
+    /// <summary>Edges that can be silhouettes (with one or two visible faces), as quads for profile.gdshader.</summary>
+    private ArrayMesh? ProfileMesh(Entities e)
+    {
+        var faces = new Dictionary<Edge, List<Face>>();
+        foreach (var face in e.Faces)
+        {
+            if (face.Hidden || face.Tag is { Visible: false })
+                continue;
+            foreach (var edge in Topology.EdgesOf(face))
+            {
+                if (!faces.TryGetValue(edge, out var list))
+                    faces[edge] = list = [];
+                list.Add(face);
+            }
+        }
+        var verts = new List<Vector3>();
+        var custom0 = new List<float>();
+        var custom1 = new List<float>();
+        var custom2 = new List<float>();
+        var custom3 = new List<float>();
+        float[] Plane(Face f)
+        {
+            var n = Space.DirToGodot(f.Normal.Normalized());
+            return [n.X, n.Y, n.Z, n.Dot(Space.ToGodot(f.OuterLoop.Edges[0].Edge.Start.Position))];
+        }
+        foreach (var (edge, list) in faces)
+        {
+            if ((edge.Flags & EdgeFlags.Hidden) != 0 || edge.Tag is { Visible: false })
+                continue;
+            var soft = (edge.Flags & EdgeFlags.Soft) != 0 ? 1f : 0f;
+            var p1 = Plane(list[0]);
+            var p2 = list.Count > 1 ? Plane(list[1]) : [0, 0, 0, 0];
+            var a = Space.ToGodot(edge.Start.Position);
+            var b = Space.ToGodot(edge.End.Position);
+            void Corner(Vector3 p, Vector3 other, float side)
+            {
+                verts.Add(p);
+                custom0.AddRange([other.X, other.Y, other.Z, side]);
+                custom1.AddRange(p1);
+                custom2.AddRange(p2);
+                custom3.AddRange([soft, list.Count > 1 ? 1 : 0, 0, 0]);
+            }
+            // The shader measures sideways from each end towards the other, so B's sides are mirrored.
+            Corner(a, b, -1);
+            Corner(a, b, 1);
+            Corner(b, a, -1);
+            Corner(a, b, -1);
+            Corner(b, a, -1);
+            Corner(b, a, 1);
+        }
+        if (verts.Count == 0)
+            return null;
+        var mesh = new ArrayMesh();
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
+        arrays[(int)Mesh.ArrayType.Custom0] = custom0.ToArray();
+        arrays[(int)Mesh.ArrayType.Custom1] = custom1.ToArray();
+        arrays[(int)Mesh.ArrayType.Custom2] = custom2.ToArray();
+        arrays[(int)Mesh.ArrayType.Custom3] = custom3.ToArray();
+        var rgba = (int)Mesh.ArrayCustomFormat.RgbaFloat;
+        var format = (Mesh.ArrayFormat)((rgba << (int)Mesh.ArrayFormat.FormatCustom0Shift) | (rgba << (int)Mesh.ArrayFormat.FormatCustom1Shift)
+            | (rgba << (int)Mesh.ArrayFormat.FormatCustom2Shift) | (rgba << (int)Mesh.ArrayFormat.FormatCustom3Shift));
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, flags: format);
+        mesh.SurfaceSetMaterial(0, _profileMaterial);
         return mesh;
     }
 

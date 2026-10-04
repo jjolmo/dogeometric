@@ -59,6 +59,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>View › Edge Style › Profiles.</summary>
+    public bool ShowProfiles
+    {
+        get => _renderer.ShowProfiles;
+        set
+        {
+            _renderer.ShowProfiles = value;
+            Rebuild();
+        }
+    }
+
     /// <summary>View › Hidden Objects.</summary>
     public bool ShowHiddenObjects
     {

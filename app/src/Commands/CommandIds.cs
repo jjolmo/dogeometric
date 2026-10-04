@@ -102,6 +102,7 @@ public static class CommandIds
     public const int Walk = 10520;
     public const int BackEdges = 10619;
     public const int Edges = 10614;
+    public const int Profiles = 10603;
     public const int HiddenGeometry = 21155;
     public const int Fog = 10618;
     public const int Shadows = 10602;
