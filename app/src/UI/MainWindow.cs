@@ -244,7 +244,9 @@ public partial class MainWindow : Control
                 ? () => CleanUpDialog.Show(this, RunCleanUp)
                 : () => RunCleanUp(options()));
         }
-        _commands.AddToMenu("Extensions", ExtensionIds.CircleByDiameter, "Circle By Diameter", "Create circles by diameter: click both ends.");
+        _commands.AddToMenu("Draw", ExtensionIds.CircleByDiameter, "Circle By Diameter", "Create circles by diameter: click both ends.");
+        _commands.AddToMenu("Draw", ExtensionIds.Sphere, "Sphere...", "Create a sphere from its radius and segments.", separator: false);
+        _commands.Register(ExtensionIds.Sphere, ShowSphereDialog);
         _commands.Register(ExtensionIds.CircleByDiameter, () => _viewport.Tools.Activate(new CircleByDiameterTool()),
             () => _viewport.Tools.Active is CircleByDiameterTool);
         _commands.AddToMenu("Tools", ExtensionIds.SelectCurve, "Select Curve", "Select sets of connected visible edges.");
@@ -342,6 +344,47 @@ public partial class MainWindow : Control
         doc.Selection.Clear();
         _status.SetHint("CleanUp³: done.");
         CleanUpDialog.Statistics(this, stats, DateTime.Now - started);
+    }
+
+    private static double _sphereRadius = 10;
+    private static int _sphereSegments = 24;
+
+    /// <summary>rp_sphere's dialog: radius and segments; the sphere is made as a group at the origin of the context.</summary>
+    private void ShowSphereDialog()
+    {
+        var d = new ConfirmationDialog { Title = "Sphere", OkButtonText = "OK" };
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddChild(new Label { Text = "Radius" });
+        var radius = new LineEdit { Text = Dogeometric.Core.Units.Length.Format(_sphereRadius, Dogeometric.Core.Units.LengthUnit.Millimeters, 2), CustomMinimumSize = new Vector2(120, 0) };
+        grid.AddChild(radius);
+        grid.AddChild(new Label { Text = "Segments" });
+        var segments = new SpinBox { MinValue = 4, MaxValue = 360, Value = _sphereSegments };
+        grid.AddChild(segments);
+        d.AddChild(grid);
+        d.RegisterTextEnter(radius);
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            if (!Dogeometric.Core.Units.Length.TryParse(radius.Text, Dogeometric.Core.Units.LengthUnit.Millimeters, out var r) || r <= 0)
+                return;
+            _sphereRadius = r;
+            _sphereSegments = (int)segments.Value;
+            var doc = _document.Document;
+            ComponentInstance? made = null;
+            doc.Operation("Sphere", e =>
+            {
+                var def = new ComponentDefinition { Name = "Sphere", IsGroup = true };
+                Dogeometric.Core.Modeling.Sphere.Add(def.Entities, Dogeometric.Core.Geometry.Vec3.Zero, r, _sphereSegments);
+                doc.Model.Definitions.Add(def);
+                made = e.AddInstance(def, Dogeometric.Core.Geometry.Transform.Identity);
+            });
+            if (made != null)
+                doc.Selection.Set([made]);
+        };
+        d.Canceled += d.QueueFree;
+        AddChild(d);
+        d.PopupCentered();
+        radius.GrabFocus();
     }
 
     /// <summary>Tools › Loop subdivision smooth: asks how many rounds and whether to soften, then subdivides.</summary>
