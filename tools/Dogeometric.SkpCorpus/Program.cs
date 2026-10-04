@@ -82,6 +82,14 @@ foreach (var file in Directory.EnumerateFiles(root, "*.skp", SearchOption.AllDir
         stage = "skp-reimport";
         var again = SkpImporter.Import(skpPath);
         var skpDiff = Diff(counts, Count(again), skip: ["pages", "layers", "materials"]);
+        // Same counts are not enough: misplaced instances keep every count. Compare where the geometry is too.
+        var (b0, b1) = (model.Entities.Bounds(), again.Entities.Bounds());
+        if (!b0.IsEmpty && !b1.IsEmpty)
+        {
+            var drift = Math.Max(b0.Min.DistanceTo(b1.Min), b0.Max.DistanceTo(b1.Max));
+            if (drift > 0.1)
+                skpDiff = (skpDiff == "" ? "" : skpDiff + ", ") + $"bounds moved {drift:0.#}mm";
+        }
 
         if (oracleDiff is not ("" or "no-oracle")) oracleMismatches++;
         if (dogDiff != "") dogMismatches++;
