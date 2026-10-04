@@ -22,6 +22,7 @@ public partial class MainWindow : Control
     private MaterialsPanel _materials = null!;
     private TagsPanel _tags = null!;
     private ComponentsPanel _components = null!;
+    private OutlinerPanel _outliner = null!;
     private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
@@ -341,6 +342,8 @@ public partial class MainWindow : Control
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         list.AddChild(TraySection.Create("Components", _components, expanded: false));
         list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
+        _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
+        list.AddChild(TraySection.Create("Outliner", _outliner, expanded: false));
     }
 
     /// <summary>Panels follow the current document's selection and geometry.</summary>
@@ -348,16 +351,21 @@ public partial class MainWindow : Control
     {
         var doc = _document.Document;
         doc.Selection.Changed += _entityInfo.Refresh;
+        // Deferred: the Outliner's own clicks change the model, and its tree can't be rebuilt mid-signal.
+        doc.Selection.Changed += () => Callable.From(_outliner.SyncSelection).CallDeferred();
+        doc.Context.Changed += () => Callable.From(_outliner.SyncSelection).CallDeferred();
         doc.GeometryChanged += _ =>
         {
             _entityInfo.Refresh();
             _tags.Refresh();
             _components.Refresh();
+            Callable.From(_outliner.Refresh).CallDeferred();
         };
         _entityInfo.Refresh();
         _materials.Refresh();
         _tags.Refresh();
         _components.Refresh();
+        _outliner.Refresh();
     }
 
     /// <summary>Double-click on a dimension or text: edit its text in place ("&lt;&gt;" keeps a dimension's length).</summary>

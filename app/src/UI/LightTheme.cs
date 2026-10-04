@@ -56,6 +56,18 @@ public static class LightTheme
         theme.SetStylebox("read_only", "LineEdit", edit);
         theme.SetColor("font_uneditable_color", "LineEdit", Text);
         theme.SetColor("caret_color", "LineEdit", Text);
+        // Trees (Outliner): white panel, dark text, SketchUp's light blue selection.
+        var treePanel = Box(MenuBackground);
+        treePanel.BorderColor = Border;
+        treePanel.SetBorderWidthAll(1);
+        theme.SetStylebox("panel", "Tree", treePanel);
+        theme.SetStylebox("focus", "Tree", new StyleBoxEmpty());
+        theme.SetStylebox("selected", "Tree", Box(Hover));
+        theme.SetStylebox("selected_focus", "Tree", Box(Hover));
+        theme.SetColor("font_color", "Tree", Text);
+        theme.SetColor("font_selected_color", "Tree", Text);
+        theme.SetColor("guide_color", "Tree", Border);
+        theme.SetColor("relationship_line_color", "Tree", Border);
         theme.SetStylebox("normal", "TextEdit", edit);
         theme.SetStylebox("focus", "TextEdit", edit);
         theme.SetStylebox("read_only", "TextEdit", edit);
