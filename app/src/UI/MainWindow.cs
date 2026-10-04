@@ -24,6 +24,7 @@ public partial class MainWindow : Control
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
     private SceneTabs _scenes = null!;
+    private Action _rebuildMenus = () => { };
     private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
@@ -72,9 +73,20 @@ public partial class MainWindow : Control
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
 
+        _commands.LoadUserShortcuts();
         var menuPanel = new PanelContainer();
         menuPanel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.MenuBackground));
         menuPanel.AddChild(MenuBuilder.Build(_commands, text => _status.SetHint(text), UpdateToolStatus));
+        // Preferences › Shortcuts rebuilds the menus so they show the new keys.
+        _rebuildMenus = () =>
+        {
+            foreach (var c in menuPanel.GetChildren())
+            {
+                menuPanel.RemoveChild(c);
+                c.QueueFree();
+            }
+            menuPanel.AddChild(MenuBuilder.Build(_commands, text => _status.SetHint(text), UpdateToolStatus));
+        };
         layout.AddChild(menuPanel);
         layout.MoveChild(menuPanel, 0);
 
@@ -129,6 +141,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.DeleteScene, () => _scenes.DeleteCurrent());
         _commands.Register(CommandIds.NextScene, () => _scenes.Step(1));
         _commands.Register(CommandIds.PreviousScene, () => _scenes.Step(-1));
+        _commands.Register(CommandIds.Preferences, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus()));
         _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
         {
             _viewport.QueueOverlayRedraw();

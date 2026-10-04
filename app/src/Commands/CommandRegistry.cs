@@ -19,6 +19,9 @@ public sealed class Command(int id)
     /// <summary>Default shortcut shown in menus; extra shortcuts live in <see cref="CommandRegistry.Aliases"/>.</summary>
     public Key Shortcut { get; set; } = Key.None;
 
+    /// <summary>Where the command sits in the menus, e.g. "Camera/Zoom" (how SketchUp lists shortcuts).</summary>
+    public string MenuPath { get; set; } = "";
+
     public bool IsImplemented => Execute != null;
 }
 
@@ -56,7 +59,61 @@ public sealed class CommandRegistry
                 _aliases.Add((keys, cmd.Id));
         }
 
-        Menus = ParseMenus(root.GetProperty("menus"));
+        Menus = ParseMenus(root.GetProperty("menus"), "");
+    }
+
+    /// <summary>Every command with a label (for Preferences › Shortcuts).</summary>
+    public IEnumerable<Command> All => _commands.Values.Where(c => c.Label.Length > 0);
+
+    private const string UserShortcutsPath = "user://shortcuts.json";
+
+    /// <summary>
+    /// Gives <paramref name="id"/> the shortcut <paramref name="keys"/> (Key.None removes it). A shortcut belongs to one
+    /// command at a time, so other commands and aliases using the same keys lose them.
+    /// </summary>
+    public void SetShortcut(int id, Key keys)
+    {
+        if (keys != Key.None)
+        {
+            foreach (var c in _commands.Values.Where(c => c.Shortcut == keys))
+                c.Shortcut = Key.None;
+            _aliases.RemoveAll(a => a.Keys == keys);
+        }
+        Get(id).Shortcut = keys;
+    }
+
+    /// <summary>Saves every command's shortcut as the user's choice (SketchUp keeps them in its preferences).</summary>
+    public void SaveUserShortcuts()
+    {
+        // Godot key codes (with modifier bits): exact round trip, unlike display text.
+        var map = _commands.Values.Where(c => c.Label.Length > 0).ToDictionary(c => c.Id.ToString(), c => (long)c.Shortcut);
+        using var file = FileAccess.Open(UserShortcutsPath, FileAccess.ModeFlags.Write);
+        file?.StoreString(JsonSerializer.Serialize(map));
+    }
+
+    /// <summary>Applies the user's saved shortcuts over SketchUp's defaults.</summary>
+    public void LoadUserShortcuts()
+    {
+        if (!FileAccess.FileExists(UserShortcutsPath))
+            return;
+        using var file = FileAccess.Open(UserShortcutsPath, FileAccess.ModeFlags.Read);
+        if (file == null)
+            return;
+        try
+        {
+            var map = JsonSerializer.Deserialize<Dictionary<string, long>>(file.GetAsText()) ?? [];
+            foreach (var c in _commands.Values)
+                c.Shortcut = Key.None;
+            foreach (var (id, keys) in map)
+                if (int.TryParse(id, out var n))
+                    Get(n).Shortcut = (Key)keys;
+            // SketchUp's secondary shortcuts stay unless the user gave those keys to a command.
+            var taken = _commands.Values.Select(c => c.Shortcut).Where(k => k != Key.None).ToHashSet();
+            _aliases.RemoveAll(a => taken.Contains(a.Keys));
+        }
+        catch (JsonException)
+        {
+        }
     }
 
     public Command Get(int id)
@@ -82,7 +139,7 @@ public sealed class CommandRegistry
         return true;
     }
 
-    private List<MenuNode> ParseMenus(JsonElement items)
+    private List<MenuNode> ParseMenus(JsonElement items, string path)
     {
         var list = new List<MenuNode>();
         foreach (var it in items.EnumerateArray())
@@ -93,8 +150,9 @@ public sealed class CommandRegistry
                 continue;
             }
             var label = it.GetProperty("label").GetString() ?? "";
+            var clean = label.Replace("&", "").Replace("...", "").Split('\t')[0];
             if (it.TryGetProperty("children", out var children))
-                list.Add(new MenuNode(label, null, ParseMenus(children), false));
+                list.Add(new MenuNode(label, null, ParseMenus(children, path.Length == 0 ? clean : $"{path}/{clean}"), false));
             else
             {
                 var id = it.GetProperty("id").GetInt32();
@@ -102,6 +160,8 @@ public sealed class CommandRegistry
                 var cmd = Get(id);
                 if (cmd.Label.Length == 0)
                     cmd.Label = label;
+                if (cmd.MenuPath.Length == 0)
+                    cmd.MenuPath = path.Length == 0 ? clean : $"{path}/{clean}";
             }
         }
         return list;

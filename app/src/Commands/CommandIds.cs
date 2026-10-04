@@ -103,6 +103,7 @@ public static class CommandIds
     public const int HiddenGeometry = 21154;
     public const int Text3D = 21940;
     public const int ModelInfo = 21076;
+    public const int Preferences = 10521;
     public const int AddScene = 21067;
     public const int UpdateScene = 21068;
     public const int DeleteScene = 21078;
