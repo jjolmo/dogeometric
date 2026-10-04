@@ -103,6 +103,12 @@ public partial class MainWindow : Control
             Doc().Selection.Set(e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances.Where(i => !i.Hidden)));
         });
         _commands.Register(CommandIds.SelectNone, () => Doc().Selection.Clear());
+        _commands.Register(CommandIds.DeleteGuides, () => Doc().Operation("Delete Guides", e =>
+        {
+            e.GuideLines.Clear();
+            e.GuidePoints.Clear();
+        }));
+        _commands.Register(CommandIds.ToggleGuides, () => _document.ShowGuides = !_document.ShowGuides, () => _document.ShowGuides);
         _commands.Register(CommandIds.InvertSelection, () =>
         {
             var e = Doc().Context.Entities;
@@ -156,6 +162,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Arc2Point, () => new ArcTool());
         RegisterTool(CommandIds.Move, () => new MoveTool());
         RegisterTool(CommandIds.Eraser, () => new EraserTool());
+        RegisterTool(CommandIds.TapeMeasure, () => new TapeMeasureTool());
     }
 
     private void RegisterTool(int id, Func<Tool> create)

@@ -213,6 +213,35 @@ public static class DogFile
             w.WriteEndObject();
         }
         w.WriteEndArray();
+
+        if (e.GuideLines.Count > 0)
+        {
+            w.WriteStartArray("guideLines");
+            foreach (var g in e.GuideLines)
+            {
+                w.WriteStartObject();
+                WriteVec(w, "point", g.Point);
+                WriteVec(w, "direction", g.Direction);
+                if (g.Start is { } s && g.End is { } en)
+                {
+                    WriteVec(w, "start", s);
+                    WriteVec(w, "end", en);
+                }
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        }
+        if (e.GuidePoints.Count > 0)
+        {
+            w.WriteStartArray("guidePoints");
+            foreach (var g in e.GuidePoints)
+            {
+                w.WriteNumberValue(g.Position.X);
+                w.WriteNumberValue(g.Position.Y);
+                w.WriteNumberValue(g.Position.Z);
+            }
+            w.WriteEndArray();
+        }
         w.WriteEndObject();
     }
 
@@ -375,6 +404,26 @@ public static class DogFile
             inst.Material = MaterialAt(model, ij.GetProperty("material").GetInt32());
             inst.Hidden = ij.TryGetProperty("hidden", out var h) && h.GetBoolean();
             inst.Locked = ij.TryGetProperty("locked", out var l) && l.GetBoolean();
+        }
+
+        if (j.TryGetProperty("guideLines", out var guides))
+        {
+            foreach (var g in guides.EnumerateArray())
+            {
+                var line = new GuideLine(ReadVec(g.GetProperty("point")), ReadVec(g.GetProperty("direction")));
+                if (g.TryGetProperty("start", out var s) && g.TryGetProperty("end", out var en))
+                {
+                    line.Start = ReadVec(s);
+                    line.End = ReadVec(en);
+                }
+                e.GuideLines.Add(line);
+            }
+        }
+        if (j.TryGetProperty("guidePoints", out var gp))
+        {
+            var it2 = gp.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+            for (var i = 0; i + 2 < it2.Length; i += 3)
+                e.GuidePoints.Add(new GuidePoint(new Vec3(it2[i], it2[i + 1], it2[i + 2])));
         }
     }
 

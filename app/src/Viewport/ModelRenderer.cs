@@ -19,12 +19,16 @@ public sealed class ModelRenderer
     private readonly Shader _faceShader = GD.Load<Shader>("res://shaders/face.gdshader");
     private readonly Shader _faceTransparentShader = GD.Load<Shader>("res://shaders/face_transparent.gdshader");
     private readonly ShaderMaterial _edgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/edge.gdshader") };
+    private readonly ShaderMaterial _guideMaterial = new() { Shader = GD.Load<Shader>("res://shaders/guide.gdshader") };
+
+    /// <summary>View › Guides.</summary>
+    public bool ShowGuides { get; set; } = true;
 
     private readonly Dictionary<(Material?, Material?), ShaderMaterial> _faceMaterials = [];
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
 
     /// <summary>Mesh data of one entity collection. Surfaces are keyed by (front, back) material; null = default.</summary>
-    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges);
+    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides);
 
     /// <summary>
     /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
@@ -65,6 +69,8 @@ public sealed class ModelRenderer
         }
         if (mesh.Edges != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        if (mesh.Guides != null && ShowGuides)
+            parent.AddChild(new MeshInstance3D { Mesh = mesh.Guides, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
 
         foreach (var inst in entities.Instances)
         {
@@ -128,8 +134,48 @@ public sealed class ModelRenderer
             edges.SurfaceSetMaterial(0, _edgeMaterial);
         }
 
-        var mesh = new DefinitionMesh(faces, surfaces, edges);
+        var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e));
         _meshes[e] = mesh;
+        return mesh;
+    }
+
+    /// <summary>Guide lines (infinite ones drawn 1 km each way) and guide points as small crosses.</summary>
+    private ArrayMesh? GuideMesh(Entities e)
+    {
+        if (e.GuideLines.Count == 0 && e.GuidePoints.Count == 0)
+            return null;
+        var verts = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        void Add(Vec3 a, Vec3 b)
+        {
+            var ga = Space.ToGodot(a);
+            var gb = Space.ToGodot(b);
+            verts.Add(ga);
+            verts.Add(gb);
+            uvs.Add(Vector2.Zero);
+            uvs.Add(new Vector2(ga.DistanceTo(gb), 0));
+        }
+        foreach (var g in e.GuideLines)
+        {
+            if (g.Start is { } s && g.End is { } en)
+                Add(s, en);
+            else
+                Add(g.Point - g.Direction * 1_000_000, g.Point + g.Direction * 1_000_000);
+        }
+        foreach (var p in e.GuidePoints)
+        {
+            const double r = 20;
+            Add(p.Position - Vec3.UnitX * r, p.Position + Vec3.UnitX * r);
+            Add(p.Position - Vec3.UnitY * r, p.Position + Vec3.UnitY * r);
+            Add(p.Position - Vec3.UnitZ * r, p.Position + Vec3.UnitZ * r);
+        }
+        var mesh = new ArrayMesh();
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
+        arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
+        mesh.SurfaceSetMaterial(0, _guideMaterial);
         return mesh;
     }
 

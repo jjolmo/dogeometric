@@ -77,6 +77,25 @@ public sealed class Face
     public double Area => Polygon.Area(OuterLoop.Points.ToList()) - InnerLoops.Sum(l => Polygon.Area(l.Points.ToList()));
 }
 
+/// <summary>
+/// A guide line (Tape Measure / Protractor): through <see cref="Point"/> along <see cref="Direction"/>. Infinite
+/// unless <see cref="Start"/>/<see cref="End"/> bound it.
+/// </summary>
+public sealed class GuideLine(Vec3 point, Vec3 direction)
+{
+    public Vec3 Point { get; set; } = point;
+    public Vec3 Direction { get; set; } = direction.Normalized();
+    public Vec3? Start { get; set; }
+    public Vec3? End { get; set; }
+    public bool IsInfinite => Start == null || End == null;
+}
+
+/// <summary>A guide point (Tape Measure from a point).</summary>
+public sealed class GuidePoint(Vec3 position)
+{
+    public Vec3 Position { get; set; } = position;
+}
+
 /// <summary>A placed group or component: a definition plus a transform.</summary>
 public sealed class ComponentInstance(ComponentDefinition definition)
 {
@@ -103,6 +122,8 @@ public sealed class Entities
     public List<Edge> Edges { get; } = [];
     public List<Face> Faces { get; } = [];
     public List<ComponentInstance> Instances { get; } = [];
+    public List<GuideLine> GuideLines { get; } = [];
+    public List<GuidePoint> GuidePoints { get; } = [];
 
     public bool IsEmpty => Edges.Count == 0 && Faces.Count == 0 && Instances.Count == 0;
 

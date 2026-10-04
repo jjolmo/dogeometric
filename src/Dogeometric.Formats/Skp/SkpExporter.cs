@@ -44,6 +44,27 @@ public static class SkpExporter
             }
 
             WriteEntities(model.Entities, Target.For(b), ctx);
+
+            // Guides: OpenSKP writes them at the top level only.
+            foreach (var g in model.Entities.GuideLines)
+            {
+                try
+                {
+                    if (g.Start is { } s && g.End is { } en)
+                        b.AddConstructionLine(Inches(s), Inches(en));
+                    else
+                        b.AddConstructionLine(Inches(g.Point), direction: (g.Direction.X, g.Direction.Y, g.Direction.Z));
+                }
+                catch (Sk.SkpWriteException ex)
+                {
+                    ctx.Warn($"guide skipped: {ex.Message}");
+                }
+            }
+            foreach (var g in model.Entities.GuidePoints)
+                b.AddConstructionPoint(Inches(g.Position));
+            var nestedGuides = model.Definitions.Sum(d => d.Entities.GuideLines.Count + d.Entities.GuidePoints.Count);
+            if (nestedGuides > 0)
+                warnings.Add($"{nestedGuides} guide(s) inside groups/components not written (OpenSKP writes top-level guides only)");
             if (model.Scenes.Count > 0)
                 warnings.Add($"{model.Scenes.Count} scene(s) not written (OpenSKP writer has no scenes)");
             b.Save(path);

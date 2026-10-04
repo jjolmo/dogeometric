@@ -140,6 +140,8 @@ public sealed class UndoStack(Model model)
         private Face[] _faces = [];
         private (List<(Edge, bool)>[] Loops, Material? Front, Material? Back, Tag? Tag, bool Hidden)[] _faceData = [];
         private ComponentInstance[] _instances = [];
+        private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
+        private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
         private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked)[] _instanceData = [];
 
         public static EntitiesState Capture(Entities e) => new()
@@ -153,10 +155,24 @@ public sealed class UndoStack(Model model)
             _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden)).ToArray(),
             _instances = [.. e.Instances],
             _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked)).ToArray(),
+            _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
+            _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
         };
 
         public void Restore()
         {
+            Replace(_target.GuideLines, _guideLines.Select(g => g.Guide).ToArray());
+            foreach (var (g, point, dir, start, end) in _guideLines)
+            {
+                g.Point = point;
+                g.Direction = dir;
+                g.Start = start;
+                g.End = end;
+            }
+            Replace(_target.GuidePoints, _guidePoints.Select(g => g.Guide).ToArray());
+            foreach (var (g, pos) in _guidePoints)
+                g.Position = pos;
+
             Replace(_target.Vertices, _vertices);
             for (var i = 0; i < _vertices.Length; i++)
                 _vertices[i].Position = _positions[i];

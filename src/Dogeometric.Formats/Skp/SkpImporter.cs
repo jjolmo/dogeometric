@@ -130,6 +130,19 @@ public static class SkpImporter
             target.Faces.Add(face);
         }
 
+        foreach (var cl in d.ConstructionLines)
+        {
+            var line = new GuideLine(ToMm(cl.Point), new Vec3(cl.Direction.X, cl.Direction.Y, cl.Direction.Z));
+            if (cl.Start is { } s && cl.End is { } en)
+            {
+                line.Start = ToMm(s);
+                line.End = ToMm(en);
+            }
+            target.GuideLines.Add(line);
+        }
+        foreach (var cp in d.ConstructionPoints)
+            target.GuidePoints.Add(new GuidePoint(ToMm(cp.Position)));
+
         foreach (var inst in d.Instances)
         {
             if (inst.RefIdx is not { } refId || !definitions.TryGetValue(refId, out var def))

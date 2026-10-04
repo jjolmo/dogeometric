@@ -59,4 +59,7 @@ public static class CommandIds
     public const int PushPull = 21041;
     public const int Move = 21048;
     public const int Eraser = 21019;
+    public const int TapeMeasure = 21024;
+    public const int DeleteGuides = 21044;
+    public const int ToggleGuides = 21980;
 }

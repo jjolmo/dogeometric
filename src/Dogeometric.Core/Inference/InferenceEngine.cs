@@ -12,6 +12,8 @@ public enum InferenceKind
     OnEdge,
     OnFace,
     OnAxis,
+    OnGuide,
+    GuidePoint,
     Origin,
     InPlane,
 }
@@ -73,6 +75,9 @@ public sealed class InferenceEngine
         if (from is { } start && AxisInference(view, ray, x, y, start) is { } axis)
             return axis;
 
+        if (OnGuide(view, ray, x, y, context, contextToWorld) is { } guide && (hit == null || guide.Point.DistanceTo(ray.Origin) <= hit.Distance + 1))
+            return guide;
+
         if (hit != null)
         {
             var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
@@ -131,6 +136,13 @@ public sealed class InferenceEngine
                 continue;
             FromEdge(e, contextToWorld);
         }
+        foreach (var g in context.GuidePoints)
+            Consider(contextToWorld.ApplyPoint(g.Position), InferenceKind.GuidePoint, "Guide Point");
+        foreach (var g in context.GuideLines.Where(g => !g.IsInfinite))
+        {
+            Consider(contextToWorld.ApplyPoint(g.Start!.Value), InferenceKind.Endpoint, "Endpoint");
+            Consider(contextToWorld.ApplyPoint(g.End!.Value), InferenceKind.Endpoint, "Endpoint");
+        }
 
         // Geometry under the cursor in other contexts (inside groups) snaps too.
         if (hit != null)
@@ -163,6 +175,34 @@ public sealed class InferenceEngine
             {
                 bestDist = d;
                 best = new InferenceResult(p, InferenceKind.OnAxis, $"On {name} Axis", from, dir);
+            }
+        }
+        return best;
+    }
+
+    /// <summary>Closest point on a guide line within <see cref="SnapPixels"/> of the cursor.</summary>
+    private static InferenceResult? OnGuide(IViewProjection view, Ray ray, double x, double y, Entities context, Transform toWorld)
+    {
+        InferenceResult? best = null;
+        var bestDist = SnapPixels;
+        foreach (var g in context.GuideLines)
+        {
+            var p = ClosestOnLine(ray, toWorld.ApplyPoint(g.Point), toWorld.ApplyVector(g.Direction));
+            if (!g.IsInfinite)
+            {
+                // Bounded guides: clamp to the segment.
+                var s = toWorld.ApplyPoint(g.Start!.Value);
+                var e = toWorld.ApplyPoint(g.End!.Value);
+                var t = Math.Clamp((p - s).Dot(e - s) / Math.Max((e - s).LengthSquared, 1e-12), 0, 1);
+                p = s + (e - s) * t;
+            }
+            if (view.ToScreen(p) is not { } sp)
+                continue;
+            var d = Math.Sqrt((sp.X - x) * (sp.X - x) + (sp.Y - y) * (sp.Y - y));
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = new InferenceResult(p, InferenceKind.OnGuide, "On Guide");
             }
         }
         return best;

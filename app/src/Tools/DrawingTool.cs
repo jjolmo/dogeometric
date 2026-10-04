@@ -129,6 +129,8 @@ public abstract class DrawingTool : Tool
             InferenceKind.OnEdge => (new Color(0.9f, 0, 0), "square"),
             InferenceKind.OnFace => (new Color(0, 0, 0.9f), "diamond"),
             InferenceKind.OnAxis => (AxisColor(inf.AxisDirection), "circle"),
+            InferenceKind.OnGuide => (new Color(0.25f, 0.25f, 0.25f), "square"),
+            InferenceKind.GuidePoint => (new Color(0, 0.75f, 0), "circle"),
             _ => (Colors.Black, "dot"),
         };
         switch (shape)

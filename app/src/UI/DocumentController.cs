@@ -17,6 +17,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private readonly SelectionRenderer _selectionRenderer = new();
 
     public Document Document { get; private set; } = new(new Model());
+
+    /// <summary>View › Guides.</summary>
+    public bool ShowGuides
+    {
+        get => _renderer.ShowGuides;
+        set
+        {
+            _renderer.ShowGuides = value;
+            _renderer.Build(Model, viewport.ModelRoot, []);
+        }
+    }
     public Model Model => Document.Model;
     public string? Path { get; private set; }
 
