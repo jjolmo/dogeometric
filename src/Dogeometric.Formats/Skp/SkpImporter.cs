@@ -11,7 +11,13 @@ public static class SkpImporter
 {
     private const double MmPerInch = 25.4;
 
-    public static Model Import(string path) => Convert(Sk.SkpFile.Open(path));
+    public static Model Import(string path)
+    {
+        var model = Convert(Sk.SkpFile.Open(path));
+        if (SkpShadows.Read(path) is { } shadows)
+            model.Shadows = shadows;
+        return model;
+    }
 
     public static Model Convert(Sk.SkpModel skp)
     {
