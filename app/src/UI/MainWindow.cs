@@ -28,6 +28,7 @@ public partial class MainWindow : Control
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
     private ShadowsPanel _shadows = null!;
+    private StylesPanel? _styles;
     private SceneTabs _scenes = null!;
     private Action _rebuildMenus = () => { };
     private readonly List<Toolbar> _toolbars = [];
@@ -956,6 +957,8 @@ public partial class MainWindow : Control
         list.AddChild(TraySection.Create("Materials", _materials));
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         list.AddChild(TraySection.Create("Components", _components, expanded: false));
+        _styles = StylesPanel.Create(_commands);
+        list.AddChild(TraySection.Create("Styles", _styles, expanded: false));
         list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
         _shadows = ShadowsPanel.Create(() => _document.Document, _document.ApplyShadows);
         _document.ShadowsChanged += _shadows.Refresh;
@@ -1097,6 +1100,7 @@ public partial class MainWindow : Control
     {
         foreach (var bar in _toolbars)
             bar.Refresh();
+        _styles?.Refresh();
     }
 
     private void UpdateToolStatus()
