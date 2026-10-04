@@ -43,6 +43,28 @@ public sealed class ModelRenderer
     /// <summary>View › Guides.</summary>
     public bool ShowGuides { get; set; } = true;
 
+    /// <summary>View › Hidden Geometry: hidden faces dotted, soft/smooth/hidden edges dashed. Needs a rebuild.</summary>
+    public bool ShowHiddenGeometry
+    {
+        get => _showHidden;
+        set
+        {
+            _showHidden = value;
+            _meshes.Clear();
+        }
+    }
+
+    private bool _showHidden;
+    private readonly ShaderMaterial _hiddenEdgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/hidden_edge.gdshader") };
+    private readonly ShaderMaterial _hiddenFaceMaterial = HiddenFaceMaterial();
+
+    private static ShaderMaterial HiddenFaceMaterial()
+    {
+        var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/selection_face.gdshader") };
+        m.SetShaderParameter("color", new Color(0.45f, 0.45f, 0.45f));
+        return m;
+    }
+
     /// <summary>View › Face Style. Changing it needs a rebuild (materials are cached per style).</summary>
     public FaceStyle FaceStyle
     {
@@ -57,11 +79,11 @@ public sealed class ModelRenderer
 
     private FaceStyle _faceStyle = FaceStyle.Shaded;
 
-    private readonly Dictionary<(Material?, Material?), ShaderMaterial> _faceMaterials = [];
+    private readonly Dictionary<(Material?, Material?, bool), ShaderMaterial> _faceMaterials = [];
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
 
     /// <summary>Mesh data of one entity collection. Surfaces are keyed by (front, back) material; null = default.</summary>
-    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides);
+    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides, ArrayMesh? Hidden = null);
 
     /// <summary>
     /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
@@ -79,29 +101,34 @@ public sealed class ModelRenderer
             root.RemoveChild(child);
             child.QueueFree();
         }
-        AddEntities(model.Entities, root, inherited: null);
+        AddEntities(model.Entities, root, inherited: null, mirrored: false);
     }
 
-    private void AddEntities(Entities entities, Node3D parent, Material? inherited)
+    private void AddEntities(Entities entities, Node3D parent, Material? inherited, bool mirrored)
     {
         var mesh = MeshFor(entities);
         if (mesh.Faces != null && FaceStyle != FaceStyle.Wireframe)
         {
             var faces = new MeshInstance3D { Mesh = mesh.Faces, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
-            // Default-material faces take the material of the group/component they are in.
-            if (inherited != null)
+            for (var i = 0; i < mesh.Surfaces.Count; i++)
             {
-                for (var i = 0; i < mesh.Surfaces.Count; i++)
-                {
-                    var (front, back) = mesh.Surfaces[i];
-                    if (front == null || back == null)
-                        faces.SetSurfaceOverrideMaterial(i, FaceMaterial(front ?? inherited, back ?? inherited));
-                }
+                var (front, back) = mesh.Surfaces[i];
+                // Default-material faces take the material of the group/component they are in.
+                var f = front ?? inherited;
+                var b = back ?? inherited;
+                // A mirrored instance turns its triangles' winding around, so the shader sees fronts as backs:
+                // swapping the colours shows each side as SketchUp does.
+                if (mirrored)
+                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b, flipped: true));
+                else if (inherited != null && (front == null || back == null))
+                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b));
             }
             parent.AddChild(faces);
         }
         if (mesh.Edges != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        if (mesh.Hidden != null)
+            parent.AddChild(new MeshInstance3D { Mesh = mesh.Hidden, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Guides != null && ShowGuides)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Guides, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
 
@@ -111,7 +138,7 @@ public sealed class ModelRenderer
                 continue;
             var node = new Node3D { Name = string.IsNullOrEmpty(inst.Name) ? inst.Definition.Name : inst.Name, Transform = ToGodot(inst.Transform) };
             parent.AddChild(node);
-            AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited);
+            AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
         }
     }
 
@@ -167,8 +194,45 @@ public sealed class ModelRenderer
             edges.SurfaceSetMaterial(0, _edgeMaterial);
         }
 
-        var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e));
+        var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e), _showHidden ? HiddenMesh(e) : null);
         _meshes[e] = mesh;
+        return mesh;
+    }
+
+    /// <summary>Hidden Geometry: hidden faces as a dot pattern (surface 0) and hidden or soft edges dashed (surface 1).</summary>
+    private ArrayMesh? HiddenMesh(Entities e)
+    {
+        var data = new SurfaceData();
+        foreach (var face in e.Faces.Where(f => f.Hidden && f.Tag is not { Visible: false }))
+            data.AddFace(face);
+        var lines = new List<Vector3>();
+        foreach (var edge in e.Edges)
+        {
+            if ((edge.Flags & (EdgeFlags.Soft | EdgeFlags.Hidden)) == 0 || edge.Tag is { Visible: false })
+                continue;
+            lines.Add(Space.ToGodot(edge.Start.Position));
+            lines.Add(Space.ToGodot(edge.End.Position));
+        }
+        if (data.Vertices.Count == 0 && lines.Count == 0)
+            return null;
+        var mesh = new ArrayMesh();
+        if (data.Vertices.Count > 0)
+        {
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices.ToArray();
+            arrays[(int)Mesh.ArrayType.Normal] = data.Normals.ToArray();
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, _hiddenFaceMaterial);
+        }
+        if (lines.Count > 0)
+        {
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = lines.ToArray();
+            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
+            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, _hiddenEdgeMaterial);
+        }
         return mesh;
     }
 
@@ -219,9 +283,9 @@ public sealed class ModelRenderer
         return mesh;
     }
 
-    private ShaderMaterial FaceMaterial(Material? front, Material? back)
+    private ShaderMaterial FaceMaterial(Material? front, Material? back, bool flipped = false)
     {
-        if (_faceMaterials.TryGetValue((front, back), out var m))
+        if (_faceMaterials.TryGetValue((front, back, flipped), out var m))
             return m;
         // Monochrome and Hidden Line ignore materials; X-ray makes every face see-through.
         if (FaceStyle is FaceStyle.Monochrome or FaceStyle.HiddenLine)
@@ -238,12 +302,15 @@ public sealed class ModelRenderer
             frontColor.A *= 0.5f;
             backColor.A *= 0.5f;
         }
+        // Mirrored instances see their triangles' fronts as backs: give each side the other's colour.
+        if (flipped)
+            (frontColor, backColor) = (backColor, frontColor);
         m.SetShaderParameter("front_color", frontColor);
         m.SetShaderParameter("back_color", backColor);
         // Hidden Line draws faces flat white, without shading.
         if (FaceStyle == FaceStyle.HiddenLine)
             m.SetShaderParameter("light_dir", Vector3.Zero);
-        _faceMaterials[(front, back)] = m;
+        _faceMaterials[(front, back, flipped)] = m;
         return m;
     }
 

@@ -29,6 +29,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>View › Hidden Geometry.</summary>
+    public bool ShowHiddenGeometry
+    {
+        get => _renderer.ShowHiddenGeometry;
+        set
+        {
+            _renderer.ShowHiddenGeometry = value;
+            Rebuild();
+        }
+    }
+
     /// <summary>View › Edge Style › Back Edges.</summary>
     public bool ShowBackEdges
     {

@@ -100,6 +100,7 @@ public static class CommandIds
     public const int LookAround = 10525;
     public const int Walk = 10520;
     public const int BackEdges = 10619;
+    public const int HiddenGeometry = 21154;
     public const int Text3D = 21940;
     public const int ModelInfo = 21076;
     public const int AddScene = 21067;

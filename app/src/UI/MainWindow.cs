@@ -145,6 +145,7 @@ public partial class MainWindow : Control
             _components.Refresh();
             _viewport.Tools.Activate(new ComponentPlaceTool(def));
         }));
+        _commands.Register(CommandIds.HiddenGeometry, () => _document.ShowHiddenGeometry = !_document.ShowHiddenGeometry, () => _document.ShowHiddenGeometry);
         _commands.Register(CommandIds.BackEdges, () =>
         {
             _document.ShowBackEdges = !_document.ShowBackEdges;
