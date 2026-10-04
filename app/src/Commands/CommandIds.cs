@@ -102,6 +102,11 @@ public static class CommandIds
     public const int BackEdges = 10619;
     public const int Text3D = 21940;
     public const int ModelInfo = 21076;
+    public const int AddScene = 21067;
+    public const int UpdateScene = 21068;
+    public const int DeleteScene = 21078;
+    public const int NextScene = 10535;
+    public const int PreviousScene = 10536;
     public const int SectionPlane = 21337;
     public const int ReverseSection = 21334;
     public const int ActiveSectionCut = 21335;

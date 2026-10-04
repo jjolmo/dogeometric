@@ -23,6 +23,7 @@ public partial class MainWindow : Control
     private TagsPanel _tags = null!;
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
+    private SceneTabs _scenes = null!;
     private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
@@ -46,7 +47,17 @@ public partial class MainWindow : Control
         _leftTools = new PanelContainer();
         _leftTools.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
         middle.AddChild(_leftTools);
-        middle.AddChild(_viewport);
+        // Scene tabs sit above the drawing area, shown once the model has scenes.
+        var drawing = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        drawing.AddThemeConstantOverride("separation", 0);
+        _scenes = SceneTabs.Create(() => _document.Document, _viewport, () => _document.RebuildAll());
+        var tabsBar = new PanelContainer();
+        tabsBar.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
+        tabsBar.AddChild(_scenes);
+        _scenes.VisibilityChanged += () => tabsBar.Visible = _scenes.Visible;
+        drawing.AddChild(tabsBar);
+        drawing.AddChild(_viewport);
+        middle.AddChild(drawing);
         _tray = new PanelContainer { CustomMinimumSize = new Vector2(280, 0) };
         _tray.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
         middle.AddChild(_tray);
@@ -113,6 +124,11 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.AddScene, () => _scenes.Add());
+        _commands.Register(CommandIds.UpdateScene, () => _scenes.UpdateCurrent());
+        _commands.Register(CommandIds.DeleteScene, () => _scenes.DeleteCurrent());
+        _commands.Register(CommandIds.NextScene, () => _scenes.Step(1));
+        _commands.Register(CommandIds.PreviousScene, () => _scenes.Step(-1));
         _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
         {
             _viewport.QueueOverlayRedraw();
@@ -395,6 +411,7 @@ public partial class MainWindow : Control
         _tags.Refresh();
         _components.Refresh();
         _outliner.Refresh();
+        _scenes.Refresh();
     }
 
     /// <summary>Double-click on a dimension or text: edit its text in place ("&lt;&gt;" keeps a dimension's length).</summary>
