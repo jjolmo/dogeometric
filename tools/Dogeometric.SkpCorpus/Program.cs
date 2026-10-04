@@ -71,13 +71,15 @@ foreach (var file in Directory.EnumerateFiles(root, "*.skp", SearchOption.AllDir
         }
 
         stage = "dog";
-        var dogPath = Path.Combine(outDir, Path.GetFileNameWithoutExtension(file) + ".dog");
+        // Output names carry the relative path: the corpus has same-named files in different folders.
+        var outName = Path.ChangeExtension(rel, null)!.Replace('/', '_').Replace('\\', '_');
+        var dogPath = Path.Combine(outDir, outName + ".dog");
         DogFile.Save(model, dogPath);
         var reloaded = DogFile.Load(dogPath);
         var dogDiff = Diff(counts, Count(reloaded));
 
         stage = "skp-write";
-        var skpPath = Path.Combine(outDir, Path.GetFileNameWithoutExtension(file) + ".roundtrip.skp");
+        var skpPath = Path.Combine(outDir, outName + ".roundtrip.skp");
         var warnings = SkpExporter.Export(reloaded, skpPath);
         stage = "skp-reimport";
         var again = SkpImporter.Import(skpPath);
