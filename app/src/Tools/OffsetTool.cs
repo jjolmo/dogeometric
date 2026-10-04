@@ -20,6 +20,7 @@ public sealed class OffsetTool : DrawingTool
     private double _distance;
 
     public override int CommandId => CommandIds.Offset;
+    public override string CursorImage => "offset";
     public override string VcbLabel => "Distance";
     public override string StatusText => _face == null ? "Pick point from which offset will be measured." : "Pick point to define offset or enter value.";
     public override string VcbValue => _face != null ? Length.Format(_distance, LengthUnit.Millimeters, 1) : "";

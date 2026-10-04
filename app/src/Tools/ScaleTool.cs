@@ -27,6 +27,7 @@ public sealed class ScaleTool : DrawingTool
     private bool _aboutCenter;
 
     public override int CommandId => CommandIds.Scale;
+    public override string CursorImage => "scale";
     public override string VcbLabel => "Scale";
 
     public override string StatusText

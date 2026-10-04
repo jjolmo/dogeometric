@@ -21,6 +21,7 @@ public sealed class MoveTool : DrawingTool
     private (List<object> Source, Vec3 Offset)? _lastCopy;
 
     public override int CommandId => CommandIds.Move;
+    public override string CursorImage => _copy ? "movecopy" : "move";
     protected override Vec3? From => _from;
     public override string VcbLabel => "Distance";
     public override Input.CursorShape Cursor => Input.CursorShape.Move;

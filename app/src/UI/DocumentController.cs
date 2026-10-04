@@ -221,7 +221,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         RebuildSelection();
     }
 
-    private void RebuildSelection() => _selectionRenderer.Build(Document, viewport.SelectionRoot);
+    private void RebuildSelection()
+    {
+        _selectionRenderer.Build(Document, viewport.SelectionRoot);
+        viewport.QueueOverlayRedraw(); // dimensions and texts show selection and edits on the overlay
+    }
 
     /// <summary>Redraws everything (after a visibility change such as a tag toggled).</summary>
     public void RebuildAll() => Rebuild();

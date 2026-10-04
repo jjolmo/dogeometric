@@ -24,6 +24,7 @@ public sealed class SelectTool : Tool
     private Vector2 _lastClickPos;
 
     public override int CommandId => CommandIds.Select;
+    public override string CursorImage => (Input.IsKeyPressed(Key.Ctrl), Input.IsKeyPressed(Key.Shift)) switch { (true, true) => "selectsubtract", (true, false) => "selectadd", (false, true) => "selectinvert", _ => "select" };
 
     public override string StatusText => _dragging
         ? "Drag to select objects. Left-to-right = window (inside), right-to-left = crossing (touching)."
@@ -79,8 +80,20 @@ public sealed class SelectTool : Tool
         _clicks = now - _lastClickMs < MultiClickMs && position.DistanceTo(_lastClickPos) < DragThreshold ? _clicks + 1 : 1;
         _lastClickMs = now;
         _lastClickPos = position;
+        // Dimensions and texts of the active context are drawn on top, so they're picked first.
+        if (View.Annotations.Pick(position) is { } note && note.Owner == doc.Context.Entities)
+        {
+            if (_clicks == 2 && EditAnnotationText is { } edit)
+                edit(note.Item);
+            else
+                Apply(doc, [note.Item]);
+            return;
+        }
         Click(doc, View.Pick(position));
     }
+
+    /// <summary>Double-clicking a dimension or text edits its text (set by the main window, which owns dialogs).</summary>
+    public static Action<object>? EditAnnotationText { get; set; }
 
     public override bool KeyDown(InputEventKey key)
     {

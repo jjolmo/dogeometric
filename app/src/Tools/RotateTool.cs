@@ -25,6 +25,7 @@ public sealed class RotateTool : DrawingTool
     private (List<object> Items, Vec3 Center, Vec3 Normal, double Angle)? _lastCopy;
 
     public override int CommandId => CommandIds.Rotate;
+    public override string CursorImage => _copy ? "rotateadd" : "rotate";
     protected override Vec3? From => _startDir == null ? _center : null;
     public override string VcbLabel => "Angle";
 

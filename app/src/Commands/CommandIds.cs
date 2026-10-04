@@ -88,6 +88,8 @@ public static class CommandIds
     public const int Rotate = 21129;
     public const int Scale = 21236;
     public const int FollowMe = 21525;
+    public const int Dimension = 21410;
+    public const int Text = 21405;
     public const int Offset = 21100;
     public const int PaintBucket = 21074;
     public const int DeleteGuides = 21044;

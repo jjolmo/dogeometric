@@ -26,6 +26,7 @@ public class CircleTool(bool polygon) : DrawingTool
     public CircleTool() : this(false) { }
 
     public override int CommandId => polygon ? CommandIds.Polygon : CommandIds.Circle;
+    public override string CursorImage => polygon ? "polygon" : "circle";
     public override string VcbLabel => _center == null ? (polygon ? "Sides" : "Segments") : "Radius";
     public override string StatusText => _center == null
         ? "Click to set center."

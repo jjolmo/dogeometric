@@ -18,6 +18,7 @@ public sealed class TapeMeasureTool : DrawingTool
     private bool _guides = true;
 
     public override int CommandId => CommandIds.TapeMeasure;
+    public override string CursorImage => _guides ? "measureadd" : "measure";
     protected override Vec3? From => _startEdge == null ? _start : null;
     public override string VcbLabel => "Length";
 

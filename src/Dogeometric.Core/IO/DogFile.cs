@@ -231,6 +231,50 @@ public static class DogFile
             }
             w.WriteEndArray();
         }
+        if (e.Dimensions.Count > 0)
+        {
+            w.WriteStartArray("dimensions");
+            foreach (var d in e.Dimensions)
+            {
+                w.WriteStartObject();
+                WriteVec(w, "start", d.Start);
+                WriteVec(w, "end", d.End);
+                WriteVec(w, "offset", d.Offset);
+                if (d.Text.Length > 0)
+                    w.WriteString("text", d.Text);
+                w.WriteNumber("tag", Ref(tags, d.Tag));
+                if (d.Hidden)
+                    w.WriteBoolean("hidden", true);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        }
+        if (e.Texts.Count > 0)
+        {
+            w.WriteStartArray("texts");
+            foreach (var t in e.Texts)
+            {
+                w.WriteStartObject();
+                w.WriteString("text", t.Text);
+                if (t.ScreenPosition is { } sp)
+                {
+                    w.WriteStartArray("screen");
+                    w.WriteNumberValue(sp.X);
+                    w.WriteNumberValue(sp.Y);
+                    w.WriteEndArray();
+                }
+                else
+                {
+                    WriteVec(w, "point", t.Point);
+                    WriteVec(w, "offset", t.Offset);
+                }
+                w.WriteNumber("tag", Ref(tags, t.Tag));
+                if (t.Hidden)
+                    w.WriteBoolean("hidden", true);
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+        }
         if (e.GuidePoints.Count > 0)
         {
             w.WriteStartArray("guidePoints");
@@ -417,6 +461,39 @@ public static class DogFile
                     line.End = ReadVec(en);
                 }
                 e.GuideLines.Add(line);
+            }
+        }
+        if (j.TryGetProperty("dimensions", out var dims))
+        {
+            foreach (var d in dims.EnumerateArray())
+            {
+                e.Dimensions.Add(new LinearDimension(ReadVec(d.GetProperty("start")), ReadVec(d.GetProperty("end")), ReadVec(d.GetProperty("offset")))
+                {
+                    Text = d.TryGetProperty("text", out var tx) ? tx.GetString() ?? "" : "",
+                    Tag = TagAt(model, d.GetProperty("tag").GetInt32()),
+                    Hidden = d.TryGetProperty("hidden", out var h) && h.GetBoolean(),
+                });
+            }
+        }
+        if (j.TryGetProperty("texts", out var texts))
+        {
+            foreach (var t in texts.EnumerateArray())
+            {
+                var label = new TextLabel(t.GetProperty("text").GetString() ?? "")
+                {
+                    Tag = TagAt(model, t.GetProperty("tag").GetInt32()),
+                    Hidden = t.TryGetProperty("hidden", out var h) && h.GetBoolean(),
+                };
+                if (t.TryGetProperty("screen", out var sp))
+                {
+                    label.ScreenPosition = (sp[0].GetDouble(), sp[1].GetDouble());
+                }
+                else
+                {
+                    label.Point = ReadVec(t.GetProperty("point"));
+                    label.Offset = ReadVec(t.GetProperty("offset"));
+                }
+                e.Texts.Add(label);
             }
         }
         if (j.TryGetProperty("guidePoints", out var gp))

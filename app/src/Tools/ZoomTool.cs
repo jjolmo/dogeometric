@@ -13,6 +13,7 @@ public sealed class ZoomTool : Tool
     private Vec3 _anchor;
 
     public override int CommandId => CommandIds.Zoom;
+    public override string CursorImage => "zoom";
     public override bool IsNavigation => true;
     public override string StatusText => "Drag cursor to zoom.  Up is in, down is out. Shift to change Field of View.";
     public override string VcbLabel => "Field of View";

@@ -20,6 +20,7 @@ public sealed class ArcTool : DrawingTool
     private Vec3? _end;
 
     public override int CommandId => CommandIds.Arc2Point;
+    public override string CursorImage => "arc1";
     protected override Vec3? From => _end == null ? _start : null;
     public override string VcbLabel => _end == null ? "Length" : "Bulge";
     public override string StatusText => _start == null ? "Click to set first endpoint." : _end == null ? "Click to set second endpoint or enter length." : "Click to finish.";

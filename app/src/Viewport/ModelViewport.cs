@@ -92,7 +92,7 @@ public partial class ModelViewport : Control
         AddChild(_overlay);
 
         Tools = new ToolManager(this, new SelectTool());
-        Tools.Changed += () => MouseDefaultCursorShape = (CursorShape)Tools.Active.Cursor;
+        Tools.Changed += UpdateCursor;
         SyncCamera();
     }
 
@@ -291,6 +291,9 @@ public partial class ModelViewport : Control
 
     public void QueueOverlayRedraw() => _overlay.QueueRedraw();
 
+    /// <summary>Dimensions and texts, drawn on the overlay.</summary>
+    public AnnotationOverlay Annotations { get; } = new();
+
     /// <summary>Model-space ray through a viewport pixel.</summary>
     public (Vec3 Origin, Vec3 Direction) ScreenRay(Vector2 screen)
     {
@@ -361,6 +364,19 @@ public partial class ModelViewport : Control
                 HandleKey(key);
                 break;
         }
+        UpdateCursor();
+    }
+
+    private string _cursorImage = "";
+
+    /// <summary>The active tool's SketchUp cursor (orbit/pan while navigating with the middle button).</summary>
+    private void UpdateCursor()
+    {
+        var name = _middleDragging ? (Input.IsKeyPressed(Key.Shift) ? "pan" : "orbit") : Tools.Active.CursorImage;
+        if (name == _cursorImage)
+            return;
+        _cursorImage = name;
+        MouseDefaultCursorShape = ToolCursors.Apply(name) ? ToolCursors.Shape : (CursorShape)Tools.Active.Cursor;
     }
 
     private void HandleMouseButton(InputEventMouseButton mb)

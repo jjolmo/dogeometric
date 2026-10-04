@@ -12,6 +12,7 @@ namespace Dogeometric.App.Tools;
 public sealed class PaintBucketTool(Func<Material?> current, Action<Material?> sample) : Tool
 {
     public override int CommandId => CommandIds.PaintBucket;
+    public override string CursorImage => "paint";
     public override Input.CursorShape Cursor => Input.CursorShape.PointingHand;
 
     public override string StatusText => (Input.IsKeyPressed(Key.Alt), Input.IsKeyPressed(Key.Ctrl), Input.IsKeyPressed(Key.Shift)) switch

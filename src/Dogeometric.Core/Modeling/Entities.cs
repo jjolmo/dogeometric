@@ -124,6 +124,8 @@ public sealed class Entities
     public List<ComponentInstance> Instances { get; } = [];
     public List<GuideLine> GuideLines { get; } = [];
     public List<GuidePoint> GuidePoints { get; } = [];
+    public List<LinearDimension> Dimensions { get; } = [];
+    public List<TextLabel> Texts { get; } = [];
 
     public bool IsEmpty => Edges.Count == 0 && Faces.Count == 0 && Instances.Count == 0;
 

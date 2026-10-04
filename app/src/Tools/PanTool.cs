@@ -7,6 +7,7 @@ public sealed class PanTool : Tool
     private bool _dragging;
 
     public override int CommandId => CommandIds.Pan;
+    public override string CursorImage => "pan";
     public override bool IsNavigation => true;
     public override string StatusText => "Drag in direction to pan";
     public override Input.CursorShape Cursor => Input.CursorShape.Drag;

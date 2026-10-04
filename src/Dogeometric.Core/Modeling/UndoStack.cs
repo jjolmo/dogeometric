@@ -142,6 +142,8 @@ public sealed class UndoStack(Model model)
         private ComponentInstance[] _instances = [];
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
+        private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden)[] _dimensions = [];
+        private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
         private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked)[] _instanceData = [];
 
         public static EntitiesState Capture(Entities e) => new()
@@ -157,6 +159,8 @@ public sealed class UndoStack(Model model)
             _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked)).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
+            _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden)).ToArray(),
+            _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden)).ToArray(),
         };
 
         public void Restore()
@@ -172,6 +176,26 @@ public sealed class UndoStack(Model model)
             Replace(_target.GuidePoints, _guidePoints.Select(g => g.Guide).ToArray());
             foreach (var (g, pos) in _guidePoints)
                 g.Position = pos;
+            Replace(_target.Dimensions, _dimensions.Select(d => d.Dim).ToArray());
+            foreach (var (d, start, end, offset, text, tag, hidden) in _dimensions)
+            {
+                d.Start = start;
+                d.End = end;
+                d.Offset = offset;
+                d.Text = text;
+                d.Tag = tag;
+                d.Hidden = hidden;
+            }
+            Replace(_target.Texts, _texts.Select(t => t.Label).ToArray());
+            foreach (var (t, text, point, offset, screen, tag, hidden) in _texts)
+            {
+                t.Text = text;
+                t.Point = point;
+                t.Offset = offset;
+                t.ScreenPosition = screen;
+                t.Tag = tag;
+                t.Hidden = hidden;
+            }
 
             Replace(_target.Vertices, _vertices);
             for (var i = 0; i < _vertices.Length; i++)

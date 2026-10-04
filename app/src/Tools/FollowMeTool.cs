@@ -16,6 +16,7 @@ public sealed class FollowMeTool : Tool
     private List<Edge> _path = [];
 
     public override int CommandId => CommandIds.FollowMe;
+    public override string CursorImage => "followme_1";
     public override Input.CursorShape Cursor => Input.CursorShape.PointingHand;
     public override string StatusText => "Drag face to extrude  Alt = face perimeter.";
 

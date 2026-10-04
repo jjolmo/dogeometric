@@ -82,6 +82,7 @@ public partial class MainWindow : Control
         _toolbars.Add(largeToolSet);
         _leftTools.AddChild(largeToolSet);
         _viewport.CameraChanged += RefreshToolbars;
+        SelectTool.EditAnnotationText = EditAnnotationText;
 
         _viewport.Tools.Changed += UpdateToolStatus;
         _viewport.VcbTextChanged += text => _status.Vcb.Text = text;
@@ -254,6 +255,8 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Rotate, () => new RotateTool());
         RegisterTool(CommandIds.Scale, () => new ScaleTool());
         RegisterTool(CommandIds.FollowMe, () => new FollowMeTool());
+        RegisterTool(CommandIds.Dimension, () => new DimensionTool());
+        RegisterTool(CommandIds.Text, () => new TextTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }
@@ -288,6 +291,27 @@ public partial class MainWindow : Control
         _entityInfo.Refresh();
         _materials.Refresh();
         _tags.Refresh();
+    }
+
+    /// <summary>Double-click on a dimension or text: edit its text in place ("&lt;&gt;" keeps a dimension's length).</summary>
+    private void EditAnnotationText(object item)
+    {
+        var doc = _document.Document;
+        var current = item switch
+        {
+            LinearDimension d => d.Text.Length == 0 ? "<>" : d.Text,
+            TextLabel t => t.Text,
+            _ => null,
+        };
+        if (current == null)
+            return;
+        InlineTextEditor.Show(_viewport, _viewport.GetLocalMousePosition(), current, text => doc.Operation("Edit Text", _ =>
+        {
+            if (item is LinearDimension d)
+                d.Text = text == "<>" ? "" : text;
+            else if (item is TextLabel t)
+                t.Text = text;
+        }));
     }
 
     private void RegisterTool(int id, Func<Tool> create)

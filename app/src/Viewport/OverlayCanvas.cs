@@ -7,5 +7,11 @@ public partial class OverlayCanvas : Control
 {
     public ModelViewport? View { get; set; }
 
-    public override void _Draw() => View?.Tools?.Active.Draw(this);
+    public override void _Draw()
+    {
+        if (View == null)
+            return;
+        View.Annotations.Draw(View, this);
+        View.Tools?.Active.Draw(this);
+    }
 }

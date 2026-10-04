@@ -93,4 +93,20 @@ public class DogFileTests
         ms.Position = 0;
         Assert.Throws<InvalidDataException>(() => DogFile.Load(ms));
     }
+
+    [Fact]
+    public void Dimensions_and_texts_round_trip()
+    {
+        var model = new Model();
+        model.Entities.Dimensions.Add(new LinearDimension(new Vec3(0, 0, 0), new Vec3(600, 0, 0), new Vec3(0, -100, 0)) { Text = "<> wide" });
+        model.Entities.Texts.Add(new TextLabel("Lid") { Point = new Vec3(1, 2, 3), Offset = new Vec3(10, 0, 50) });
+        model.Entities.Texts.Add(new TextLabel("Title") { ScreenPosition = (0.1, 0.2) });
+        var back = RoundTrip(model);
+        var d = Assert.Single(back.Entities.Dimensions);
+        Assert.Equal(new Vec3(600, 0, 0), d.End);
+        Assert.Equal(new Vec3(0, -100, 0), d.Offset);
+        Assert.Equal("<> wide", d.Text);
+        Assert.Equal(new Vec3(10, 0, 50), back.Entities.Texts[0].Offset);
+        Assert.Equal((0.1, 0.2), back.Entities.Texts[1].ScreenPosition);
+    }
 }

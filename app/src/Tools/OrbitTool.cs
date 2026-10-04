@@ -7,6 +7,7 @@ public sealed class OrbitTool : Tool
     private bool _dragging;
 
     public override int CommandId => CommandIds.Orbit;
+    public override string CursorImage => "orbit";
     public override bool IsNavigation => true;
     public override string StatusText => "Drag to orbit. Shift = Pan, Ctrl = suspend gravity.";
     public override Input.CursorShape Cursor => Input.CursorShape.Move;

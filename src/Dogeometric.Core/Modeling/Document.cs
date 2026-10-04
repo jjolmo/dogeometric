@@ -78,6 +78,8 @@ public static class Editing
         var set = items.ToHashSet();
         var edges = set.OfType<Edge>().ToHashSet();
         e.Instances.RemoveAll(set.Contains);
+        e.Dimensions.RemoveAll(set.Contains);
+        e.Texts.RemoveAll(set.Contains);
         e.Faces.RemoveAll(f => set.Contains(f) || f.Loops.Any(l => l.Edges.Any(x => edges.Contains(x.Edge))));
         e.Edges.RemoveAll(edges.Contains);
         RemoveOrphanVertices(e);

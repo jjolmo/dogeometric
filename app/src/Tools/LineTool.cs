@@ -14,6 +14,7 @@ public sealed class LineTool : DrawingTool
     private Vec3? _start;
 
     public override int CommandId => CommandIds.Line;
+    public override string CursorImage => "pencil";
     protected override Vec3? From => _start;
     public override string VcbLabel => "Length";
     public override string StatusText => _start == null ? "Select start point." : "Click to set second endpoint or enter length.";

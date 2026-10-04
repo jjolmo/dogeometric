@@ -19,6 +19,7 @@ public sealed class RectangleTool : DrawingTool
     private Vec3 _vAxis = Vec3.UnitY;
 
     public override int CommandId => CommandIds.Rectangle;
+    public override string CursorImage => "rectangle";
     public override string VcbLabel => "Dimensions";
     public override string StatusText => _corner == null ? "Click to set first corner." : "Click to set opposite corner or enter length, width.";
 

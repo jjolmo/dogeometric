@@ -23,6 +23,7 @@ public sealed class PushPullTool : DrawingTool
     private ulong _lastClickMs;
 
     public override int CommandId => CommandIds.PushPull;
+    public override string CursorImage => _face != null || _hover != null ? "pushpull" : "pushpullno";
     public override string VcbLabel => "Distance";
     public override Input.CursorShape Cursor => Input.CursorShape.PointingHand;
 

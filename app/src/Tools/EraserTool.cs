@@ -14,6 +14,7 @@ public sealed class EraserTool : Tool
     private bool _down;
 
     public override int CommandId => CommandIds.Eraser;
+    public override string CursorImage => "eraser";
     public override Input.CursorShape Cursor => Input.CursorShape.Cross;
 
     public override string StatusText => (Input.IsKeyPressed(Key.Ctrl), Input.IsKeyPressed(Key.Shift)) switch

@@ -22,6 +22,9 @@ public abstract class Tool
     public virtual string VcbLabel => "";
     public virtual Input.CursorShape Cursor => Input.CursorShape.Arrow;
 
+    /// <summary>SketchUp cursor image (res://cursors/&lt;name&gt;.svg) shown over the model; may follow modifier keys.</summary>
+    public virtual string CursorImage => "";
+
     internal void Attach(ModelViewport view, ToolManager manager)
     {
         View = view;
