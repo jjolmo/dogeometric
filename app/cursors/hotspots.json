@@ -1,0 +1,150 @@
+{
+ "select": [
+  5,
+  9
+ ],
+ "selectadd": [
+  5,
+  9
+ ],
+ "selectsubtract": [
+  5,
+  9
+ ],
+ "selectinvert": [
+  5,
+  9
+ ],
+ "pencil": [
+  2,
+  29
+ ],
+ "rectangle": [
+  2,
+  29
+ ],
+ "circle": [
+  2,
+  28
+ ],
+ "polygon": [
+  2,
+  28
+ ],
+ "arc1": [
+  2,
+  28
+ ],
+ "arc3point1": [
+  2,
+  28
+ ],
+ "freehand": [
+  2,
+  28
+ ],
+ "dimension": [
+  2,
+  28
+ ],
+ "eraser": [
+  7,
+  22
+ ],
+ "paint": [
+  8,
+  26
+ ],
+ "pushpull": [
+  15,
+  18
+ ],
+ "pushpullno": [
+  15,
+  18
+ ],
+ "move": [
+  17,
+  16
+ ],
+ "movecopy": [
+  17,
+  16
+ ],
+ "no_move": [
+  17,
+  16
+ ],
+ "rotate": [
+  16,
+  16
+ ],
+ "rotateadd": [
+  16,
+  16
+ ],
+ "scale": [
+  5,
+  9
+ ],
+ "offset": [
+  5,
+  9
+ ],
+ "followme_1": [
+  5,
+  9
+ ],
+ "measure": [
+  5,
+  23
+ ],
+ "measureadd": [
+  5,
+  23
+ ],
+ "orbit": [
+  16,
+  16
+ ],
+ "pan": [
+  16,
+  16
+ ],
+ "zoom": [
+  20,
+  12
+ ],
+ "zoomwindow": [
+  6,
+  6
+ ],
+ "walk": [
+  16,
+  16
+ ],
+ "positioncamera": [
+  16,
+  24
+ ],
+ "label": [
+  5,
+  26
+ ],
+ "solidselect": [
+  5,
+  9
+ ],
+ "solidnoselect": [
+  5,
+  9
+ ],
+ "solid1select": [
+  5,
+  9
+ ],
+ "solid2select": [
+  5,
+  9
+ ]
+}

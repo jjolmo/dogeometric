@@ -1,1 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 7 L14 3 L14 17 L4 21 Z" fill="#e8862a" fill-opacity="0.35" stroke="#e8862a" stroke-width="1.5" stroke-linejoin="round"/><path d="M16 9 H21 M19 7 L21 9 L19 11 M16 15 H21 M19 13 L21 15 L19 17" stroke="#e8862a" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<g stroke="#000" stroke-width=".45" stroke-linejoin="round">
+<path d="M13.6 5.75L19.9 10.9L15.15 12.65L10.1 6.2Z" fill="#969481"/>
+<path d="M15.15 12.65L19.9 10.9V11.85L15.3 13.5Z" fill="#2F201C"/>
+<path d="M10.1 6.2L6.7 9.6L11.85 8.85Z" fill="#5C6063"/>
+<path d="M6.7 9.6L11.85 8.85V9.4L6.7 10.5Z" fill="#D8D8D8"/>
+<path d="M7.3 10.75L11.85 9.4V13.6L8.05 14.85Z" fill="#A5AAB1"/>
+<path d="M8.05 14.85L11.85 13.6L13.9 14.1V18.3Z" fill="#767A7E"/>
+<path d="M13.9 13.1L15.15 12.65L17.85 11.8L17.7 16.1L13.9 18.35Z" fill="#A5AAB1"/>
+<path d="M13.6 4.6H15V9.2L13.9 8.05Z" fill="#EDEDED"/>
+<path d="M15 4.6H17.2L16.9 8.5L15 9.2Z" fill="#EEEEEE"/>
+</g>
+<path d="M4.9 2.6L18.2 3.8L17.85 21.8L5.5 15.6Z" fill="#1293F5" fill-opacity=".478" stroke="#FB0011" stroke-width=".5"/>
+</svg>

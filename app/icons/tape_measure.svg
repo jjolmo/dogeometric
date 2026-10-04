@@ -1,1 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="12" r="6.5" fill="#f6c94a" stroke="#2b2b2b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="12" r="2" fill="#2b2b2b"/><path d="M14 16 H22 V19 H11" fill="#f6c94a" stroke="#2b2b2b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 16 V17.5 M18.5 16 V17.5" stroke="#2b2b2b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<defs>
+<linearGradient id="t" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#FFF700"/><stop offset=".53" stop-color="#DAD304"/><stop offset="1" stop-color="#FFF700"/></linearGradient>
+<linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4B3B3"/><stop offset=".45" stop-color="#9B9999"/><stop offset="1" stop-color="#D0CECE"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E1E1E1"/><stop offset="1" stop-color="#B6B6B6"/></linearGradient>
+</defs>
+<g stroke="#000" stroke-width=".5" stroke-linejoin="round">
+<path d="M11 13.4L4.8 17.15L7 18.4L13.1 14.8Z" fill="url(#t)"/>
+<path d="M4.6 17L6.3 16.9Q7.3 17.1 7.2 18.1V19.8Q7.1 20.4 6.6 20.1L5.1 19Z" fill="#000"/>
+<path d="M12 5C14 4.3 16 3.7 17.4 3.5L19.6 4.3C20 4.6 20 5.2 19.9 5.6L18.9 11.6C18.7 12.3 18.3 12.6 17.8 13L13.6 15.6C13 15.9 12.6 15.6 12.3 15.3L10.8 13.4C10 12.1 9.9 10.4 10.2 8.9C10.5 7.4 11.1 5.9 12 5Z" fill="#000"/>
+<path d="M12.3 6.6C11.6 8.2 11.4 10 11.7 11.7C11.9 12.9 12.3 13.9 12.9 14.6M12.6 5.4L17.1 4.2" fill="none" stroke="#909090" stroke-width=".3"/>
+<path d="M10.8 9.3C10.5 10.5 10.7 11.8 11.3 12.7L11.8 12.4C11.4 11.6 11.4 10.4 11.7 9.4Z" fill="#FFF700" stroke-width=".3"/>
+<path d="M10.6 8.4L12.6 9V9.5L10.6 8.9Z" fill="#7B7979" stroke-width=".3"/>
+<path d="M13.1 6L19 4.5Q19.7 4.4 19.6 5.2L18.7 11.5Q18.6 12 18.1 12.3L13.9 15Q13.3 15.3 13.2 14.7L12.6 6.9Q12.6 6.2 13.1 6Z" fill="url(#b)" stroke="none"/>
+<path d="M13.6 6.9L18.8 5.4L18 11.5L14 14.3Z" fill="url(#f)" stroke="none"/>
+<ellipse cx="16.1" cy="9.6" rx="2.55" ry="3.45" transform="rotate(12 16.1 9.6)" fill="#909090" stroke="none"/>
+<ellipse cx="16.15" cy="9.5" rx="1.9" ry="2.85" transform="rotate(12 16.15 9.5)" fill="#FFF700" stroke="none"/>
+</g>
+</svg>
