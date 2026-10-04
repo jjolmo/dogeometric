@@ -3,6 +3,7 @@ using Dogeometric.App.Tools;
 using Dogeometric.App.UI.Tray;
 using Dogeometric.App.Viewport;
 using Dogeometric.Core.Modeling;
+using Dogeometric.Solids;
 using Dogeometric.Core.View;
 using Godot;
 
@@ -74,6 +75,7 @@ public partial class MainWindow : Control
         _toolbars.Add(Toolbar.Create("Standard", _commands, Toolbars.Icons, Toolbars.Standard));
         _toolbars.Add(Toolbar.Create("Views", _commands, Toolbars.Icons, Toolbars.Views));
         _toolbars.Add(Toolbar.Create("Styles", _commands, Toolbars.Icons, Toolbars.Styles));
+        _toolbars.Add(Toolbar.Create("Solid Tools", _commands, Toolbars.Icons, Toolbars.SolidTools));
         foreach (var bar in _toolbars)
             topBars.AddChild(bar);
         var largeToolSet = Toolbar.Create("Large Tool Set", _commands, Toolbars.Icons, Toolbars.LargeToolSet, columns: 2);
@@ -180,6 +182,40 @@ public partial class MainWindow : Control
                 i.Locked = false;
         }));
 
+        // Tools › Solid Tools: act on the selected solid groups/components (first selected = first operand).
+        SolidsNative.AddSearchDirectory(ProjectSettings.GlobalizePath($"res://native/{NativeRid()}"));
+        SolidsNative.AddSearchDirectory(Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "native"));
+        void Solid(int id, string name, Func<Document, List<ComponentInstance>, List<ComponentInstance>> op)
+        {
+            _commands.Register(id, () =>
+            {
+                var doc = Doc();
+                var solids = doc.Selection.Items.OfType<ComponentInstance>().ToList();
+                if (solids.Count < 2)
+                {
+                    _status.SetHint($"{name}: select at least two solid groups or components first.");
+                    return;
+                }
+                try
+                {
+                    List<ComponentInstance> results = [];
+                    doc.Operation(name, _ => results = op(doc, solids));
+                    doc.Selection.Set(results);
+                    _status.SetHint($"{name} done.");
+                }
+                catch (Exception ex)
+                {
+                    _status.SetHint($"{name}: {ex.Message}");
+                }
+            });
+        }
+        Solid(CommandIds.OuterShell, "Outer Shell", (d, s) => [SolidTools.OuterShell(d.Model, d.Context.Entities, s)]);
+        Solid(CommandIds.SolidUnion, "Union", (d, s) => [SolidTools.Union(d.Model, d.Context.Entities, s)]);
+        Solid(CommandIds.SolidIntersect, "Intersect", (d, s) => [SolidTools.Intersect(d.Model, d.Context.Entities, s)]);
+        Solid(CommandIds.SolidSubtract, "Subtract", (d, s) => SolidTools.Subtract(d.Model, d.Context.Entities, s[0], s[1]) is { } r ? [r] : []);
+        Solid(CommandIds.SolidTrim, "Trim", (d, s) => SolidTools.Trim(d.Model, d.Context.Entities, s[0], s[1]) is { } r ? [r] : []);
+        Solid(CommandIds.SolidSplit, "Split", (d, s) => SolidTools.Split(d.Model, d.Context.Entities, s[0], s[1]));
+
         _commands.Register(CommandIds.CloseGroup, () =>
         {
             Doc().Selection.Clear();
@@ -274,6 +310,10 @@ public partial class MainWindow : Control
     }
 
     private void OpenFromCommandLine(string path) => _document.Open(path);
+
+    private static string NativeRid() =>
+        OperatingSystem.IsWindows() ? "win-x64" : OperatingSystem.IsMacOS() ? "osx" :
+        System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64 ? "linux-arm64" : "linux-x64";
 
     private static void SetHidden(IEnumerable<object> items, bool hidden)
     {

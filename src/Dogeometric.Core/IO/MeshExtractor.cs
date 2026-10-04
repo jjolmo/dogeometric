@@ -46,6 +46,14 @@ public static class MeshExtractor
         return result;
     }
 
+    /// <summary>Triangles of one group/component, in the coordinates of the collection that holds it.</summary>
+    public static List<Triangle> ExtractInstance(ComponentInstance instance, bool includeHidden = true)
+    {
+        var result = new List<Triangle>();
+        Walk(instance.Definition.Entities, instance.Transform, instance.Material, new ExportOptions { IncludeHidden = includeHidden }, result, topLevel: false);
+        return result;
+    }
+
     private static void Walk(Entities entities, Transform xf, Material? inherited, ExportOptions o, List<Triangle> output, bool topLevel)
     {
         var mirrored = xf.IsMirroring;

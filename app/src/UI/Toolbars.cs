@@ -8,6 +8,7 @@ public static class Toolbars
     public static readonly int[] Standard = [57600, 57601, 57603, Sep, 57635, 57634, 57637, 21021, Sep, 57643, 57644, Sep, 57607, 21076];
     public static readonly int[] Views = [10507, 10501, 10502, 10503, 10505, 10504];
     public static readonly int[] Styles = [10596, 10619, 10597, 10598, 10599, 10600, 10601];
+    public static readonly int[] SolidTools = [24198, 24200, 24201, 24202, 24203, 24204];
 
     /// <summary>The Large Tool Set, read in pairs (left column, right column).</summary>
     public static readonly int[] LargeToolSet =
@@ -46,6 +47,8 @@ public static class Toolbars
         [21048] = "move", [21041] = "push_pull", [21129] = "rotate", [21525] = "follow_me", [21236] = "scale", [21100] = "offset",
         [21024] = "tape_measure", [21410] = "dimension", [21057] = "protractor", [21405] = "text", [21126] = "axes", [21940] = "text_3d",
         [10508] = "orbit", [10523] = "pan", [10509] = "zoom", [10526] = "zoom_window", [10527] = "zoom_extents", [10529] = "previous_camera",
+        [24198] = "solid_outer_shell", [24200] = "solid_intersect", [24201] = "solid_union",
+        [24202] = "solid_subtract", [24203] = "solid_trim", [24204] = "solid_split",
         [21169] = "position_camera", [10525] = "look_around", [10520] = "walk", [21337] = "section_plane",
     };
 }

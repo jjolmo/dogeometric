@@ -41,6 +41,14 @@ public static class CommandIds
     public const int UnlockSelected = 21915;
     public const int UnlockAll = 21914;
 
+    // Tools › Solid Tools
+    public const int OuterShell = 24198;
+    public const int SolidIntersect = 24200;
+    public const int SolidUnion = 24201;
+    public const int SolidSubtract = 24202;
+    public const int SolidTrim = 24203;
+    public const int SolidSplit = 24204;
+
     // Help
     public const int About = 57664;
 

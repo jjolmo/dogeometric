@@ -85,6 +85,13 @@ ICONS = {
     "position_camera": f'<circle cx="12" cy="4.5" r="2.2" fill="{INK}"/><path d="M12 7 V14 M8 10 H16 M12 14 L9 21 M12 14 L15 21" {S}/><path d="M17 4.5 H21" stroke="{RED}" stroke-width="1.5" stroke-linecap="round"/>',
     "look_around": f'<path d="M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z" fill="#ffffff" {S}/><circle cx="12" cy="12" r="3.5" fill="{BLUE}"/><circle cx="12" cy="12" r="1.5" fill="{INK}"/>',
     "walk": f'<path d="M7 3 C9 3 10 5 9.5 8 C9 10.5 6 10.5 5.5 8 C5 5 5.5 3 7 3 Z M6 12 H9 V14 A1.5 1.5 0 0 1 6 14 Z" fill="{INK}"/><path d="M16 9 C18 9 19 11 18.5 14 C18 16.5 15 16.5 14.5 14 C14 11 14.5 9 16 9 Z M15 18 H18 V20 A1.5 1.5 0 0 1 15 20 Z" fill="{INK}"/>',
+    # Solid Tools: two overlapping boxes, the kept part shaded.
+    "solid_outer_shell": f'<rect x="3" y="7" width="11" height="11" fill="{FILL}" {S}/><rect x="10" y="3" width="11" height="11" fill="{FILL}" {S}/><path d="M3 7 H10 V3 H21 V14 H14 V18 H3 Z" fill="none" stroke="{RED}" stroke-width="2" stroke-linejoin="round"/>',
+    "solid_intersect": f'<rect x="3" y="7" width="11" height="11" {S}/><rect x="10" y="3" width="11" height="11" {S}/><rect x="10" y="7" width="4" height="7" fill="{BLUE}"/>',
+    "solid_union": f'<path d="M3 7 H10 V3 H21 V14 H14 V18 H3 Z" fill="{BLUE}" fill-opacity="0.55" {S}/>',
+    "solid_subtract": f'<rect x="3" y="7" width="11" height="11" stroke-dasharray="2 1.5" {S}/><path d="M10 3 H21 V14 H14 V7 H10 Z" fill="{BLUE}" fill-opacity="0.55" {S}/>',
+    "solid_trim": f'<rect x="3" y="7" width="11" height="11" fill="{FILL}" {S}/><path d="M10 3 H21 V14 H14 V7 H10 Z" fill="{BLUE}" fill-opacity="0.55" {S}/>',
+    "solid_split": f'<path d="M3 7 H10 V14 H14 V18 H3 Z" fill="{FILL}" {S}/><rect x="10" y="7" width="4" height="7" fill="{BLUE}" {S}/><path d="M10 3 H21 V14 H14 V7 H10 Z" fill="#c9d6e8" {S}/>',
     # Standard
     "new": f'<path d="M5 2.5 H14 L19 7.5 V21.5 H5 Z" fill="#ffffff" {S}/><path d="M14 2.5 V7.5 H19" {S}/>',
     "open": f'<path d="M2.5 6 V19.5 H18.5 L21.5 10 H6 L3.5 18" fill="#f6c94a" {S}/><path d="M2.5 6 V4.5 H9 L10.5 6 H17 V10" fill="none" {S}/>',

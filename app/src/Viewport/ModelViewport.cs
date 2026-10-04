@@ -177,16 +177,21 @@ public partial class ModelViewport : Control
         // An empty model frames a person-sized box at the origin, like a new SketchUp model.
         if (bounds.IsEmpty)
             bounds = new Bounds3(new Vec3(-500, -500, 0), new Vec3(500, 500, 1800));
-        Camera.ZoomExtents(bounds, Size.X / Math.Max(Size.Y, 1));
+        Camera.ZoomExtents(bounds, Aspect);
         SyncCamera();
     }
 
     /// <summary>Frames <paramref name="bounds"/> keeping the view direction (Zoom Selection, Align View).</summary>
     public void ZoomToBounds(Bounds3 bounds)
     {
-        Camera.ZoomExtents(bounds, Size.X / Math.Max(Size.Y, 1));
+        Camera.ZoomExtents(bounds, Aspect);
         SyncCamera();
     }
+
+    /// <summary>Width/height of the drawing area; the window's when the control has no size yet (start-up).</summary>
+    private double Aspect => Size.X > 1 && Size.Y > 1
+        ? Size.X / Size.Y
+        : GetWindow().Size.X / (double)Math.Max(GetWindow().Size.Y, 1);
 
     public void SetStandardView(StandardView view)
     {
@@ -249,7 +254,9 @@ public partial class ModelViewport : Control
             _camera.Size = (float)(Camera.OrthoHeight * Space.MetersPerUnit);
             _camera.Near = 0.01f;
         }
-        _camera.Far = 1e5f;
+        // Godot builds the frustum in single precision: a far/near ratio much past 1e6 makes it degenerate and every
+        // object gets culled (the "create_frustum_points" errors), so the far plane follows the near one.
+        _camera.Far = _camera.Near * 1e6f;
 
         UpdateHorizon();
         _overlay?.QueueRedraw();

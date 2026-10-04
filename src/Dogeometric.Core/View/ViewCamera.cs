@@ -145,6 +145,9 @@ public sealed class ViewCamera
         if (bounds.IsEmpty)
             return;
 
+        // A view without a size yet (aspect 0 or NaN) would put the eye at infinity.
+        if (!(aspect > 0) || double.IsInfinity(aspect))
+            aspect = 1;
         var dir = Direction;
         var center = bounds.Center;
         var radius = Math.Max(bounds.Diagonal * 0.5, 1);
