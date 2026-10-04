@@ -132,7 +132,7 @@ public sealed class SelectTool : Tool
         if (_clicks == 2 && item is ComponentInstance inst)
         {
             doc.Selection.Clear();
-            doc.Context.Enter(inst);
+            doc.Edit(inst);
             return;
         }
 

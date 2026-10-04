@@ -111,6 +111,14 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.Cut, () => Clipboard.Cut(Doc()));
+        _commands.Register(CommandIds.Copy, () => Clipboard.Copy(Doc()));
+        _commands.Register(CommandIds.Paste, () =>
+        {
+            if (!Clipboard.IsEmpty)
+                _viewport.Tools.Activate(new PasteTool());
+        });
+        _commands.Register(CommandIds.PasteInPlace, () => Clipboard.Paste(Doc(), Dogeometric.Core.Geometry.Vec3.Zero));
         _commands.Register(CommandIds.SelectAll, () =>
         {
             var e = Doc().Context.Entities;

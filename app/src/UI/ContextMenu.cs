@@ -34,7 +34,7 @@ public static class ContextMenu
             Item(inst.IsGroup ? "Edit Group" : "Edit Component", () =>
             {
                 doc.Selection.Clear();
-                doc.Context.Enter(inst);
+                doc.Edit(inst);
             });
             Item("Explode", () =>
             {
@@ -44,7 +44,7 @@ public static class ContextMenu
             });
             if (!inst.IsGroup)
             {
-                Item("Make Unique", () => doc.Operation("Make Unique", _ => MakeUnique(doc.Model, inst)));
+                Item("Make Unique", () => doc.Operation("Make Unique", _ => Grouping.MakeUnique(doc.Model, inst)));
             }
             menu.AddSeparator();
         }
@@ -104,45 +104,6 @@ public static class ContextMenu
         host.AddChild(menu);
         menu.Position = (Vector2I)(host.GetScreenPosition() + screenPosition);
         menu.Popup();
-    }
-
-    /// <summary>Make Unique: this instance gets its own copy of the definition.</summary>
-    private static void MakeUnique(Model model, ComponentInstance inst)
-    {
-        var src = inst.Definition;
-        var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IsGroup = src.IsGroup };
-        var vmap = new Dictionary<Vertex, Vertex>();
-        var emap = new Dictionary<Edge, Edge>();
-        Vertex V(Vertex v) => vmap.TryGetValue(v, out var c) ? c : vmap[v] = copy.Entities.AddVertex(v.Position);
-        foreach (var e in src.Entities.Edges)
-        {
-            var c = copy.Entities.AddEdge(V(e.Start), V(e.End));
-            c.Flags = e.Flags;
-            c.Tag = e.Tag;
-            c.Material = e.Material;
-            c.Curve = e.Curve;
-            emap[e] = c;
-        }
-        foreach (var f in src.Entities.Faces)
-        {
-            var c = new Face { FrontMaterial = f.FrontMaterial, BackMaterial = f.BackMaterial, Tag = f.Tag, Hidden = f.Hidden };
-            foreach (var l in f.Loops)
-            {
-                var loop = new FaceLoop();
-                loop.Edges.AddRange(l.Edges.Select(x => (emap[x.Edge], x.Reversed)));
-                c.Loops.Add(loop);
-            }
-            copy.Entities.Faces.Add(c);
-        }
-        foreach (var i in src.Entities.Instances)
-        {
-            var c = copy.Entities.AddInstance(i.Definition, i.Transform);
-            c.Name = i.Name;
-            c.Material = i.Material;
-            c.Tag = i.Tag;
-        }
-        model.Definitions.Add(copy);
-        inst.Definition = copy;
     }
 
     private static void AlignView(Document doc, ModelViewport view, Face face)

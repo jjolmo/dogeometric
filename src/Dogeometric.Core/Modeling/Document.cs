@@ -56,6 +56,17 @@ public sealed class Document
     }
 
     /// <summary>Edit › Delete: erases the selection the way SketchUp does.</summary>
+    /// <summary>
+    /// Opens a group or component for editing. A group whose definition other copies share becomes unique first,
+    /// so editing one copy leaves the others alone, as in SketchUp.
+    /// </summary>
+    public void Edit(ComponentInstance inst)
+    {
+        if (inst.IsGroup && Grouping.InstanceCount(Model, inst.Definition) > 1)
+            Operation("Make Group Unique", _ => Grouping.MakeUnique(Model, inst));
+        Context.Enter(inst);
+    }
+
     public void EraseSelection()
     {
         if (Selection.IsEmpty)
@@ -191,6 +202,35 @@ public static class Transforming
             copies.Add(f);
         }
         copies.AddRange(newEdges);
+
+        foreach (var d in list.OfType<LinearDimension>())
+        {
+            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag };
+            e.Dimensions.Add(c);
+            copies.Add(c);
+        }
+        foreach (var x in list.OfType<TextLabel>())
+        {
+            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag };
+            e.Texts.Add(c);
+            copies.Add(c);
+        }
+        foreach (var g in list.OfType<GuideLine>())
+        {
+            var c = new GuideLine(t.ApplyPoint(g.Point), t.ApplyVector(g.Direction))
+            {
+                Start = g.Start is { } s ? t.ApplyPoint(s) : null,
+                End = g.End is { } en ? t.ApplyPoint(en) : null,
+            };
+            e.GuideLines.Add(c);
+            copies.Add(c);
+        }
+        foreach (var g in list.OfType<GuidePoint>())
+        {
+            var c = new GuidePoint(t.ApplyPoint(g.Position));
+            e.GuidePoints.Add(c);
+            copies.Add(c);
+        }
         return copies;
     }
 }
@@ -198,6 +238,101 @@ public static class Transforming
 /// <summary>Make Group, Make Component and Explode.</summary>
 public static class Grouping
 {
+    /// <summary>
+    /// Copies everything in <paramref name="src"/> into <paramref name="dst"/> transformed by <paramref name="t"/>,
+    /// keeping topology, attributes and nested instances (which share their definitions). Returns the new top-level
+    /// entities (faces, edges, instances, dimensions, texts, guides).
+    /// </summary>
+    public static List<object> CopyEntities(Entities src, Entities dst, Geometry.Transform t)
+    {
+        var created = new List<object>();
+        var vmap = new Dictionary<Vertex, Vertex>();
+        var emap = new Dictionary<Edge, Edge>();
+        Vertex V(Vertex v) => vmap.TryGetValue(v, out var c) ? c : vmap[v] = dst.AddVertex(t.ApplyPoint(v.Position));
+        foreach (var e in src.Edges)
+        {
+            var c = dst.AddEdge(V(e.Start), V(e.End));
+            c.Flags = e.Flags;
+            c.Tag = e.Tag;
+            c.Material = e.Material;
+            c.Curve = e.Curve;
+            emap[e] = c;
+            created.Add(c);
+        }
+        var mirrored = t.Determinant < 0;
+        foreach (var f in src.Faces)
+        {
+            var c = new Face { FrontMaterial = f.FrontMaterial, BackMaterial = f.BackMaterial, Tag = f.Tag, Hidden = f.Hidden };
+            foreach (var l in f.Loops)
+            {
+                var loop = new FaceLoop();
+                loop.Edges.AddRange(l.Edges.Select(x => (emap[x.Edge], x.Reversed)));
+                c.Loops.Add(loop);
+            }
+            dst.Faces.Add(c);
+            if (mirrored)
+            {
+                FaceFinder.Reverse(c);
+                (c.FrontMaterial, c.BackMaterial) = (c.BackMaterial, c.FrontMaterial);
+            }
+            created.Add(c);
+        }
+        foreach (var i in src.Instances)
+        {
+            var c = dst.AddInstance(i.Definition, i.Transform.Then(t));
+            c.Name = i.Name;
+            c.Material = i.Material;
+            c.Tag = i.Tag;
+            c.Hidden = i.Hidden;
+            c.Locked = i.Locked;
+            created.Add(c);
+        }
+        foreach (var d in src.Dimensions)
+        {
+            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag, Hidden = d.Hidden };
+            dst.Dimensions.Add(c);
+            created.Add(c);
+        }
+        foreach (var x in src.Texts)
+        {
+            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag, Hidden = x.Hidden };
+            dst.Texts.Add(c);
+            created.Add(c);
+        }
+        foreach (var g in src.GuideLines)
+        {
+            var c = new GuideLine(t.ApplyPoint(g.Point), t.ApplyVector(g.Direction))
+            {
+                Start = g.Start is { } s ? t.ApplyPoint(s) : null,
+                End = g.End is { } en ? t.ApplyPoint(en) : null,
+            };
+            dst.GuideLines.Add(c);
+            created.Add(c);
+        }
+        foreach (var g in src.GuidePoints)
+        {
+            var c = new GuidePoint(t.ApplyPoint(g.Position));
+            dst.GuidePoints.Add(c);
+            created.Add(c);
+        }
+        return created;
+    }
+
+    /// <summary>How many instances of <paramref name="def"/> the model has, at any depth of the definition tree.</summary>
+    public static int InstanceCount(Model model, ComponentDefinition def) =>
+        model.Entities.Instances.Count(i => i.Definition == def) +
+        model.Definitions.Sum(d => d.Entities.Instances.Count(i => i.Definition == def));
+
+    /// <summary>Make Unique: <paramref name="inst"/> gets its own copy of its definition.</summary>
+    public static void MakeUnique(Model model, ComponentInstance inst)
+    {
+        var src = inst.Definition;
+        var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IsGroup = src.IsGroup };
+        CopyEntities(src.Entities, copy.Entities, Geometry.Transform.Identity);
+        model.Definitions.Add(copy);
+        inst.Definition = copy;
+    }
+
     /// <summary>
     /// Moves the given entities into a new group or component placed where they were. Edges also used by faces
     /// left outside stay outside too (copied into the group), as in SketchUp. Components get their axes at the

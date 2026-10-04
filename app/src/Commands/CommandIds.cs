@@ -89,6 +89,10 @@ public static class CommandIds
     public const int Scale = 21236;
     public const int FollowMe = 21525;
     public const int Dimension = 21410;
+    public const int Cut = 57635;
+    public const int Copy = 57634;
+    public const int Paste = 57637;
+    public const int PasteInPlace = 21939;
     public const int Text = 21405;
     public const int Offset = 21100;
     public const int PaintBucket = 21074;
