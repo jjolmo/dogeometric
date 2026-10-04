@@ -16,6 +16,21 @@ public enum EdgeFlags
     Hidden = 4,
 }
 
+/// <summary>
+/// The curve an edge belongs to (circle, arc, polygon): SketchUp selects and edits it as one entity, and the edges
+/// that extrude from it come out soft and smooth.
+/// </summary>
+public sealed class Curve
+{
+    public Vec3 Center { get; set; }
+    public Vec3 Normal { get; set; } = Vec3.UnitZ;
+    public double Radius { get; set; }
+    public int Segments { get; set; }
+
+    /// <summary>Polygons are curves with straight-edged semantics: their extrusions keep hard edges.</summary>
+    public bool IsPolygon { get; set; }
+}
+
 public sealed class Edge(Vertex start, Vertex end)
 {
     public Vertex Start { get; set; } = start;
@@ -23,6 +38,7 @@ public sealed class Edge(Vertex start, Vertex end)
     public EdgeFlags Flags { get; set; }
     public Tag? Tag { get; set; }
     public Material? Material { get; set; }
+    public Curve? Curve { get; set; }
 
     public double Length => Start.Position.DistanceTo(End.Position);
 

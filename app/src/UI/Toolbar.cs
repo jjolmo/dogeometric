@@ -9,14 +9,13 @@ public partial class Toolbar : PanelContainer
     public const int Separator = 0;
 
     private readonly List<(Button Button, Command Command)> _buttons = [];
-    private CommandRegistry _registry = null!;
     private Container _box = null!;
 
     /// <param name="layout">Command ids in order; <see cref="Separator"/> inserts a gap.</param>
     /// <param name="columns">0 lays the buttons out in a row; 2 makes SketchUp's two-column Large Tool Set.</param>
     public static Toolbar Create(string name, CommandRegistry registry, IReadOnlyDictionary<int, string> icons, int[] layout, int columns = 0)
     {
-        var bar = new Toolbar { Name = name, _registry = registry };
+        var bar = new Toolbar { Name = name };
         bar.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 2));
         bar._box = columns > 0
             ? new GridContainer { Columns = columns }

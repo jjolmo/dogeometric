@@ -21,6 +21,8 @@ public static class CommandIds
     public const int SelectNone = 21102;
     public const int InvertSelection = 24447;
     public const int CloseGroup = 21202;
+    public const int MakeGroup = 21182;
+    public const int MakeComponent = 21083;
 
     // Help
     public const int About = 57664;
@@ -51,6 +53,9 @@ public static class CommandIds
     // Draw
     public const int Line = 21020;
     public const int Rectangle = 21094;
+    public const int Circle = 21096;
+    public const int Polygon = 21095;
+    public const int Arc2Point = 21065;
     public const int PushPull = 21041;
     public const int Move = 21048;
     public const int Eraser = 21019;

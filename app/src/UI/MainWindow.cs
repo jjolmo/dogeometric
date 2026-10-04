@@ -109,6 +109,19 @@ public partial class MainWindow : Control
             var all = e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances.Where(i => !i.Hidden));
             Doc().Selection.Set(all.Where(x => !Doc().Selection.Contains(x)).ToList());
         });
+        void MakeGroup(bool asGroup)
+        {
+            var doc = Doc();
+            if (doc.Selection.IsEmpty)
+                return;
+            var items = doc.Selection.Items.ToList();
+            ComponentInstance? created = null;
+            doc.Operation(asGroup ? "Make Group" : "Make Component", e => created = Grouping.Make(doc.Model, e, items, asGroup));
+            if (created != null)
+                doc.Selection.Set([created]);
+        }
+        _commands.Register(CommandIds.MakeGroup, () => MakeGroup(true));
+        _commands.Register(CommandIds.MakeComponent, () => MakeGroup(false));
         _commands.Register(CommandIds.CloseGroup, () =>
         {
             Doc().Selection.Clear();
@@ -138,6 +151,9 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Line, () => new LineTool());
         RegisterTool(CommandIds.Rectangle, () => new RectangleTool());
         RegisterTool(CommandIds.PushPull, () => new PushPullTool());
+        RegisterTool(CommandIds.Circle, () => new CircleTool());
+        RegisterTool(CommandIds.Polygon, () => new PolygonTool());
+        RegisterTool(CommandIds.Arc2Point, () => new ArcTool());
         RegisterTool(CommandIds.Move, () => new MoveTool());
         RegisterTool(CommandIds.Eraser, () => new EraserTool());
     }

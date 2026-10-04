@@ -49,6 +49,7 @@ public static class PushPull
                 var a2 = Moved(a);
                 var b2 = Moved(b);
                 var top = e.EdgeBetween(a2, b2);
+                top.Curve ??= edge.Curve;
                 capLoop.Edges.Add((top, top.Start != a2));
 
                 // a→b→b2→a2 has normal distance·(b−a)×n: away from the face's interior when pulling, towards it when
@@ -73,6 +74,23 @@ public static class PushPull
         if (distance < 0 && keepBase)
             FaceFinder.Reverse(cap);
 
+        // Edges rising from inside a curve (between two of its segments) are soft and smooth, so an extruded circle
+        // looks like a cylinder, as in SketchUp.
+        foreach (var loop in face.Loops)
+        {
+            for (var i = 0; i < loop.Edges.Count; i++)
+            {
+                var prev = loop.Edges[(i - 1 + loop.Edges.Count) % loop.Edges.Count].Edge;
+                var cur = loop.Edges[i].Edge;
+                if (cur.Curve is { IsPolygon: false } c && prev.Curve == c)
+                {
+                    var corner = loop.Edges[i].Reversed ? cur.End : cur.Start;
+                    var riser = e.EdgeBetween(corner, Moved(corner));
+                    riser.Flags |= EdgeFlags.Soft | EdgeFlags.Smooth;
+                }
+            }
+        }
+
         e.Faces.Add(cap);
         e.Faces.AddRange(sides);
         if (!keepBase)
@@ -81,8 +99,55 @@ public static class PushPull
             FaceFinder.Reverse(face); // the kept base now closes the volume from below
 
         MergeCoplanarNeighbours(e, sides);
+        if (!keepBase && PunchThrough(e, cap))
+            cap = null!;
         Editing.RemoveOrphanVertices(e);
         return cap;
+    }
+
+    /// <summary>
+    /// Pushing a face until it meets a parallel face on the far side cuts through, as in SketchUp: the cap and
+    /// the part of the far face under it disappear, leaving a hole. Returns true when it cut.
+    /// </summary>
+    private static bool PunchThrough(Entities e, Face cap)
+    {
+        var n = cap.Normal;
+        var d = n.Dot(cap.OuterLoop.Points.First());
+        var centre = cap.OuterLoop.Points.Aggregate(Vec3.Zero, (a, p) => a + p) / cap.OuterLoop.Edges.Count;
+        var far = e.Faces.FirstOrDefault(f => f != cap
+            && f.Normal.Dot(n) < -1 + 1e-9
+            && Math.Abs(n.Dot(f.OuterLoop.Points.First()) - d) <= 1e-3
+            && Inside(f, centre));
+        if (far == null)
+            return false;
+
+        var capEdges = Topology.EdgesOf(cap).ToHashSet();
+        e.Faces.Remove(cap);
+        // Imprint the cap's outline on the far face, then drop the region it encloses.
+        var before = e.Faces.ToHashSet();
+        FaceFinder.Update(e, capEdges.ToList());
+        var plug = e.Faces.FirstOrDefault(f => !before.Contains(f) && Topology.EdgesOf(f).All(capEdges.Contains));
+        if (plug != null)
+            e.Faces.Remove(plug);
+        return true;
+    }
+
+    private static bool Inside(Face f, Vec3 p)
+    {
+        var (u, v) = Polygon.PlaneAxes(f.Normal);
+        bool In(IEnumerable<Vec3> loop)
+        {
+            var poly = loop.Select(q => (X: q.Dot(u), Y: q.Dot(v))).ToList();
+            var (px, py) = (p.Dot(u), p.Dot(v));
+            var inside = false;
+            for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++)
+            {
+                if ((poly[i].Y > py) != (poly[j].Y > py) && px < (poly[j].X - poly[i].X) * (py - poly[i].Y) / (poly[j].Y - poly[i].Y) + poly[i].X)
+                    inside = !inside;
+            }
+            return inside;
+        }
+        return In(f.OuterLoop.Points) && !f.InnerLoops.Any(l => In(l.Points));
     }
 
     /// <summary>True when every edge of the face borders exactly one other face, perpendicular to it.</summary>

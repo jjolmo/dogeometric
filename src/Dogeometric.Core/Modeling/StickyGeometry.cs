@@ -12,12 +12,15 @@ public static class StickyGeometry
     /// Draws a chain of edges through <paramref name="points"/> (closing it when <paramref name="closed"/>), then
     /// creates the faces they close. Returns the edges that now cover the drawn segments.
     /// </summary>
-    public static List<Edge> DrawEdges(Entities e, IReadOnlyList<Vec3> points, bool closed = false, Vec3? preferredNormal = null)
+    public static List<Edge> DrawEdges(Entities e, IReadOnlyList<Vec3> points, bool closed = false, Vec3? preferredNormal = null, Curve? curve = null)
     {
         var created = new List<Edge>();
         var count = closed ? points.Count : points.Count - 1;
         for (var i = 0; i < count; i++)
             created.AddRange(AddSegment(e, points[i], points[(i + 1) % points.Count]));
+        if (curve != null)
+            foreach (var edge in created)
+                edge.Curve ??= curve;
         FaceFinder.Update(e, created, preferredNormal);
         return created;
     }
@@ -81,7 +84,7 @@ public static class StickyGeometry
     /// </summary>
     public static Edge SplitEdge(Entities e, Edge edge, Vertex v)
     {
-        var tail = new Edge(v, edge.End) { Flags = edge.Flags, Tag = edge.Tag, Material = edge.Material };
+        var tail = new Edge(v, edge.End) { Flags = edge.Flags, Tag = edge.Tag, Material = edge.Material, Curve = edge.Curve };
         edge.End = v;
         e.Edges.Add(tail);
         foreach (var face in e.Faces)
