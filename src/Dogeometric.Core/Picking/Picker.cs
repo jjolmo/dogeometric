@@ -57,7 +57,9 @@ public sealed class Picker
         // Parameter t is shared between world and local rays because the local direction is not renormalised.
         var bvh = BvhFor(entities);
 
-        if (bvh.Raycast(local, best?.Distance ?? double.PositiveInfinity, visible) is { } faceHit)
+        // Inside a group or component, a face level with one already hit wins the tie (a component glued flat on a wall).
+        var faceLimit = best?.Distance is { } d ? path.Count > 0 ? d + Math.Max(1e-6, d * 1e-9) : d : double.PositiveInfinity;
+        if (bvh.Raycast(local, faceLimit, visible) is { } faceHit)
         {
             best = new PickHit(faceHit.Face, path.ToArray(), toWorld.ApplyPoint(local.At(faceHit.T)), faceHit.T);
         }
