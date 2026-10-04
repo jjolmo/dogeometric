@@ -251,9 +251,11 @@ public static class SolidInspector
         public void Resolve()
         {
             var groups = ConnectedEdgeGroups();
+            // A shell inside another one (a cavity) faces inwards: its walk starts from the other side.
+            var cavity = groups.ToDictionary(g => g, g => Nested(g, groups));
             var front = new HashSet<Face>();
             foreach (var group in groups)
-                if (StartFace(group, outside: true) is { } start)
+                if (StartFace(group, outside: !cavity[group]) is { } start)
                     front.UnionWith(FindShell(start));
             _internal = e.Faces.Where(f => !front.Contains(f)).ToHashSet();
             var reversedFromOutside = new HashSet<Face>(_reversed);
@@ -261,11 +263,55 @@ public static class SolidInspector
             // Walk again starting from the inside: faces only one walk reaches stick out of the solid.
             var back = new HashSet<Face>();
             foreach (var group in groups)
-                if (StartFace(group, outside: false) is { } start)
+                if (StartFace(group, outside: cavity[group]) is { } start)
                     back.UnionWith(FindShell(start));
             _shell = front.Intersect(back).ToHashSet();
             External = e.Faces.Where(f => !_internal.Contains(f) && !_shell.Contains(f)).ToHashSet();
             Reversed = _shell.Intersect(reversedFromOutside).ToHashSet();
+        }
+
+        /// <summary>Whether <paramref name="group"/> lies inside an odd number of the other pieces (a ray from it crosses them oddly).</summary>
+        private bool Nested(List<Edge> group, List<List<Edge>> groups)
+        {
+            var p = group[0].Start.Position;
+            // A skewed ray, so it does not run along edges of axis-aligned models.
+            var dir = new Vec3(1, 0.3141, 0.2718).Normalized();
+            var own = group.ToHashSet();
+            var crossings = 0;
+            foreach (var f in e.Faces)
+            {
+                if (Topology.EdgesOf(f).Any(own.Contains))
+                    continue;
+                var n = _normals[f].Normalized();
+                var origin = f.OuterLoop.Points.First();
+                var denom = n.Dot(dir);
+                if (Math.Abs(denom) < 1e-12)
+                    continue;
+                var t = (origin - p).Dot(n) / denom;
+                if (t <= Tolerance.Length)
+                    continue;
+                if (Inside(f, p + dir * t, n))
+                    crossings++;
+            }
+            return crossings % 2 == 1;
+        }
+
+        private static bool Inside(Face f, Vec3 point, Vec3 n)
+        {
+            var (u, v) = Polygon.PlaneAxes(n);
+            var inside = false;
+            foreach (var loop in f.Loops)
+            {
+                var pts = loop.Points.ToList();
+                for (int i = 0, j = pts.Count - 1; i < pts.Count; j = i++)
+                {
+                    double xi = pts[i].Dot(u), yi = pts[i].Dot(v), xj = pts[j].Dot(u), yj = pts[j].Dot(v);
+                    double px = point.Dot(u), py = point.Dot(v);
+                    if ((yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+                        inside = !inside;
+                }
+            }
+            return inside;
         }
 
         /// <summary>A closed shell: every edge of every shell face is shared by at least two shell faces.</summary>

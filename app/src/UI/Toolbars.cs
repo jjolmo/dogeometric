@@ -13,6 +13,7 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] SelectionToys =
     [
@@ -67,6 +68,10 @@ public static class Toolbars
         [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [Commands.ExtensionIds.RoundCornerRound] = "roundcorner_round",
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
+        [Commands.ExtensionIds.JointPushPull] = "jpp_joint",
+        [Commands.ExtensionIds.NormalPushPull] = "jpp_normal",
+        [Commands.ExtensionIds.VectorPushPull] = "jpp_vector",
+        [Commands.ExtensionIds.ExtrudePushPull] = "jpp_extrude",
         [Commands.ExtensionIds.SelectCurve] = "select_curve",
         [Commands.ExtensionIds.SelectOnlyEdges] = "select_only_edges",
         [Commands.ExtensionIds.SelectOnlyFaces] = "select_only_faces",

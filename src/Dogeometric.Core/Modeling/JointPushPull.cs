@@ -1,0 +1,223 @@
+using Dogeometric.Core.Geometry;
+
+namespace Dogeometric.Core.Modeling;
+
+/// <summary>Fredo6 JointPushPull's push-pull modes.</summary>
+public enum JointPushPullMode
+{
+    /// <summary>The faces move together, every face ending up exactly at the offset from where it was (even thickness).</summary>
+    Joint,
+
+    /// <summary>Each face moves on its own along its normal.</summary>
+    Normal,
+
+    /// <summary>Everything moves along one direction.</summary>
+    Vector,
+
+    /// <summary>Everything moves along the faces' average normal, as one compact extrusion.</summary>
+    Extrude,
+}
+
+/// <summary>Which walls join the moved faces to where they started.</summary>
+public enum JointPushPullBorders { Contour, Grid, None }
+
+/// <summary>
+/// JointPushPull (Fredo6): push-pulls many faces at once, or thickens a surface (Thicken keeps the original faces,
+/// so a surface becomes a closed shell of that thickness).
+/// </summary>
+public static class JointPushPull
+{
+    public sealed record Options
+    {
+        public JointPushPullMode Mode { get; init; } = JointPushPullMode.Joint;
+        public JointPushPullBorders Borders { get; init; } = JointPushPullBorders.Contour;
+        public bool Thicken { get; init; }
+        public bool AsGroup { get; init; }
+
+        /// <summary>Vector mode's direction (normalised on use).</summary>
+        public Vec3 Direction { get; init; } = Vec3.UnitZ;
+    }
+
+    /// <summary>Push-pulls <paramref name="faces"/> of <paramref name="model"/>'s <paramref name="e"/> by <paramref name="offset"/>; returns the faces made.</summary>
+    public static List<Face> Apply(Model model, Entities e, IReadOnlyCollection<Face> faces, double offset, Options o)
+    {
+        var set = faces.Where(e.Faces.Contains).ToList();
+        if (set.Count == 0 || Math.Abs(offset) < Tolerance.Length)
+            return [];
+        var selected = set.ToHashSet();
+        var normals = set.ToDictionary(f => f, f => f.Normal.Normalized());
+
+        // Where each corner goes; Normal mode moves each face on its own, so corners are per face there.
+        var shared = new Dictionary<Vertex, Vec3>();
+        Vec3 Move(Face f, Vertex v)
+        {
+            switch (o.Mode)
+            {
+                case JointPushPullMode.Normal:
+                    return v.Position + normals[f] * offset;
+                case JointPushPullMode.Vector:
+                    return v.Position + o.Direction.Normalized() * offset;
+                case JointPushPullMode.Extrude:
+                    var average = set.Aggregate(Vec3.Zero, (a, x) => a + normals[x] * x.Area).Normalized();
+                    return v.Position + average * offset;
+                default:
+                    if (!shared.TryGetValue(v, out var p))
+                        shared[v] = p = v.Position + JointDisplacement(set.Where(x => x.Loops.Any(l => l.Vertices.Contains(v))).Select(x => normals[x]).ToList(), offset);
+                    return p;
+            }
+        }
+
+        var polygons = new List<(List<Vec3> Outer, List<List<Vec3>> Holes, Face Source)>();
+        foreach (var f in set)
+        {
+            var loops = f.Loops.Select(l => l.Vertices.Select(v => Move(f, v)).ToList()).ToList();
+            polygons.Add((loops[0], loops.Skip(1).ToList(), f));
+        }
+
+        // Walls: along the selection's outline (Contour), or around every face (Grid; Normal mode needs them).
+        var walls = new List<(List<Vec3> Points, Face Source, Vec3 Out)>();
+        if (o.Borders != JointPushPullBorders.None)
+        {
+            foreach (var f in set)
+                foreach (var loop in f.Loops)
+                    foreach (var (edge, rev) in loop.Edges)
+                    {
+                        var inSelection = Topology.FacesOf(e, edge).Count(selected.Contains);
+                        var grid = o.Borders == JointPushPullBorders.Grid || o.Mode == JointPushPullMode.Normal;
+                        if (!grid && inSelection > 1)
+                            continue;
+                        var a = rev ? edge.End : edge.Start;
+                        var b = rev ? edge.Start : edge.End;
+                        // Outwards: away from the face, in its plane, and along the push.
+                        var outward = normals[f].Cross(b.Position - a.Position).Normalized() * -1;
+                        walls.Add(([a.Position, b.Position, Move(f, b), Move(f, a)], f, outward));
+                    }
+        }
+
+        var target = e;
+        ComponentInstance? group = null;
+        if (o.AsGroup)
+        {
+            var def = new ComponentDefinition { Name = "JointPushPull", IsGroup = true };
+            model.Definitions.Add(def);
+            group = e.AddInstance(def, Transform.Identity);
+            target = def.Entities;
+        }
+
+        if (o.Thicken && o.AsGroup)
+        {
+            // The originals go into the group too, so the group holds the whole shell.
+            foreach (var f in set)
+            {
+                var copy = new Welder(target).Face(f.OuterLoop.Points.ToList(), f.InnerLoops.Select(l => l.Points.ToList()).ToList());
+                Copy(f, copy);
+                if (offset > 0)
+                    FaceFinder.Reverse(copy);
+            }
+        }
+        else if (o.Thicken)
+        {
+            // The slab lies on the faces' front side: their fronts now face into it, so they turn round.
+            if (offset > 0)
+                foreach (var f in set)
+                    FaceFinder.Reverse(f);
+        }
+        else if (!o.AsGroup)
+        {
+            // Classic push-pull: the original faces go (their edges stay where other faces still use them).
+            e.Faces.RemoveAll(selected.Contains);
+            var orphans = set.SelectMany(Topology.EdgesOf).Distinct().Where(x => !Topology.FacesOf(e, x).Any()).ToList();
+            e.Edges.RemoveAll(orphans.Contains);
+            Editing.RemoveOrphanVertices(e);
+        }
+
+        var weld = new Welder(target);
+        var made = new List<Face>();
+        foreach (var (outer, holes, src) in polygons)
+        {
+            var f = weld.Face(outer, holes);
+            Copy(src, f);
+            // Moving against the front leaves the moved face facing back into the solid: turn it round.
+            if (offset < 0 && (o.Thicken || o.AsGroup))
+                FaceFinder.Reverse(f);
+            made.Add(f);
+        }
+        foreach (var (pts, src, outward) in walls)
+        {
+            if (pts[0].DistanceTo(pts[3]) < Tolerance.Length && pts[1].DistanceTo(pts[2]) < Tolerance.Length)
+                continue;
+            var quad = pts.Distinct().ToList();
+            if (quad.Count < 3)
+                continue;
+            var f = weld.Face(quad, []);
+            Copy(src, f);
+            // A classic push into a solid makes a pocket whose walls face into it; any slab's walls face out.
+            var push = !o.Thicken && !o.AsGroup && offset < 0 ? -1 : 1;
+            if (f.Normal.Dot(outward) * push < 0)
+                FaceFinder.Reverse(f);
+            made.Add(f);
+        }
+        Editing.RemoveOrphanVertices(target);
+        return made;
+    }
+
+    /// <summary>
+    /// A move that puts every one of the faces (unit normals) exactly at <paramref name="offset"/>: the least-squares
+    /// solution of n·d = offset, which is exact for up to three independent faces.
+    /// </summary>
+    public static Vec3 JointDisplacement(IReadOnlyList<Vec3> normals, double offset)
+    {
+        // Distinct directions only: coplanar neighbours add nothing.
+        var dirs = new List<Vec3>();
+        foreach (var n in normals)
+            if (dirs.All(d => d.Dot(n) < 1 - 1e-9))
+                dirs.Add(n);
+        if (dirs.Count == 1)
+            return dirs[0] * offset;
+        // Normal equations (Σ n nᵀ) d = offset Σ n, with a touch of damping for nearly parallel faces.
+        double[,] m = new double[3, 3];
+        var rhs = Vec3.Zero;
+        foreach (var n in dirs)
+        {
+            double[] v = [n.X, n.Y, n.Z];
+            for (var i = 0; i < 3; i++)
+                for (var j = 0; j < 3; j++)
+                    m[i, j] += v[i] * v[j];
+            rhs += n * offset;
+        }
+        for (var i = 0; i < 3; i++)
+            m[i, i] += 1e-9;
+        var avg = dirs.Aggregate(Vec3.Zero, (a, n) => a + n);
+        var solved = Solve(m, rhs);
+        // Very sharp folds blow up; fall back to the average direction there.
+        if (solved == null || solved.Value.Length > Math.Abs(offset) * 10)
+            return avg.Normalized() * offset;
+        // Rank-two cases (an edge between two faces) leave the component along the edge free: take none of it.
+        return solved.Value;
+    }
+
+    private static Vec3? Solve(double[,] m, Vec3 b)
+    {
+        double det = m[0, 0] * (m[1, 1] * m[2, 2] - m[1, 2] * m[2, 1]) - m[0, 1] * (m[1, 0] * m[2, 2] - m[1, 2] * m[2, 0]) + m[0, 2] * (m[1, 0] * m[2, 1] - m[1, 1] * m[2, 0]);
+        if (Math.Abs(det) < 1e-24)
+            return null;
+        double D(double[,] a) => a[0, 0] * (a[1, 1] * a[2, 2] - a[1, 2] * a[2, 1]) - a[0, 1] * (a[1, 0] * a[2, 2] - a[1, 2] * a[2, 0]) + a[0, 2] * (a[1, 0] * a[2, 1] - a[1, 1] * a[2, 0]);
+        double[] r = [b.X, b.Y, b.Z];
+        var x = new double[3];
+        for (var c = 0; c < 3; c++)
+        {
+            var a = (double[,])m.Clone();
+            for (var i = 0; i < 3; i++)
+                a[i, c] = r[i];
+            x[c] = D(a) / det;
+        }
+        return new Vec3(x[0], x[1], x[2]);
+    }
+
+    private static void Copy(Face from, Face to)
+    {
+        to.FrontMaterial = from.FrontMaterial;
+        to.BackMaterial = from.BackMaterial;
+        to.Tag = from.Tag;
+    }
+}

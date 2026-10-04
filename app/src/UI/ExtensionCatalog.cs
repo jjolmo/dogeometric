@@ -12,7 +12,7 @@ public static class ExtensionCatalog
         new("Make Faces", "The Sketchup Dude", "Creates the faces missing between closed loops of edges (Extensions menu).", true),
         new("Selection Toys", "Thomas Thomassen", "Filters the selection by kind, selects copies and related faces (context menu and toolbar).", true),
         new("CleanUp³", "Thomas Thomassen", "Merges coplanar faces, repairs split edges, erases stray edges, purges (Extensions menu).", true),
-        new("JointPushPull", "Fredo6", "Push/Pull of many faces at once, joined or along their normals.", false),
+        new("JointPushPull", "Fredo6", "Push/Pull or thicken many faces at once: Joint, Vector, Normal, Extrude (Tools › Fredo6 Collection).", true),
         new("CircleByDiameter", "The Sketchup Dude", "Draws a circle from the two ends of its diameter (Draw menu).", true),
         new("rp_sphere", "", "Creates a sphere from its radius and segments (Draw menu).", true),
         new("Select Curve", "Thomas Thomassen", "Selects runs of connected visible edges with one click (Tools menu).", true),

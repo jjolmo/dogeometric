@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
         Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
         Bar("Select Curve", Toolbars.SelectCurve, ToolbarDocks.Dock.Top);
         _docks.Load();
@@ -254,6 +255,17 @@ public partial class MainWindow : Control
             () => _viewport.Tools.Active is SelectCurveTool);
         _commands.AddToMenu("Tools", ExtensionIds.LoopSubdivision, "Loop subdivision smooth", "Smooth the selected faces by Loop subdivision.");
         _commands.Register(ExtensionIds.LoopSubdivision, LoopSubdivide);
+        foreach (var (id, label, tip, m) in new[]
+        {
+            (ExtensionIds.JointPushPull, "Joint Push Pull", "Push-pull or thicken a surface.", JointPushPullMode.Joint),
+            (ExtensionIds.VectorPushPull, "Vector Push Pull", "Push-pull along a direction.", JointPushPullMode.Vector),
+            (ExtensionIds.NormalPushPull, "Normal Push Pull", "Push-pull multiple faces individually.", JointPushPullMode.Normal),
+            (ExtensionIds.ExtrudePushPull, "Extrude Push Pull", "Compact push-pull on average direction.", JointPushPullMode.Extrude),
+        })
+        {
+            _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection", groupStart: id == ExtensionIds.JointPushPull);
+            _commands.Register(id, () => _viewport.Tools.Activate(new JointPushPullTool(m)), () => _viewport.Tools.Active.CommandId == id);
+        }
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
