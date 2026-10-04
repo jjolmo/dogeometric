@@ -18,6 +18,7 @@ logs/
 # research/extract_resources.py from your own SketchUp install; they are not redistributed.
 research/sketchup_resources.json
 research/status_texts.txt
+research/status_texts_viewerapi.txt
 
 # Native libraries built by tools/native/*.sh (per platform)
 app/native/

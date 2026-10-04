@@ -265,6 +265,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.FollowMe, () => new FollowMeTool());
         RegisterTool(CommandIds.Dimension, () => new DimensionTool());
         RegisterTool(CommandIds.Text, () => new TextTool());
+        RegisterTool(CommandIds.ZoomWindow, () => new ZoomWindowTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }

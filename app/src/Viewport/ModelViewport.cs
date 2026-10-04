@@ -181,6 +181,32 @@ public partial class ModelViewport : Control
         SyncCamera();
     }
 
+    /// <summary>Zoom Window: the part of the view inside <paramref name="rect"/> fills the view.</summary>
+    public void ZoomWindow(Rect2 rect)
+    {
+        if (rect.Size.X < 2 || rect.Size.Y < 2)
+            return;
+        BeginNavigation();
+        var centre = rect.GetCenter();
+        var (origin, direction) = ScreenRay(centre);
+        var dir = Camera.Direction;
+        // Zoom onto what's under the window's centre, or onto the current target depth.
+        var depth = PickGeometry(centre) is { } hit ? (hit - Camera.Eye).Dot(dir) : Camera.DepthOf(Camera.Target);
+        var along = direction.Dot(dir);
+        var point = Camera.Perspective && along > 1e-9 ? origin + direction * (depth / along) : origin + direction * Math.Max(depth, 1);
+        var factor = Math.Max(rect.Size.X / Size.X, rect.Size.Y / Size.Y);
+        if (Camera.Perspective)
+        {
+            Camera.Set(point - dir * Math.Max(depth * factor, 1), point, Camera.Up);
+        }
+        else
+        {
+            Camera.Set(point - dir * Camera.Distance, point, Camera.Up);
+            Camera.OrthoHeight *= factor;
+        }
+        SyncCamera();
+    }
+
     /// <summary>Frames <paramref name="bounds"/> keeping the view direction (Zoom Selection, Align View).</summary>
     public void ZoomToBounds(Bounds3 bounds)
     {
