@@ -20,6 +20,7 @@ public static class ExtensionCatalog
         new("Curviloft", "Fredo6", "Skins surfaces between curves (loft, rails).", false),
         new("Tools on Surface", "Fredo6", "Draws lines, shapes and offsets on curved surfaces.", false),
         new("SUbD", "Thomas Thomassen", "Subdivision surfaces.", false),
+        new("Loop subdivision smooth", "Nathan B", "Smooths faces by Loop subdivision (Tools menu).", true),
         new("Sandbox Tools", "SketchUp", "Terrain from contours and scratch, smoove, stamp, drape.", false),
     ];
 }

@@ -191,6 +191,7 @@ public sealed class ModelRenderer
             return cached;
 
         var groups = new Dictionary<(Material?, Material?), SurfaceData>();
+        var smooth = SmoothNormals.For(e);
         foreach (var face in e.Faces)
         {
             if (face.Hidden || face.Tag is { Visible: false })
@@ -198,7 +199,7 @@ public sealed class ModelRenderer
             var key = (face.FrontMaterial, face.BackMaterial);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
-            data.AddFace(face, face.FrontMaterial, face.BackMaterial);
+            data.AddFace(face, face.FrontMaterial, face.BackMaterial, smooth);
         }
 
         ArrayMesh? faces = null;
@@ -405,7 +406,58 @@ public sealed class ModelRenderer
         return new GTransform(basis, Space.ToGodot(t.Origin));
     }
 
-    /// <summary>Triangles of one material pair, wound clockwise (Godot's front faces) with flat normals.</summary>
+    /// <summary>
+    /// SketchUp's smoothing: at a corner, the normal averages every face reached from this one across smooth edges
+    /// meeting at that vertex, so smoothed faces shade as one curved surface.
+    /// </summary>
+    private sealed class SmoothNormals
+    {
+        private readonly Dictionary<Edge, List<Face>> _facesOf = [];
+
+        /// <summary>Null when nothing in <paramref name="e"/> is smoothed (flat shading, no extra work).</summary>
+        public static SmoothNormals? For(Entities e)
+        {
+            if (!e.Edges.Any(x => x.Flags.HasFlag(EdgeFlags.Smooth)))
+                return null;
+            var s = new SmoothNormals();
+            foreach (var f in e.Faces)
+                foreach (var edge in Topology.EdgesOf(f))
+                {
+                    if (!s._facesOf.TryGetValue(edge, out var list))
+                        s._facesOf[edge] = list = [];
+                    list.Add(f);
+                }
+            return s;
+        }
+
+        public Vec3? At(Face face, Vertex v)
+        {
+            var normal = face.Normal.Normalized();
+            var sum = normal;
+            var seen = new HashSet<Face> { face };
+            var stack = new Stack<Face>([face]);
+            while (stack.Count > 0)
+            {
+                var f = stack.Pop();
+                foreach (var edge in Topology.EdgesOf(f))
+                {
+                    if (!edge.Flags.HasFlag(EdgeFlags.Smooth) || (edge.Start != v && edge.End != v))
+                        continue;
+                    foreach (var g in _facesOf.GetValueOrDefault(edge) ?? [])
+                        if (seen.Add(g))
+                        {
+                            var n = g.Normal.Normalized();
+                            // A neighbour wound the other way still bends the same surface.
+                            sum += n.Dot(normal) < 0 ? -n : n;
+                            stack.Push(g);
+                        }
+                }
+            }
+            return seen.Count > 1 && sum.Length > 1e-9 ? sum.Normalized() : null;
+        }
+    }
+
+    /// <summary>Triangles of one material pair, wound clockwise (Godot's front faces); flat normals unless smoothed.</summary>
     private sealed class SurfaceData
     {
         public List<Vector3> Vertices { get; } = [];
@@ -413,10 +465,11 @@ public sealed class ModelRenderer
         public List<Vector2> Uvs { get; } = [];  // front side's texture coordinates
         public List<Vector2> Uv2s { get; } = []; // back side's
 
-        public void AddFace(Face face, Material? front, Material? back)
+        public void AddFace(Face face, Material? front, Material? back, SmoothNormals? smooth = null)
         {
             var outer = face.OuterLoop.Points.ToList();
             var holes = face.InnerLoops.Select(l => (IReadOnlyList<Vec3>)l.Points.ToList()).ToList();
+            var corners = face.Loops.SelectMany(l => l.Vertices).ToArray();
             var idx = Polygon.Triangulate(outer, holes);
             if (idx.Count == 0)
                 return;
@@ -437,7 +490,7 @@ public sealed class ModelRenderer
                 foreach (var k in new[] { idx[i], idx[i + 2], idx[i + 1] })
                 {
                     Vertices.Add(pts[k]);
-                    Normals.Add(n);
+                    Normals.Add(smooth?.At(face, corners[k]) is { } sn ? Space.DirToGodot(sn) : n);
                     Uvs.Add(Uv(front, false, model[k]));
                     Uv2s.Add(Uv(back, true, model[k]));
                 }

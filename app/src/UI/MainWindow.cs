@@ -250,6 +250,8 @@ public partial class MainWindow : Control
         _commands.AddToMenu("Tools", ExtensionIds.SelectCurve, "Select Curve", "Select sets of connected visible edges.");
         _commands.Register(ExtensionIds.SelectCurve, () => _viewport.Tools.Activate(new SelectCurveTool()),
             () => _viewport.Tools.Active is SelectCurveTool);
+        _commands.AddToMenu("Tools", ExtensionIds.LoopSubdivision, "Loop subdivision smooth", "Smooth the selected faces by Loop subdivision.");
+        _commands.Register(ExtensionIds.LoopSubdivision, LoopSubdivide);
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
@@ -340,6 +342,70 @@ public partial class MainWindow : Control
         doc.Selection.Clear();
         _status.SetHint("CleanUp³: done.");
         CleanUpDialog.Statistics(this, stats, DateTime.Now - started);
+    }
+
+    /// <summary>Tools › Loop subdivision smooth: asks how many rounds and whether to soften, then subdivides.</summary>
+    private void LoopSubdivide()
+    {
+        var doc = _document.Document;
+        var selection = doc.Selection.Items.ToList();
+        void Ask()
+        {
+            var d = new ConfirmationDialog { Title = "Repeat subdivision ?", OkButtonText = "OK" };
+            var grid = new GridContainer { Columns = 2 };
+            grid.AddChild(new Label { Text = "How many times?" });
+            var times = new OptionButton();
+            foreach (var n in new[] { "1", "2", "3", "4" })
+                times.AddItem(n);
+            grid.AddChild(times);
+            grid.AddChild(new Label { Text = "Soften and smooth edges?" });
+            var soften = new OptionButton();
+            soften.AddItem("yes");
+            soften.AddItem("no");
+            grid.AddChild(soften);
+            d.AddChild(grid);
+            d.Confirmed += () =>
+            {
+                d.QueueFree();
+                var rounds = times.Selected + 1;
+                var smooth = soften.Selected == 0;
+                var context = doc.Context.Entities;
+                var defs = selection.OfType<ComponentInstance>().Select(i => i.Definition).Distinct().ToList();
+                doc.Undo.Begin("loop subdivision", defs.Select(x => x.Entities).Prepend(context).ToArray());
+                try
+                {
+                    var faces = selection.Count == 0 ? context.Faces.ToList() : selection.OfType<Face>().ToList();
+                    var made = LoopSubdivision.Apply(context, faces, rounds, smooth);
+                    foreach (var def in defs)
+                        made += LoopSubdivision.Apply(def.Entities, def.Entities.Faces.ToList(), rounds, smooth);
+                    doc.Undo.Commit();
+                    doc.Selection.Clear();
+                    _status.SetHint($"Loop subdivision: {made} triangles.");
+                }
+                catch
+                {
+                    doc.Undo.Abort();
+                    throw;
+                }
+            };
+            d.Canceled += d.QueueFree;
+            AddChild(d);
+            d.PopupCentered();
+        }
+        if (selection.Count > 0)
+        {
+            Ask();
+            return;
+        }
+        var confirm = new ConfirmationDialog { Title = "Dogeometric", DialogText = "No objects selected. Subdivide entire model?", OkButtonText = "Yes", CancelButtonText = "Cancel" };
+        confirm.Confirmed += () =>
+        {
+            confirm.QueueFree();
+            Ask();
+        };
+        confirm.Canceled += confirm.QueueFree;
+        AddChild(confirm);
+        confirm.PopupCentered();
     }
 
     private void RegisterCommands()

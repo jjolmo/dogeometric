@@ -21,6 +21,7 @@ public static class ExtensionIds
     public const int DeselectComponents = 90038;
     public const int CircleByDiameter = 90051;
     public const int SelectCurve = 90052;
+    public const int LoopSubdivision = 90053;
     public const int CleanUp = 90041;
     public const int CleanUpLast = 90042;
     public const int CleanUpEraseHidden = 90043;
