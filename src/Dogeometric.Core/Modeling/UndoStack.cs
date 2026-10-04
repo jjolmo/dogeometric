@@ -137,9 +137,9 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows)
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill)
     {
-        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows);
+        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill);
 
         public void Restore(Model m)
         {
@@ -150,6 +150,7 @@ public sealed class UndoStack(Model model)
             m.Units = Units;
             m.UnitPrecision = Precision;
             m.Shadows = Shadows;
+            m.ShowSectionFill = SectionFill;
         }
     }
 

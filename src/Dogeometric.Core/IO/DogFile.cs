@@ -55,6 +55,7 @@ public static class DogFile
             }
             w.WriteString("sourceVersion", model.SourceVersion);
             WriteShadows(w, model.Shadows);
+            w.WriteBoolean("sectionFill", model.ShowSectionFill);
 
             w.WriteStartArray("materials");
             foreach (var m in model.Materials)
@@ -402,6 +403,8 @@ public static class DogFile
             UnitPrecision = r.GetProperty("unitPrecision").GetInt32(),
             SourceVersion = r.TryGetProperty("sourceVersion", out var sv) ? sv.GetString() ?? "" : "",
         };
+        if (r.TryGetProperty("sectionFill", out var fill))
+            model.ShowSectionFill = fill.GetBoolean();
         if (r.TryGetProperty("shadows", out var shadows))
             model.Shadows = ReadShadows(shadows);
         if (r.TryGetProperty("axes", out var axes))

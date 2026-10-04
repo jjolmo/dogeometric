@@ -124,6 +124,7 @@ public static class CommandIds
     public const int ActiveSectionCut = 21335;
     public const int DisplaySectionPlanes = 21347;
     public const int DisplaySectionCuts = 21348;
+    public const int DisplaySectionFill = 21349;
     public const int IntersectWithModel = 21524;
     public const int IntersectWithSelection = 21527;
     public const int IntersectWithContext = 21526;

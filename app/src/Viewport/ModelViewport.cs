@@ -449,6 +449,37 @@ public partial class ModelViewport : Control
             Axes.Transform = ModelRenderer.ToGodot(Document.Model.Axes);
     }
 
+    private MeshInstance3D? _sectionFill;
+
+    private void UpdateSectionFill(SectionPlane? plane)
+    {
+        if (_sectionFill == null)
+        {
+            var material = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+                AlbedoColor = new Color(0.3f, 0.3f, 0.3f),
+            };
+            _sectionFill = new MeshInstance3D { MaterialOverride = material, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            ModelRoot.GetParent().AddChild(_sectionFill);
+        }
+        var triangles = plane != null && ShowSectionCuts && Document!.Model.ShowSectionFill
+            ? SectionFill.Triangles(SectionCut, plane.Normal)
+            : [];
+        if (triangles.Count == 0)
+        {
+            _sectionFill.Mesh = null;
+            return;
+        }
+        var arrays = new Godot.Collections.Array();
+        arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = triangles.Select(Space.ToGodot).ToArray();
+        var mesh = new ArrayMesh();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        _sectionFill.Mesh = mesh;
+    }
+
     /// <summary>Applies the model's active section: the shaders' cut plane and the cut lines.</summary>
     public void UpdateSection()
     {
@@ -465,6 +496,7 @@ public partial class ModelViewport : Control
             RenderingServer.GlobalShaderParameterSet("section_plane", new Vector4(n.X, n.Y, n.Z, n.Dot(p)));
             SectionCut = Intersect.SectionCut(Document!.Model);
         }
+        UpdateSectionFill(plane);
         QueueOverlayRedraw();
     }
 

@@ -23,6 +23,9 @@ public sealed class Model
     public int UnitPrecision { get; set; } = 1;
     public ShadowSettings Shadows { get; set; } = new();
 
+    /// <summary>View › Section Fill: the active section's cut is filled.</summary>
+    public bool ShowSectionFill { get; set; } = true;
+
     /// <summary>
     /// SketchUp's drawing axes (Axes tool): origin and red/green/blue directions, orthonormal. Inference, arrow-key
     /// locks and the ground plane follow them.

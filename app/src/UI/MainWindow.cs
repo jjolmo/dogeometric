@@ -709,6 +709,13 @@ public partial class MainWindow : Control
             _viewport.ShowSectionCuts = !_viewport.ShowSectionCuts;
             _viewport.UpdateSection();
         }, () => _viewport.ShowSectionCuts);
+        _commands.Register(CommandIds.DisplaySectionFill, () =>
+        {
+            var doc = Doc();
+            doc.Undo.Begin("Section Fill");
+            doc.Model.ShowSectionFill = !doc.Model.ShowSectionFill;
+            doc.Undo.Commit();
+        }, () => _document.Document.Model.ShowSectionFill);
         _commands.Register(CommandIds.ReverseSection, () =>
         {
             var planes = Doc().Selection.Items.OfType<SectionPlane>().ToList();
