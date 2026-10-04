@@ -206,3 +206,39 @@ public static class Polygon
 
     private static double Dist2((double X, double Y) a, (double X, double Y) b) => (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
 }
+
+/// <summary>Offset of planar polygons (SketchUp's Offset tool).</summary>
+public static class PolygonOffset
+{
+    /// <summary>
+    /// Offsets a closed planar loop inward (positive distance, towards its interior) with mitred corners. The loop
+    /// winds counter-clockwise around <paramref name="normal"/>.
+    /// </summary>
+    public static List<Vec3> Offset(IReadOnlyList<Vec3> loop, Vec3 normal, double distance)
+    {
+        var n = loop.Count;
+        var result = new List<Vec3>(n);
+        for (var i = 0; i < n; i++)
+        {
+            var prev = loop[(i - 1 + n) % n];
+            var cur = loop[i];
+            var next = loop[(i + 1) % n];
+            // Inward normals of the two edges meeting at cur (left of the direction of travel).
+            var d1 = (cur - prev).Normalized();
+            var d2 = (next - cur).Normalized();
+            var in1 = normal.Cross(d1).Normalized();
+            var in2 = normal.Cross(d2).Normalized();
+            var bisector = (in1 + in2).Normalized();
+            var cos = bisector.Dot(in1);
+            if (bisector.IsZero(1e-12) || Math.Abs(cos) < 1e-6)
+            {
+                result.Add(cur + in1 * distance);
+                continue;
+            }
+            // Mitre length grows as the corner sharpens; cap it like a miter limit of 10.
+            var mitre = distance / Math.Max(cos, 0.1);
+            result.Add(cur + bisector * mitre);
+        }
+        return result;
+    }
+}

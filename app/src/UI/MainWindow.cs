@@ -163,6 +163,8 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Move, () => new MoveTool());
         RegisterTool(CommandIds.Eraser, () => new EraserTool());
         RegisterTool(CommandIds.TapeMeasure, () => new TapeMeasureTool());
+        RegisterTool(CommandIds.Rotate, () => new RotateTool());
+        RegisterTool(CommandIds.Offset, () => new OffsetTool());
     }
 
     private void RegisterTool(int id, Func<Tool> create)
