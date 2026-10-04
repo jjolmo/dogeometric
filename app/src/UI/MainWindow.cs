@@ -794,7 +794,12 @@ public partial class MainWindow : Control
                     def.GlueTo = r.GlueTo;
                     def.CutsOpening = r.CutsOpening;
                     if (r.GlueTo != GlueTo.None)
-                        created.GluedTo = Gluing.FaceUnder(e, created);
+                    {
+                        // Settling changes the definition, which other collections may hold copies of.
+                        foreach (var d in doc.Model.Definitions)
+                            doc.Undo.Touch(d.Entities);
+                        Gluing.Settle(doc.Model, e, created);
+                    }
                     // Unchecked "Replace selection": the component goes to the model's library only.
                     if (!r.ReplaceSelection)
                     {

@@ -100,6 +100,9 @@ public sealed class ModelRenderer
 
     public ShadowSettings Shadows => _shadows;
 
+    /// <summary>Glued instances being dragged and where they are drawn, so their openings follow them.</summary>
+    public IReadOnlyDictionary<ComponentInstance, Transform>? MovingInstances { get; set; }
+
     /// <summary>
     /// Takes the model's shadow settings. Light and Dark update the materials in place; returns true when the
     /// geometry must be rebuilt (lit or not, shadows cast or received).
@@ -236,7 +239,7 @@ public sealed class ModelRenderer
 
         var groups = new Dictionary<(Material?, Material?), SurfaceData>();
         var smooth = SmoothNormals.For(e);
-        var openings = Gluing.Openings(e);
+        var openings = Gluing.Openings(e, MovingInstances);
         foreach (var face in e.Faces)
         {
             if (face.Hidden || face.Tag is { Visible: false })

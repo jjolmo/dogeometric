@@ -87,8 +87,42 @@ public class GluingTests
     public void A_copy_slid_along_the_face_is_glued_too()
     {
         var (m, front, vent) = GluedVent();
-        var copy = (ComponentInstance)Transforming.Copy(m.Entities, [vent], Transform.Translation(new Vec3(30, 0, 0))).Single();
+        var copy = (ComponentInstance)Transforming.Copy(m.Entities, [vent], Transform.Translation(new Vec3(-33, 0, 0))).Single();
         Assert.Same(front, copy.GluedTo);
         Assert.Equal(2, Gluing.Openings(m.Entities)[front].Count);
+    }
+
+    [Fact]
+    public void A_component_made_on_a_wall_stands_on_it_and_glues()
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(100, 60, 40));
+        var wall = m.Entities.Faces.First(f => f.Normal.Normalized().Dot(-Vec3.UnitY) > 0.99);
+        StickyGeometry.DrawEdges(m.Entities, [new(30, 0, 10), new(60, 0, 10), new(60, 0, 25), new(30, 0, 25)], closed: true, -Vec3.UnitY);
+        var rect = m.Entities.Faces.Single(f => f.Normal.Normalized().Dot(-Vec3.UnitY) > 0.99 && Polygon.Area(f.OuterLoop.Points.ToList()) < 500);
+        var before = rect.OuterLoop.Points.ToList();
+        var inst = Grouping.Make(m, m.Entities, [rect, .. Topology.EdgesOf(rect)], asGroup: false);
+        inst.Definition.GlueTo = GlueTo.Vertical;
+        inst.Definition.CutsOpening = true;
+        var face = Gluing.Settle(m, m.Entities, inst);
+        Assert.NotNull(face);
+        Assert.Same(face, inst.GluedTo);
+        Assert.Equal(-1, inst.Transform.ApplyVector(Vec3.UnitZ).Normalized().Y, 9);
+        // Nothing moved on screen, and the opening is the rectangle.
+        var world = inst.Definition.Entities.Vertices.Select(v => inst.Transform.ApplyPoint(v.Position)).ToList();
+        Assert.All(before, p => Assert.Contains(world, q => q.DistanceTo(p) < 1e-9));
+        Assert.Equal(30 * 15, Polygon.Area(Assert.Single(Gluing.Openings(m.Entities)[face!])), 6);
+        // The wall is whole again: the component makes the hole.
+        Assert.Empty(face!.InnerLoops);
+        Assert.DoesNotContain(SolidInspector.Find(m.Entities), x => x.Kind == SolidErrorKind.StrayEdge);
+    }
+
+    [Fact]
+    public void Overlapping_openings_are_not_cut()
+    {
+        var (m, front, vent) = GluedVent();
+        var twin = m.Entities.AddInstance(vent.Definition, vent.Transform.Then(Transform.Translation(new Vec3(10, 0, 0))));
+        twin.GluedTo = front;
+        Assert.Single(Gluing.Openings(m.Entities)[front]);
     }
 }

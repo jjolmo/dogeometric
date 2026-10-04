@@ -48,6 +48,9 @@ public partial class ModelViewport : Control
     /// <summary>Bounds of the model contents, used by Zoom Extents.</summary>
     public Func<Bounds3> ModelBounds { get; set; } = () => Bounds3.Empty;
 
+    /// <summary>Redraws a collection with glued instances' openings at their dragged placement (null: back to normal).</summary>
+    public Action<Entities, IReadOnlyDictionary<ComponentInstance, Dogeometric.Core.Geometry.Transform>?> PreviewOpenings { get; set; } = (_, _) => { };
+
     /// <summary>Centre points shown and snapped to (View › Center Points); empty when off.</summary>
     public Func<IReadOnlyList<Core.Inference.CenterPoint>> CenterPoints { get; set; } = () => [];
 

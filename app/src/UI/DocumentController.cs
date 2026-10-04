@@ -30,6 +30,14 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>Redraws the openings of glued instances being dragged at <paramref name="placement"/> (null when the drag ends).</summary>
+    public void PreviewOpenings(Entities entities, IReadOnlyDictionary<ComponentInstance, Dogeometric.Core.Geometry.Transform>? placement)
+    {
+        _renderer.MovingInstances = placement;
+        _renderer.Build(Model, viewport.ModelRoot, [entities]);
+        RebuildSelection();
+    }
+
     /// <summary>Shows the model's shadow settings (Shadows window, View › Shadows, a model loaded).</summary>
     public void ApplyShadows()
     {
@@ -404,6 +412,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         Path = path;
         viewport.Document = Document;
         viewport.ModelBounds = () => Model.Entities.Bounds();
+        viewport.PreviewOpenings = PreviewOpenings;
         _renderer.SetShadows(Model.Shadows);
         Rebuild();
         viewport.UpdateSection();

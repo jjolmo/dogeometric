@@ -43,10 +43,24 @@ public sealed class MoveTool : DrawingTool
     protected override void OnInferenceChanged()
     {
         View.ShowVcbValue(VcbValue);
-        if (_from is { } f && Current is { } c)
-            foreach (var (node, start, _) in _following)
-                node.GlobalTransform = start with { Origin = start.Origin + Space.ToGodot(Slide(c.Point - f)) };
+        if (_from is not { } f || Current is not { } c || View.Document is not { } doc)
+            return;
+        var offset = Slide(c.Point - f);
+        // Cutting components carry their opening along: the wall is redrawn (which renews the drawn nodes).
+        var cutters = _copy ? [] : _items.OfType<ComponentInstance>().Where(i => i is { GluedTo: not null, Definition.CutsOpening: true }).ToList();
+        if (cutters.Count > 0)
+        {
+            var local = Transform.Translation(doc.Context.ToWorld.Inverse().ApplyVector(offset));
+            View.PreviewOpenings(doc.Context.Entities, cutters.ToDictionary(i => i, i => i.Transform.Then(local)));
+            _previewingOpenings = false; // so Follow's reset leaves this preview in place
+            Follow();
+            _previewingOpenings = true;
+        }
+        foreach (var (node, start, _) in _following)
+            node.GlobalTransform = start with { Origin = start.Origin + Space.ToGodot(offset) };
     }
+
+    private bool _previewingOpenings;
 
     /// <summary>Glued components only slide along their face: the offset loses its part along the face's normal.</summary>
     private Vec3 Slide(Vec3 worldOffset)
@@ -92,12 +106,16 @@ public sealed class MoveTool : DrawingTool
             }
             _following.Add((node, n.GlobalTransform, _copy));
         }
-        OnInferenceChanged();
     }
 
     /// <summary>Puts the drawn nodes back (the model is redrawn after a move anyway).</summary>
     private void Unfollow()
     {
+        if (_previewingOpenings && View.Document is { } doc)
+        {
+            _previewingOpenings = false;
+            View.PreviewOpenings(doc.Context.Entities, null);
+        }
         foreach (var (node, start, ghost) in _following)
         {
             if (!GodotObject.IsInstanceValid(node))
@@ -127,6 +145,7 @@ public sealed class MoveTool : DrawingTool
             _from = inf.Point;
             _lastCopy = null;
             Follow();
+            OnInferenceChanged();
             RefreshStatus();
             return;
         }
@@ -205,7 +224,10 @@ public sealed class MoveTool : DrawingTool
         {
             _copy = !_copy;
             if (_from != null)
+            {
                 Follow();
+                OnInferenceChanged();
+            }
             RefreshStatus();
             return true;
         }
