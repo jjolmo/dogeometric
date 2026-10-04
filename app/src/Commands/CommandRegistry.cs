@@ -61,6 +61,40 @@ public sealed class CommandRegistry
         }
 
         _menus = ParseMenus(root.GetProperty("menus"), "");
+        RememberDefaults();
+    }
+
+    private Dictionary<int, Key> _defaultShortcuts = [];
+    private List<(Key Keys, int Id)> _defaultAliases = [];
+
+    private void RememberDefaults()
+    {
+        _defaultShortcuts = _commands.Values.Where(c => c.Shortcut != Key.None).ToDictionary(c => c.Id, c => c.Shortcut);
+        _defaultAliases = [.. _aliases];
+    }
+
+    /// <summary>A default shortcut beyond SketchUp's resource tables, kept by Reset All; ignored if the keys are taken.</summary>
+    public void AddDefaultShortcut(string keys, int id)
+    {
+        var k = ParseKeys(keys);
+        if (_commands.Values.Any(c => c.Shortcut == k) || _aliases.Any(a => a.Keys == k))
+            return;
+        if (Get(id).Shortcut == Key.None)
+            Get(id).Shortcut = k;
+        else
+            _aliases.Add((k, id));
+        RememberDefaults();
+    }
+
+    /// <summary>Preferences › Shortcuts › Reset All: SketchUp's default shortcuts again, for this and later sessions.</summary>
+    public void ResetShortcuts()
+    {
+        foreach (var c in _commands.Values)
+            c.Shortcut = _defaultShortcuts.GetValueOrDefault(c.Id, Key.None);
+        _aliases.Clear();
+        _aliases.AddRange(_defaultAliases);
+        if (FileAccess.FileExists(UserShortcutsPath))
+            DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(UserShortcutsPath));
     }
 
     /// <summary>Every command with a label (for Preferences › Shortcuts).</summary>
@@ -134,9 +168,10 @@ public sealed class CommandRegistry
 
     /// <summary>
     /// An extension's menu item, appended to a top-level menu as SketchUp's <c>UI.menu("Tools").add_item</c> does
-    /// (after a separator, once per extension). <paramref name="submenu"/> puts it in a submenu of that menu.
+    /// (after a separator, once per extension). <paramref name="submenu"/> puts it in a submenu of that menu;
+    /// <paramref name="after"/> places it right after the item with that label instead.
     /// </summary>
-    public void AddToMenu(string menu, int id, string label, string description, string? submenu = null, bool separator = true)
+    public void AddToMenu(string menu, int id, string label, string description, string? submenu = null, bool separator = true, string? after = null)
     {
         var index = _menus.FindIndex(m => m.Label.Replace("&", "") == menu);
         if (index < 0)
@@ -155,6 +190,10 @@ public sealed class CommandRegistry
                     children.Add(new MenuNode("", null, null, true));
                 children.Add(new MenuNode(submenu, null, [item], false));
             }
+        }
+        else if (after != null && children.FindIndex(c => c.Label.Replace("&", "").Replace("...", "") == after) is var at and >= 0)
+        {
+            children.Insert(at + 1, item);
         }
         else
         {

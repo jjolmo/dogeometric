@@ -60,8 +60,8 @@ public sealed class LineTool : DrawingTool
             facesAfter = e.Faces.Count;
         });
         ResetLocks();
-        // Closing a face ends the chain, as in SketchUp.
-        _start = facesAfter > facesBefore ? null : b;
+        // Closing a face ends the chain, as in SketchUp; so does every line with "Continue line drawing" off.
+        _start = facesAfter > facesBefore || !UI.AppPreferences.Current.ContinueLineDrawing ? null : b;
         RefreshStatus();
         UpdateInference();
     }

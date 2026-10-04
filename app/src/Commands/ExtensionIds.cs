@@ -8,3 +8,9 @@ public static class ExtensionIds
 {
     public const int SolidInspector = 90001;
 }
+
+/// <summary>Dogeometric's own commands, which SketchUp does not have.</summary>
+public static class OwnIds
+{
+    public const int RecoverBackup = 95001;
+}

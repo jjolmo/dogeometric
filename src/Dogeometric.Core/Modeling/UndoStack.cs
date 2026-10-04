@@ -17,6 +17,9 @@ public sealed class UndoStack(Model model)
 
     public event Action? Changed;
 
+    /// <summary>Changes on every commit, undo, redo and clear: a different value means the model changed.</summary>
+    public int Revision { get; private set; }
+
     /// <summary>Entity collections changed by the last commit, undo, redo or abort (for partial redraws).</summary>
     public IReadOnlyCollection<Entities> LastTouched { get; private set; } = [];
 
@@ -57,6 +60,7 @@ public sealed class UndoStack(Model model)
         if (_undo.Count > Capacity)
             _undo.RemoveAt(0);
         _redo.Clear();
+        Revision++;
         Changed?.Invoke();
     }
 
@@ -96,6 +100,7 @@ public sealed class UndoStack(Model model)
             s.Restore();
         LastTouched = step.Before.Select(s => s.Target).ToArray();
         _redo.Add(step);
+        Revision++;
         Changed?.Invoke();
         return true;
     }
@@ -111,6 +116,7 @@ public sealed class UndoStack(Model model)
             s.Restore();
         LastTouched = step.After.Select(s => s.Target).ToArray();
         _undo.Add(step);
+        Revision++;
         Changed?.Invoke();
         return true;
     }
@@ -120,6 +126,7 @@ public sealed class UndoStack(Model model)
         _undo.Clear();
         _redo.Clear();
         _pending = null;
+        Revision++; // cleared after a change that cannot be undone (Import): the model still changed
         Changed?.Invoke();
     }
 

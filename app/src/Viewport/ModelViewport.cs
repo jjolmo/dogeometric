@@ -54,6 +54,14 @@ public partial class ModelViewport : Control
     /// <summary>Raised when the Measurements box text should change (typing or tool feedback).</summary>
     public event Action<string>? VcbTextChanged;
 
+    private static Godot.Viewport.Msaa MsaaFor(int samples) => samples switch
+    {
+        >= 8 => Godot.Viewport.Msaa.Msaa8X,
+        >= 4 => Godot.Viewport.Msaa.Msaa4X,
+        >= 2 => Godot.Viewport.Msaa.Msaa2X,
+        _ => Godot.Viewport.Msaa.Disabled,
+    };
+
     public void ShowVcbValue(string value)
     {
         if (VcbTyping.Length == 0)
@@ -80,11 +88,12 @@ public partial class ModelViewport : Control
 
         _subViewport = new SubViewport
         {
-            Msaa3D = Godot.Viewport.Msaa.Msaa4X,
+            Msaa3D = MsaaFor(UI.AppPreferences.Current.Antialiasing),
             HandleInputLocally = false,
             RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
         };
         container.AddChild(_subViewport);
+        UI.AppPreferences.Changed += () => _subViewport.Msaa3D = MsaaFor(UI.AppPreferences.Current.Antialiasing);
         BuildWorld();
 
         _overlay = new OverlayCanvas { View = this, MouseFilter = MouseFilterEnum.Ignore };
@@ -504,7 +513,7 @@ public partial class ModelViewport : Control
                 if (now - _lastWheelMs > WheelGestureMs)
                     BeginNavigation();
                 _lastWheelMs = now;
-                var factor = mb.ButtonIndex == MouseButton.WheelUp ? WheelZoomFactor : 1 / WheelZoomFactor;
+                var factor = (mb.ButtonIndex == MouseButton.WheelUp) != UI.AppPreferences.Current.InvertWheelZoom ? WheelZoomFactor : 1 / WheelZoomFactor;
                 ZoomAt(PickPoint(mb.Position), factor);
                 break;
 

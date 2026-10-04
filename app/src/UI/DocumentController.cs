@@ -89,18 +89,73 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     public Model Model => Document.Model;
     public string? Path { get; private set; }
 
-    public string Title => (Path == null ? "Untitled" : System.IO.Path.GetFileName(Path)) + " - Dogeometric";
+    public string Title => (Path != null ? System.IO.Path.GetFileName(Path)
+        : _recoveredFrom != null ? $"{System.IO.Path.GetFileName(_recoveredFrom)} (recovered)" : "Untitled") + " - Dogeometric";
+
+    private int _savedRevision;
+
+    /// <summary>A recovered backup remembers the model it was a copy of, so Save As suggests it.</summary>
+    private string? _recoveredFrom;
+
+    /// <summary>The file the model is (or was a copy of, when recovered), naming its backups.</summary>
+    public string? ModelPath => Path ?? _recoveredFrom;
+
+    /// <summary>The model changed since it was opened or last saved.</summary>
+    public bool IsModified => Document.Undo.Revision != _savedRevision;
 
     public event Action? Changed;
 
     /// <summary>File › New: an empty model; the camera keeps SketchUp's new-model view.</summary>
-    public void New()
+    public void New() => ConfirmDiscard(() => SetModel(new Model(), null, zoomExtents: false));
+
+    public void ShowOpen() => ConfirmDiscard(() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Open",
+        ["*.skp, *.dog ; Models", "*.dog ; Dogeometric", "*.skp ; SketchUp"], Open));
+
+    /// <summary>Before the model goes away (New, Open, quit): SketchUp's "Save changes?" when it has unsaved changes.</summary>
+    public void ConfirmDiscard(Action proceed)
     {
-        SetModel(new Model(), null, zoomExtents: false);
+        if (!IsModified)
+        {
+            proceed();
+            return;
+        }
+        var name = Path != null ? System.IO.Path.GetFileName(Path) : _recoveredFrom != null ? System.IO.Path.GetFileName(_recoveredFrom) : "Untitled";
+        var d = new ConfirmationDialog { Title = "Dogeometric", DialogText = $"Save changes to \"{name}\"?", OkButtonText = "Yes", CancelButtonText = "Cancel" };
+        d.AddButton("No", true, "discard");
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            Save(proceed);
+        };
+        d.CustomAction += action =>
+        {
+            if (action != "discard")
+                return;
+            d.QueueFree();
+            proceed();
+        };
+        d.Canceled += d.QueueFree;
+        host.AddChild(d);
+        d.PopupCentered();
     }
 
-    public void ShowOpen() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Open",
-        ["*.skp, *.dog ; Models", "*.dog ; Dogeometric", "*.skp ; SketchUp"], Open);
+    /// <summary>Opens a backup as an unsaved copy, so saving asks where instead of writing over anything.</summary>
+    public void OpenRecovered(string backup, string? original)
+    {
+        try
+        {
+            SetModel(DogFile.Load(backup), null);
+            // A backup without a known original is named after its model's backups folder ("Untitled").
+            _recoveredFrom = original ?? System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(backup)) + ".dog";
+            _savedRevision = -1;
+            Changed?.Invoke();
+            status.SetHint($"Recovered {System.IO.Path.GetFileName(backup)} — use Save As to keep it");
+        }
+        catch (Exception ex)
+        {
+            Alert("Recover", $"Could not open {System.IO.Path.GetFileName(backup)}:\n{ex.Message}");
+        }
+    }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
         ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images (as texture)"], Import);
@@ -108,23 +163,41 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>File › Import of a picture: the main window hands it to the texture placing tool.</summary>
     public event Action<string>? ImageImportRequested;
 
-    public void Save()
+    public void Save() => Save(null);
+
+    /// <summary>File › Save; <paramref name="saved"/> runs once the model is on disk (not if Save As is cancelled).</summary>
+    public void Save(Action? saved)
     {
         if (Path == null || !Path.EndsWith(".dog", StringComparison.OrdinalIgnoreCase))
-            ShowSaveAs();
-        else
-            Write(Path, DogFile.Save);
+            ShowSaveAs(saved);
+        else if (SaveTo(Path))
+            saved?.Invoke();
     }
 
-    public void ShowSaveAs() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Save As", ["*.dog ; Dogeometric"], path =>
+    public void ShowSaveAs() => ShowSaveAs(null);
+
+    private void ShowSaveAs(Action? saved) => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Save As", ["*.dog ; Dogeometric"], path =>
     {
         path = WithExtension(path, ".dog");
-        if (Write(path, DogFile.Save))
+        if (SaveTo(path))
         {
             Path = path;
+            _recoveredFrom = null;
             Changed?.Invoke();
+            saved?.Invoke();
         }
     });
+
+    /// <summary>Saves the model as its file: the previous version is kept as a .dogb first (Preferences › Create backup).</summary>
+    private bool SaveTo(string path)
+    {
+        Backups.KeepPreviousVersion(path);
+        if (!Write(path, DogFile.Save))
+            return false;
+        _savedRevision = Document.Undo.Revision;
+        Changed?.Invoke();
+        return true;
+    }
 
     public void ShowSaveCopyAs() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Save A Copy As",
         ["*.dog ; Dogeometric", "*.skp ; SketchUp (2017 format)"], path =>
@@ -249,6 +322,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private void SetModel(Model model, string? path, bool zoomExtents = true)
     {
         Document = new Document(model);
+        _savedRevision = Document.Undo.Revision;
+        _recoveredFrom = null;
         Document.GeometryChanged += changed =>
         {
             _renderer.Build(Model, viewport.ModelRoot, changed);
@@ -331,8 +406,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Filters = filters,
             // The system's file picker; test sessions (no desktop portal) set DOGEOMETRIC_NO_NATIVE_DIALOGS.
             UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
-            CurrentDir = Path != null ? System.IO.Path.GetDirectoryName(Path) : OS.GetSystemDir(OS.SystemDir.Documents),
+            CurrentDir = (Path ?? _recoveredFrom) is { } basis && System.IO.Path.GetDirectoryName(basis) is { Length: > 0 } dir
+                && !dir.StartsWith(Backups.Folder) ? dir : OS.GetSystemDir(OS.SystemDir.Documents),
         };
+        if (mode == FileDialog.FileModeEnum.SaveFile && (Path ?? _recoveredFrom) is { } suggested)
+            dialog.CurrentFile = System.IO.Path.GetFileNameWithoutExtension(suggested) + ".dog";
         configure?.Invoke(dialog);
         host.AddChild(dialog);
         dialog.FileSelected += p =>

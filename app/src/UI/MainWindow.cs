@@ -16,6 +16,7 @@ public partial class MainWindow : Control
     private ModelViewport _viewport = null!;
     private StatusBar _status = null!;
     private DocumentController _document = null!;
+    private Backups _backups = null!;
     private PanelContainer _leftTools = null!;
     private Container _leftDock = null!, _rightDock = null!, _bottomDock = null!;
     private Control _drawingArea = null!;
@@ -91,10 +92,24 @@ public partial class MainWindow : Control
         _document.DocumentReplaced += HookDocument;
         _document.New();
 
+        // Read the crashed session (if any) before this one writes its own session file.
+        var crashed = AppPreferences.Current.CheckForCrashRecovery ? Backups.CrashedSession() : null;
+        _backups = Backups.Create(() => _document.Document, () => _document.ModelPath);
+        _document.DocumentReplaced += _backups.DocumentReplaced;
+        _document.Changed += _backups.UpdateSession;
+        AddChild(_backups);
+        _backups.DocumentReplaced();
+        if (crashed is { } lost)
+            Callable.From(() => OfferRecovery(lost.Model, lost.Backup)).CallDeferred();
+        // Closing the window asks to save changes first.
+        GetTree().AutoAcceptQuit = false;
+
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
         RegisterExtensions();
 
+        // Shortcuts the reference SketchUp install has beyond its built-in tables.
+        _commands.AddDefaultShortcut("Shift+S", CommandIds.HideRestOfModel);
         _commands.LoadUserShortcuts();
         var menuPanel = new PanelContainer();
         menuPanel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.MenuBackground));
@@ -157,6 +172,11 @@ public partial class MainWindow : Control
     /// <summary>The cloned SketchUp extensions: their menu items (where each extension puts them) and commands.</summary>
     private void RegisterExtensions()
     {
+        _commands.AddToMenu("File", OwnIds.RecoverBackup, "Recover Backup...",
+            "Open one of the automatic backups as an unsaved copy.", after: "Revert");
+        _commands.Register(OwnIds.RecoverBackup, () =>
+            RecoverBackupDialog.Show(this, (file, original) => _document.ConfirmDiscard(() => _document.OpenRecovered(file, original))));
+
         _commands.AddToMenu("Tools", ExtensionIds.SolidInspector, "Solid Inspector²",
             "Inspect and repair solid groups and components.");
         _commands.Register(ExtensionIds.SolidInspector, () => _viewport.Tools.Activate(new SolidInspectorTool()),
@@ -166,6 +186,51 @@ public partial class MainWindow : Control
             _document.Document.Selection.Set([instance]);
             _viewport.Tools.Activate(new SolidInspectorTool());
         };
+    }
+
+    /// <summary>File › Exit and the window's close button: "Save changes?" first, then a clean exit.</summary>
+    private void Quit() => _document.ConfirmDiscard(() =>
+    {
+        Backups.EndSession();
+        GetTree().Quit();
+    });
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest)
+            Quit();
+    }
+
+    /// <summary>After a crash: offer the last session's latest backup.</summary>
+    private void OfferRecovery(string? model, string backup)
+    {
+        var name = model != null ? System.IO.Path.GetFileName(model) : "Untitled";
+        var when = File.GetLastWriteTime(backup);
+        var d = new ConfirmationDialog
+        {
+            Title = "Recover Backup",
+            DialogText = $"Dogeometric did not close properly last time.\n\nA backup of \"{name}\" from {when:g} is available. Open it?\n" +
+                "It opens as an unsaved copy; your file is left as it was.",
+            OkButtonText = "Open Backup",
+            CancelButtonText = "Not Now",
+            DialogAutowrap = true,
+            Size = new Vector2I(480, 0),
+        };
+        d.AddButton("All Backups…", false, "all");
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            _document.OpenRecovered(backup, model);
+        };
+        d.CustomAction += action =>
+        {
+            d.QueueFree();
+            if (action == "all")
+                RecoverBackupDialog.Show(this, (file, original) => _document.ConfirmDiscard(() => _document.OpenRecovered(file, original)));
+        };
+        d.Canceled += d.QueueFree;
+        AddChild(d);
+        d.PopupCentered();
     }
 
     private void RegisterCommands()
@@ -178,7 +243,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.SaveCopyAs, _document.ShowSaveCopyAs);
         _commands.Register(CommandIds.Import, _document.ShowImport);
         _commands.Register(CommandIds.Export3DModel, _document.ShowExport3D);
-        _commands.Register(CommandIds.Exit, () => GetTree().Quit());
+        _commands.Register(CommandIds.Exit, Quit);
 
         Document Doc() => _document.Document;
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
@@ -195,7 +260,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.NextScene, () => _scenes.Step(1));
         _commands.Register(CommandIds.PreviousScene, () => _scenes.Step(-1));
         _commands.Register(CommandIds.Toolbars, ShowToolbarsDialog);
-        _commands.Register(CommandIds.Preferences, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus()));
+        _commands.Register(CommandIds.Preferences, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus(), _docks.Reset));
         _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
         {
             _viewport.QueueOverlayRedraw();

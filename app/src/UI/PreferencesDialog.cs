@@ -4,89 +4,295 @@ using Godot;
 namespace Dogeometric.App.UI;
 
 /// <summary>
-/// SketchUp's Preferences › Shortcuts: filter the commands, pick one, press Add and type the keys (or Remove).
-/// Shortcuts are saved for the next session; the menus show them at once.
+/// Window › Preferences, laid out as SketchUp 2021's: sections on the left, the chosen one on the right. Changes
+/// apply at once and are kept for the next session.
 /// </summary>
 public partial class PreferencesDialog : AcceptDialog
 {
     private CommandRegistry _commands = null!;
-    private Action _changed = null!;
-    private ItemList _list = null!;
+    private Action _menusChanged = null!;
+    private Action _resetWorkspace = null!;
+    private Control _pane = null!;
+
+    private Tree _shortcutTree = null!;
+    private LineEdit _filter = null!;
     private Label _assigned = null!;
-    private Button _add = null!;
     private bool _capturing;
     private List<Command> _shown = [];
 
-    public static void Show(Node parent, CommandRegistry commands, Action changed)
-    {
-        var d = new PreferencesDialog { Title = "Preferences", OkButtonText = "OK", _commands = commands, _changed = changed };
-        var root = new HBoxContainer { CustomMinimumSize = new Vector2(640, 400) };
-        var sections = new ItemList { CustomMinimumSize = new Vector2(130, 0) };
-        sections.AddItem("Shortcuts");
-        sections.Select(0);
-        root.AddChild(sections);
+    private static readonly string[] Sections = ["Compatibility", "Drawing", "Extensions", "General", "Graphics", "Shortcuts", "Workspace"];
 
-        var pane = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var filter = new LineEdit { PlaceholderText = "Filter" };
-        pane.AddChild(filter);
-        d._list = new ItemList { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        pane.AddChild(d._list);
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = "Assigned:" });
-        d._assigned = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        row.AddChild(d._assigned);
-        d._add = new Button { Text = "Add" };
-        var remove = new Button { Text = "Remove" };
-        row.AddChild(d._add);
-        row.AddChild(remove);
-        pane.AddChild(row);
-        root.AddChild(pane);
+    /// <summary>The section shown last, opened again next time.</summary>
+    private static string _lastSection = "General";
+
+    public static void Show(Node parent, CommandRegistry commands, Action menusChanged, Action resetWorkspace)
+    {
+        var d = new PreferencesDialog
+        {
+            Title = "Preferences",
+            OkButtonText = "OK",
+            _commands = commands,
+            _menusChanged = menusChanged,
+            _resetWorkspace = resetWorkspace,
+        };
+        var root = new HBoxContainer { CustomMinimumSize = new Vector2(720, 470) };
+        var sections = new ItemList { CustomMinimumSize = new Vector2(140, 0) };
+        foreach (var s in Sections)
+            sections.AddItem(s);
+        root.AddChild(sections);
+        root.AddChild(new VSeparator());
+        d._pane = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        root.AddChild(d._pane);
         d.AddChild(root);
 
-        filter.TextChanged += t => d.Fill(t);
-        d._list.ItemSelected += _ => d.ShowAssigned();
-        d._add.Pressed += () =>
-        {
-            if (d.Selected() == null)
-                return;
-            d._capturing = true;
-            d._assigned.Text = "Type the keys…";
-        };
-        remove.Pressed += () =>
-        {
-            if (d.Selected() is { } cmd)
-            {
-                commands.SetShortcut(cmd.Id, Key.None);
-                d.Saved();
-            }
-        };
+        sections.ItemSelected += i => d.ShowSection(Sections[i]);
         d.Confirmed += d.QueueFree;
         d.Canceled += d.QueueFree;
         parent.AddChild(d);
-        d.Fill("");
+        var first = Array.IndexOf(Sections, _lastSection);
+        sections.Select(first);
+        d.ShowSection(Sections[first]);
         d.PopupCentered();
-        filter.GrabFocus();
     }
 
-    private void Fill(string filter)
+    private void ShowSection(string name)
     {
-        _list.Clear();
+        _lastSection = name;
+        _capturing = false;
+        foreach (var c in _pane.GetChildren())
+        {
+            _pane.RemoveChild(c);
+            c.QueueFree();
+        }
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 6);
+        _pane.AddChild(box);
+        var p = AppPreferences.Current;
+        switch (name)
+        {
+            case "General":
+                Heading(box, "Saving");
+                Check(box, "Create backup", "Saving over a model keeps its previous version beside it as a .dogb file.",
+                    p.CreateBackup, v => p.CreateBackup = v);
+                var autoRow = new HBoxContainer();
+                var auto = new CheckBox { Text = "Auto-backup every", ButtonPressed = p.AutoBackup, TooltipText =
+                    "While the model has unsaved changes, a copy is made in the backups folder. Your own file is never written." };
+                var minutes = new SpinBox { MinValue = 1, MaxValue = 120, Value = p.AutoBackupMinutes, Editable = p.AutoBackup };
+                auto.Toggled += v =>
+                {
+                    p.AutoBackup = v;
+                    minutes.Editable = v;
+                    AppPreferences.Save();
+                };
+                minutes.ValueChanged += v =>
+                {
+                    p.AutoBackupMinutes = (int)v;
+                    AppPreferences.Save();
+                };
+                autoRow.AddChild(auto);
+                autoRow.AddChild(minutes);
+                autoRow.AddChild(new Label { Text = "minutes" });
+                box.AddChild(autoRow);
+                var keepRow = new HBoxContainer();
+                keepRow.AddChild(new Label { Text = "Backups kept per model" });
+                var keep = new SpinBox { MinValue = 1, MaxValue = 500, Value = p.BackupsToKeep };
+                keep.ValueChanged += v =>
+                {
+                    p.BackupsToKeep = (int)v;
+                    AppPreferences.Save();
+                };
+                keepRow.AddChild(keep);
+                box.AddChild(keepRow);
+                var folderRow = new HBoxContainer();
+                var folder = new Button { Text = "Open Backups Folder" };
+                folder.Pressed += () =>
+                {
+                    System.IO.Directory.CreateDirectory(Backups.Folder);
+                    OS.ShellOpen(Backups.Folder);
+                };
+                folderRow.AddChild(folder);
+                box.AddChild(folderRow);
+                Heading(box, "Startup");
+                Check(box, "Offer to recover the model after Dogeometric closes unexpectedly",
+                    "At start-up, if the last session crashed, its latest backup is offered.", p.CheckForCrashRecovery, v => p.CheckForCrashRecovery = v);
+                Heading(box, "");
+                var reset = new Button { Text = "Reset All Preferences", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+                reset.Pressed += () =>
+                {
+                    AppPreferences.Reset();
+                    ShowSection("General");
+                };
+                box.AddChild(reset);
+                break;
+
+            case "Drawing":
+                Heading(box, "Miscellaneous");
+                Check(box, "Continue line drawing", "The Line tool keeps drawing from the end of the last line until Esc or a closed face.",
+                    p.ContinueLineDrawing, v => p.ContinueLineDrawing = v);
+                break;
+
+            case "Compatibility":
+                Heading(box, "Mouse Wheel Style");
+                Check(box, "Invert", "Rolling the wheel forward zooms out instead of in.", p.InvertWheelZoom, v => p.InvertWheelZoom = v);
+                break;
+
+            case "Graphics":
+                Heading(box, "Anti-aliasing");
+                var aa = new OptionButton();
+                int[] levels = [0, 2, 4, 8];
+                foreach (var l in levels)
+                    aa.AddItem(l == 0 ? "Off" : $"{l}x");
+                aa.Select(Math.Max(0, Array.IndexOf(levels, p.Antialiasing)));
+                aa.ItemSelected += i =>
+                {
+                    p.Antialiasing = levels[i];
+                    AppPreferences.Save();
+                };
+                box.AddChild(aa);
+                break;
+
+            case "Workspace":
+                Heading(box, "Workspace");
+                var resetWs = new Button { Text = "Reset Workspace", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
+                    TooltipText = "Toolbars back to their default places and visibility." };
+                resetWs.Pressed += _resetWorkspace;
+                box.AddChild(resetWs);
+                break;
+
+            case "Extensions":
+                Heading(box, "Extensions (the reference SketchUp's, rebuilt natively)");
+                var tree = new Tree { Columns = 3, HideRoot = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill, ColumnTitlesVisible = true };
+                tree.SetColumnTitle(0, "Extension");
+                tree.SetColumnTitle(1, "By");
+                tree.SetColumnTitle(2, "Status");
+                tree.SetColumnExpand(1, false);
+                tree.SetColumnCustomMinimumWidth(1, 150);
+                tree.SetColumnExpand(2, false);
+                tree.SetColumnCustomMinimumWidth(2, 90);
+                var root = tree.CreateItem();
+                foreach (var ext in ExtensionCatalog.All)
+                {
+                    var item = tree.CreateItem(root);
+                    item.SetText(0, ext.Name);
+                    item.SetTooltipText(0, ext.Description);
+                    item.SetText(1, ext.Creator);
+                    item.SetText(2, ext.Available ? "Available" : "Coming");
+                    item.SetCustomColor(2, ext.Available ? Color.Color8(0, 140, 60) : LightTheme.TextDisabled);
+                }
+                box.AddChild(tree);
+                break;
+
+            case "Shortcuts":
+                BuildShortcuts(box);
+                break;
+        }
+    }
+
+    private static void Heading(VBoxContainer box, string text)
+    {
+        if (text.Length == 0)
+        {
+            box.AddChild(new HSeparator());
+            return;
+        }
+        var label = new Label { Text = text };
+        label.AddThemeColorOverride("font_color", Color.Color8(90, 90, 90));
+        box.AddChild(label);
+    }
+
+    private static void Check(VBoxContainer box, string text, string tooltip, bool value, Action<bool> set)
+    {
+        var c = new CheckBox { Text = text, ButtonPressed = value, TooltipText = tooltip };
+        c.Toggled += v =>
+        {
+            set(v);
+            AppPreferences.Save();
+        };
+        box.AddChild(c);
+    }
+
+    // ------------------------------------------------------------------ shortcuts
+
+    private void BuildShortcuts(VBoxContainer box)
+    {
+        _filter = new LineEdit { PlaceholderText = "Filter" };
+        box.AddChild(_filter);
+        _shortcutTree = new Tree { Columns = 2, HideRoot = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill, ColumnTitlesVisible = true };
+        _shortcutTree.SetColumnTitle(0, "Function");
+        _shortcutTree.SetColumnTitle(1, "Shortcut");
+        _shortcutTree.SetColumnExpand(1, false);
+        _shortcutTree.SetColumnCustomMinimumWidth(1, 150);
+        box.AddChild(_shortcutTree);
+        var row = new HBoxContainer();
+        row.AddChild(new Label { Text = "Assigned:" });
+        _assigned = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddChild(_assigned);
+        var add = new Button { Text = "Add" };
+        var remove = new Button { Text = "Remove" };
+        var resetAll = new Button { Text = "Reset All", TooltipText = "SketchUp's default shortcuts again." };
+        row.AddChild(add);
+        row.AddChild(remove);
+        row.AddChild(resetAll);
+        box.AddChild(row);
+
+        _filter.TextChanged += FillShortcuts;
+        _shortcutTree.ItemSelected += ShowAssigned;
+        add.Pressed += () =>
+        {
+            if (Selected() == null)
+                return;
+            _capturing = true;
+            _assigned.Text = "Type the keys…";
+        };
+        remove.Pressed += () =>
+        {
+            if (Selected() is { } cmd)
+            {
+                _commands.SetShortcut(cmd.Id, Key.None);
+                ShortcutsSaved();
+            }
+        };
+        resetAll.Pressed += () =>
+        {
+            _commands.ResetShortcuts();
+            _menusChanged();
+            FillShortcuts(_filter.Text);
+        };
+        FillShortcuts("");
+    }
+
+    private void FillShortcuts(string filter)
+    {
+        _shortcutTree.Clear();
+        var root = _shortcutTree.CreateItem();
         _shown = _commands.All.Where(c => c.IsImplemented && c.MenuPath.Length > 0)
             .Where(c => filter.Length == 0 || c.MenuPath.Contains(filter, StringComparison.CurrentCultureIgnoreCase))
             .OrderBy(c => c.MenuPath, StringComparer.CurrentCultureIgnoreCase).ToList();
-        foreach (var c in _shown)
-            _list.AddItem(c.MenuPath);
+        for (var i = 0; i < _shown.Count; i++)
+        {
+            var item = _shortcutTree.CreateItem(root);
+            item.SetText(0, _shown[i].MenuPath);
+            item.SetText(1, AllKeys(_shown[i]));
+            item.SetMetadata(0, i);
+        }
         _assigned.Text = "";
     }
 
-    private Command? Selected() => _list.GetSelectedItems() is [var i] && i < _shown.Count ? _shown[i] : null;
+    /// <summary>The command's shortcut and any secondary ones (SketchUp lists them all).</summary>
+    private string AllKeys(Command c) => string.Join(", ",
+        new[] { c.Shortcut }.Concat(_commands.Aliases.Where(a => a.Id == c.Id).Select(a => a.Keys))
+            .Where(k => k != Key.None).Select(CommandRegistry.ShortcutText));
 
-    private void ShowAssigned() => _assigned.Text = Selected() is { } c ? CommandRegistry.ShortcutText(c.Shortcut) : "";
+    private Command? Selected() => _shortcutTree.GetSelected() is { } item && (int)item.GetMetadata(0) is var i && i < _shown.Count ? _shown[i] : null;
 
-    private void Saved()
+    private void ShowAssigned() => _assigned.Text = Selected() is { } c ? AllKeys(c) : "";
+
+    private void ShortcutsSaved()
     {
         _commands.SaveUserShortcuts();
-        _changed();
+        _menusChanged();
+        if (_shortcutTree.GetSelected() is { } item && Selected() is { } c)
+            item.SetText(1, AllKeys(c));
         ShowAssigned();
     }
 
@@ -105,6 +311,8 @@ public partial class PreferencesDialog : AcceptDialog
             return;
         }
         _commands.SetShortcut(cmd.Id, key.GetKeycodeWithModifiers());
-        Saved();
+        ShortcutsSaved();
+        // Another command may have lost these keys: refresh the column.
+        FillShortcuts(_filter.Text);
     }
 }
