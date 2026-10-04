@@ -57,6 +57,32 @@ public static class LightTheme
         theme.SetColor("font_uneditable_color", "LineEdit", Text);
         theme.SetColor("caret_color", "LineEdit", Text);
 
+        // Buttons and drop-downs (Entity Info's tag list, tray buttons): light, bordered, blue on hover.
+        foreach (var type in new[] { "Button", "OptionButton" })
+        {
+            var normal = Box(new Color(0.97f, 0.97f, 0.97f), 8, 3);
+            normal.BorderColor = Border;
+            normal.SetBorderWidthAll(1);
+            var over = Box(Hover, 8, 3);
+            over.BorderColor = new Color(0.4f, 0.6f, 0.9f);
+            over.SetBorderWidthAll(1);
+            theme.SetStylebox("normal", type, normal);
+            theme.SetStylebox("hover", type, over);
+            theme.SetStylebox("pressed", type, over);
+            theme.SetStylebox("hover_pressed", type, over);
+            theme.SetStylebox("focus", type, new StyleBoxEmpty());
+            theme.SetStylebox("disabled", type, normal);
+        }
+        theme.SetColor("font_color", "OptionButton", Text);
+        theme.SetColor("font_hover_color", "OptionButton", Text);
+        theme.SetColor("font_pressed_color", "OptionButton", Text);
+        theme.SetColor("font_focus_color", "OptionButton", Text);
+        theme.SetColor("font_color", "CheckBox", Text);
+        theme.SetColor("font_hover_color", "CheckBox", Text);
+        theme.SetColor("font_pressed_color", "CheckBox", Text);
+        foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "focus", "disabled" })
+            theme.SetStylebox(state, "CheckBox", new StyleBoxEmpty());
+
         theme.SetStylebox("panel", "PanelContainer", Box(BarBackground, 6, 3));
         theme.SetStylebox("panel", "AcceptDialog", flat);
         theme.SetStylebox("panel", "TooltipPanel", popupPanel);
