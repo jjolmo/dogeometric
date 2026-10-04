@@ -52,6 +52,25 @@ public partial class EntityInfoPanel : VBoxContainer
                 Check("Smooth", e.Flags.HasFlag(EdgeFlags.Smooth), v => doc.Operation("Smooth", _ => e.Flags = v ? e.Flags | EdgeFlags.Smooth : e.Flags & ~EdgeFlags.Smooth));
                 Check("Hidden", e.Flags.HasFlag(EdgeFlags.Hidden), v => doc.Operation("Hide", _ => e.Flags = v ? e.Flags | EdgeFlags.Hidden : e.Flags & ~EdgeFlags.Hidden));
                 break;
+            case SectionPlane s:
+                Title("Section Plane");
+                TagRow(doc, s.Tag, t => doc.Operation("Change Tag", _ => s.Tag = t));
+                Edit("Name", s.Name, v => doc.Operation("Rename", _ => s.Name = v));
+                Check("Hidden", s.Hidden, v => doc.Operation("Hide", _ => s.Hidden = v));
+                break;
+            case LinearDimension d:
+                Title("Dimension");
+                TagRow(doc, d.Tag, t => doc.Operation("Change Tag", _ => d.Tag = t));
+                Edit("Text", d.Text.Length == 0 ? "<>" : d.Text, v => doc.Operation("Edit Text", _ => d.Text = v == "<>" ? "" : v));
+                Row("Length", Length.Format(d.Length, LengthUnit.Millimeters, 2));
+                Check("Hidden", d.Hidden, v => doc.Operation("Hide", _ => d.Hidden = v));
+                break;
+            case TextLabel x:
+                Title(x.ScreenPosition == null ? "Text" : "Screen Text");
+                TagRow(doc, x.Tag, t => doc.Operation("Change Tag", _ => x.Tag = t));
+                Edit("Text", x.Text, v => doc.Operation("Edit Text", _ => x.Text = v));
+                Check("Hidden", x.Hidden, v => doc.Operation("Hide", _ => x.Hidden = v));
+                break;
             case ComponentInstance i:
                 Title(i.IsGroup ? "Group" : $"Component ({i.Definition.Entities.Instances.Count} nested)");
                 TagRow(doc, i.Tag, t => doc.Operation("Change Tag", _ => i.Tag = t));

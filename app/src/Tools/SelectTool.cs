@@ -35,7 +35,11 @@ public sealed class SelectTool : Tool
         if (button == MouseButton.Right && View.Document is { } d)
         {
             // Right-click selects what is under the cursor (unless it is already selected) and opens the menu.
-            if (View.Pick(position) is { } hit && InContext(d, hit) is { } item && !d.Selection.Contains(item))
+            // Dimensions, texts and section planes are drawn on top, so they come first.
+            object? item = View.Annotations.Pick(position) is { } note && note.Owner == d.Context.Entities
+                ? note.Item
+                : View.Pick(position) is { } hit ? InContext(d, hit) : null;
+            if (item != null && !d.Selection.Contains(item))
                 d.Selection.Set([item]);
             View.RequestContextMenu(position);
             return;

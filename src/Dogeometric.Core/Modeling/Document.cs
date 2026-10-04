@@ -30,8 +30,9 @@ public sealed class Document
             foreach (var e in Undo.LastTouched)
                 Picker.Invalidate(e);
             // Undo can bring back or remove entities; drop selected items that are no longer in the context.
-            var present = new HashSet<object>(Context.Entities.Faces.Cast<object>()
-                .Concat(Context.Entities.Edges).Concat(Context.Entities.Instances));
+            var c = Context.Entities;
+            var present = new HashSet<object>(c.Faces.Cast<object>().Concat(c.Edges).Concat(c.Instances)
+                .Concat(c.Dimensions).Concat(c.Texts).Concat(c.SectionPlanes).Concat(c.GuideLines).Concat(c.GuidePoints));
             if (Selection.Items.Any(i => !present.Contains(i)))
                 Selection.Set(Selection.Items.Where(present.Contains).ToList());
             GeometryChanged?.Invoke(Undo.LastTouched);
