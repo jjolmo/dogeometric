@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
         Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
         Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
@@ -275,6 +276,38 @@ public partial class MainWindow : Control
                 groupStart: kind == SplineKind.ArcCorners);
             _commands.Register(id, () => _viewport.Tools.Activate(new BezierSplineTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
+        _commands.AddToMenu("Draw", ExtensionIds.SandboxFromContours, "From Contours", "Create a terrain surface from the selected contour lines.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxFromContours, () =>
+        {
+            var doc = _document.Document;
+            var edges = doc.Selection.Items.OfType<Edge>().ToList();
+            if (edges.Count < 2)
+            {
+                _status.SetHint("From Contours: select the contour lines first.");
+                return;
+            }
+            doc.Operation("From Contours", e =>
+            {
+                var def = new ComponentDefinition { Name = "Terrain", IsGroup = true };
+                Sandbox.FromContours(def.Entities, edges);
+                doc.Model.Definitions.Add(def);
+                e.AddInstance(def, Dogeometric.Core.Geometry.Transform.Identity);
+            });
+        });
+        _commands.AddToMenu("Draw", ExtensionIds.SandboxFromScratch, "From Scratch", "Draw a grid of triangles to sculpt.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxFromScratch, () => _viewport.Tools.Activate(new SandboxGridTool()), () => _viewport.Tools.Active is SandboxGridTool);
+        _commands.AddToMenu("Tools", ExtensionIds.SandboxSmoove, "Smoove", "Raise or lower a terrain smoothly.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxSmoove, () => _viewport.Tools.Activate(new SmooveTool()), () => _viewport.Tools.Active is SmooveTool);
+        _commands.AddToMenu("Tools", ExtensionIds.SandboxAddDetail, "Add Detail", "Split the selected triangles to add detail.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxAddDetail, () =>
+        {
+            var doc = _document.Document;
+            var faces = doc.Selection.Items.OfType<Face>().ToList();
+            if (faces.Count > 0)
+                doc.Operation("Add Detail", e => Sandbox.AddDetail(e, faces));
+        });
+        _commands.AddToMenu("Tools", ExtensionIds.SandboxFlipEdge, "Flip Edge", "Flip the diagonal between two triangles.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxFlipEdge, () => _viewport.Tools.Activate(new FlipEdgeTool()), () => _viewport.Tools.Active is FlipEdgeTool);
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);

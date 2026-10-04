@@ -30,6 +30,11 @@ public static class ExtensionIds
     /// <summary>BezierSpline's curve tools, one id per family from 90101.</summary>
     public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
 
+    public const int SandboxFromContours = 90071;
+    public const int SandboxFromScratch = 90072;
+    public const int SandboxSmoove = 90073;
+    public const int SandboxAddDetail = 90074;
+    public const int SandboxFlipEdge = 90075;
     public const int CleanUp = 90041;
     public const int CleanUpLast = 90042;
     public const int CleanUpEraseHidden = 90043;

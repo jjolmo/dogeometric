@@ -13,6 +13,11 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] Sandbox =
+    [
+        Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
+        Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
+    ];
     public static readonly int[] BezierSpline = Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline).ToArray();
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
@@ -69,6 +74,11 @@ public static class Toolbars
         [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [Commands.ExtensionIds.RoundCornerRound] = "roundcorner_round",
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
+        [Commands.ExtensionIds.SandboxFromContours] = "sandbox_from_contours",
+        [Commands.ExtensionIds.SandboxFromScratch] = "sandbox_from_scratch",
+        [Commands.ExtensionIds.SandboxSmoove] = "sandbox_smoove",
+        [Commands.ExtensionIds.SandboxAddDetail] = "sandbox_add_detail",
+        [Commands.ExtensionIds.SandboxFlipEdge] = "sandbox_flip_edge",
         [Commands.ExtensionIds.JointPushPull] = "jpp_joint",
         [Commands.ExtensionIds.NormalPushPull] = "jpp_normal",
         [Commands.ExtensionIds.VectorPushPull] = "jpp_vector",
