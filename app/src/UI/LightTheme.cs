@@ -68,6 +68,17 @@ public static class LightTheme
         theme.SetColor("font_selected_color", "Tree", Text);
         theme.SetColor("guide_color", "Tree", Border);
         theme.SetColor("relationship_line_color", "Tree", Border);
+        theme.SetStylebox("panel", "ItemList", treePanel);
+        theme.SetStylebox("focus", "ItemList", new StyleBoxEmpty());
+        theme.SetStylebox("selected", "ItemList", Box(Hover));
+        theme.SetStylebox("selected_focus", "ItemList", Box(Hover));
+        theme.SetStylebox("hovered", "ItemList", Box(BarBackground));
+        theme.SetColor("font_color", "ItemList", Text);
+        theme.SetColor("font_selected_color", "ItemList", Text);
+        theme.SetColor("font_hovered_color", "ItemList", Text);
+        theme.SetColor("font_hovered_selected_color", "ItemList", Text);
+        theme.SetStylebox("hovered_selected", "ItemList", Box(Hover));
+        theme.SetStylebox("hovered_selected_focus", "ItemList", Box(Hover));
         theme.SetStylebox("normal", "TextEdit", edit);
         theme.SetStylebox("focus", "TextEdit", edit);
         theme.SetStylebox("read_only", "TextEdit", edit);

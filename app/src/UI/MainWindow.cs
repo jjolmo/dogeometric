@@ -113,6 +113,12 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
+        {
+            _viewport.QueueOverlayRedraw();
+            _components.Refresh();
+            _entityInfo.Refresh();
+        }));
         _commands.Register(CommandIds.Text3D, () => Text3DDialog.Show(this, r =>
         {
             var doc = Doc();

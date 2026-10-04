@@ -101,6 +101,7 @@ public static class CommandIds
     public const int Walk = 10520;
     public const int BackEdges = 10619;
     public const int Text3D = 21940;
+    public const int ModelInfo = 21076;
     public const int SectionPlane = 21337;
     public const int ReverseSection = 21334;
     public const int ActiveSectionCut = 21335;
