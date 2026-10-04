@@ -273,7 +273,9 @@ public static class SkpExporter
         var size = b.Size;
         if (size.X <= Tolerance.Length || size.Y <= Tolerance.Length || size.Z > Tolerance.Length)
             return false;
-        (double, double) Uv(Vec3 p) => ((p.X - b.Min.X) / size.X, (p.Y - b.Min.Y) / size.Y);
+        // In texture inches, as OpenSKP's pins take them (see Pins).
+        var (tw, th) = (mat.Texture.WidthMm * InchPerMm, mat.Texture.HeightMm * InchPerMm);
+        (double, double) Uv(Vec3 p) => ((p.X - b.Min.X) / size.X * tw, (p.Y - b.Min.Y) / size.Y * th);
         cb.AddFace(pts.Select(Inches).ToList(), material: ctx.Material(mat), layer: ctx.Layer(face.Tag),
             frontUv: pts.Take(3).Select(p => new Sk.UvCorrespondence(Inches(p), Uv(p))).ToList());
         return true;
@@ -295,7 +297,13 @@ public static class SkpExporter
         var c = pointsMm.Skip(2).FirstOrDefault(p => (b - a).Cross(p - a).Length > 1e-6);
         if (b == default || c == default)
             return null;
-        return [.. new[] { a, b, c }.Select(p => new Sk.UvCorrespondence(Inches(p), Texturing.Uv(face, back, p, material)))];
+        // OpenSKP pairs points with texture inches (tiles × tile size), which its reader divides back into tiles.
+        var (tw, th) = (material.Texture.WidthMm * InchPerMm, material.Texture.HeightMm * InchPerMm);
+        return [.. new[] { a, b, c }.Select(p =>
+        {
+            var (u, v) = Texturing.Uv(face, back, p, material);
+            return new Sk.UvCorrespondence(Inches(p), (u * tw, v * th));
+        })];
     }
 
     /// <summary>Where each vertex is written: its position, nudged when an earlier vertex already sits there.</summary>

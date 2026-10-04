@@ -185,10 +185,20 @@ public static class JointPushPull
                     m[i, j] += v[i] * v[j];
             rhs += n * offset;
         }
+        var exact = (double[,])m.Clone();
         for (var i = 0; i < 3; i++)
             m[i, i] += 1e-9;
         var avg = dirs.Aggregate(Vec3.Zero, (a, n) => a + n);
         var solved = Solve(m, rhs);
+        // The damping biases the answer by about its size; a few refinement steps against the exact system remove it.
+        for (var step = 0; step < 4 && solved is { } x; step++)
+        {
+            var ax = new Vec3(
+                exact[0, 0] * x.X + exact[0, 1] * x.Y + exact[0, 2] * x.Z,
+                exact[1, 0] * x.X + exact[1, 1] * x.Y + exact[1, 2] * x.Z,
+                exact[2, 0] * x.X + exact[2, 1] * x.Y + exact[2, 2] * x.Z);
+            solved = Solve(m, rhs - ax) is { } dx ? x + dx : x;
+        }
         // Very sharp folds blow up; fall back to the average direction there.
         if (solved == null || solved.Value.Length > Math.Abs(offset) * 10)
             return avg.Normalized() * offset;

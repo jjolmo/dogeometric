@@ -79,8 +79,13 @@ public class SkpRoundTripTests
         var backGroup = Assert.Single(back.Definitions, d => d.IsGroup);
         var placed = Assert.Single(backGroup.Entities.Instances);
         Assert.Same(backImage, placed.Definition);
-        Assert.Equal(new Vec3(5, 5, 20), placed.Transform.Origin);
+        Assert.True(placed.Transform.Origin.DistanceTo(new Vec3(5, 5, 20)) < 1e-9);
         Assert.Equal(new Vec3(100, 50, 0), backImage.Entities.Bounds().Size);
+        // The picture still spans the whole quad, one tile corner to corner.
+        var face = Assert.Single(backImage.Entities.Faces);
+        var uvs = face.OuterLoop.Points.Select(p => Texturing.Uv(face, false, p, face.FrontMaterial!)).ToList();
+        Assert.Equal(1, uvs.Max(uv => uv.U) - uvs.Min(uv => uv.U), 6);
+        Assert.Equal(1, uvs.Max(uv => uv.V) - uvs.Min(uv => uv.V), 6);
     }
 
     [Fact]

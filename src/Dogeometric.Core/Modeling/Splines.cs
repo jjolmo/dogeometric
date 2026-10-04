@@ -203,12 +203,16 @@ public static class Splines
             double A = (t[i + 1] - x) / h, B = (x - t[i]) / h;
             return A * c(p[i]) + B * c(p[i + 1]) + ((A * A * A - A) * m[i] + (B * B * B - B) * m[i + 1]) * h * h / 6;
         }
-        var result = new List<Vec3>();
-        for (var s = 0; s <= segments; s++)
+        // Each span gets its share of the segments by length, so the curve meets every control point.
+        var result = new List<Vec3> { p[0] };
+        for (var i = 0; i < n - 1; i++)
         {
-            var x = t[^1] * s / segments;
-            var i = Math.Min(n - 2, Array.FindLastIndex(t, v => v <= x));
-            result.Add(new Vec3(Eval(mx, v => v.X, i, x), Eval(my, v => v.Y, i, x), Eval(mz, v => v.Z, i, x)));
+            var k = Math.Max(1, (int)Math.Round(segments * (t[i + 1] - t[i]) / t[^1]));
+            for (var s = 1; s <= k; s++)
+            {
+                var x = t[i] + (t[i + 1] - t[i]) * s / k;
+                result.Add(s == k ? p[i + 1] : new Vec3(Eval(mx, v => v.X, i, x), Eval(my, v => v.Y, i, x), Eval(mz, v => v.Z, i, x)));
+            }
         }
         return result;
     }
