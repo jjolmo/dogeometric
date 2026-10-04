@@ -26,12 +26,22 @@ public sealed class ModelRenderer
     /// <summary>Mesh data of one entity collection. Surfaces are keyed by (front, back) material; null = default.</summary>
     private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges);
 
-    /// <summary>Replaces the children of <paramref name="root"/> with the model's geometry.</summary>
-    public void Build(Model model, Node3D root)
+    /// <summary>
+    /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
+    /// not change are reused; pass the changed ones in <paramref name="changed"/> (null = all).
+    /// </summary>
+    public void Build(Model model, Node3D root, IEnumerable<Entities>? changed = null)
     {
+        if (changed == null)
+            _meshes.Clear();
+        else
+            foreach (var e in changed)
+                _meshes.Remove(e);
         foreach (var child in root.GetChildren())
+        {
+            root.RemoveChild(child);
             child.QueueFree();
-        _meshes.Clear();
+        }
         AddEntities(model.Entities, root, inherited: null);
     }
 

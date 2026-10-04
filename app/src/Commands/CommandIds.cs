@@ -13,6 +13,15 @@ public static class CommandIds
     public const int Export3DModel = 21149;
     public const int Exit = 57665;
 
+    // Edit
+    public const int Undo = 57643;
+    public const int Redo = 57644;
+    public const int Delete = 21021;
+    public const int SelectAll = 21101;
+    public const int SelectNone = 21102;
+    public const int InvertSelection = 24447;
+    public const int CloseGroup = 21202;
+
     // Help
     public const int About = 57664;
 

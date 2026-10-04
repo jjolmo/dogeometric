@@ -1,6 +1,7 @@
 using Dogeometric.App.Commands;
 using Dogeometric.App.Tools;
 using Dogeometric.App.Viewport;
+using Dogeometric.Core.Modeling;
 using Dogeometric.Core.View;
 using Godot;
 
@@ -42,6 +43,7 @@ public partial class MainWindow : Control
 
         _document = new DocumentController(this, _viewport, _status);
         _document.Changed += () => GetWindow().Title = _document.Title;
+        _document.New();
 
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
@@ -89,6 +91,28 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Import, _document.ShowImport);
         _commands.Register(CommandIds.Export3DModel, _document.ShowExport3D);
         _commands.Register(CommandIds.Exit, () => GetTree().Quit());
+
+        Document Doc() => _document.Document;
+        _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
+        _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
+        _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.SelectAll, () =>
+        {
+            var e = Doc().Context.Entities;
+            Doc().Selection.Set(e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances.Where(i => !i.Hidden)));
+        });
+        _commands.Register(CommandIds.SelectNone, () => Doc().Selection.Clear());
+        _commands.Register(CommandIds.InvertSelection, () =>
+        {
+            var e = Doc().Context.Entities;
+            var all = e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances.Where(i => !i.Hidden));
+            Doc().Selection.Set(all.Where(x => !Doc().Selection.Contains(x)).ToList());
+        });
+        _commands.Register(CommandIds.CloseGroup, () =>
+        {
+            Doc().Selection.Clear();
+            Doc().Context.Exit();
+        });
         _commands.Register(CommandIds.About, ShowAbout);
 
         _commands.Register(CommandIds.ToggleAxes, () => v.Axes.Visible = !v.Axes.Visible, () => v.Axes.Visible);

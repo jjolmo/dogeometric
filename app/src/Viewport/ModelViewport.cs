@@ -1,5 +1,7 @@
 using Dogeometric.App.Tools;
 using Dogeometric.Core.Geometry;
+using Dogeometric.Core.Modeling;
+using Dogeometric.Core.Picking;
 using Dogeometric.Core.View;
 using Godot;
 
@@ -34,6 +36,13 @@ public partial class ModelViewport : Control
     public CameraHistory History { get; } = new();
     public ToolManager Tools { get; private set; } = null!;
     public Node3D ModelRoot { get; private set; } = null!;
+    public Node3D SelectionRoot { get; private set; } = null!;
+
+    /// <summary>The open document (geometry, selection, context). Set by the document controller.</summary>
+    public Document? Document { get; set; }
+
+    /// <summary>Edge pick radius in pixels, like SketchUp's.</summary>
+    public const double PickRadiusPixels = 5;
     public AxesRenderer Axes { get; private set; } = null!;
 
     /// <summary>Bounds of the model contents, used by Zoom Extents.</summary>
@@ -96,6 +105,8 @@ public partial class ModelViewport : Control
 
         ModelRoot = new Node3D { Name = "Model" };
         root.AddChild(ModelRoot);
+        SelectionRoot = new Node3D { Name = "Selection" };
+        root.AddChild(SelectionRoot);
     }
 
     // ---------------------------------------------------------------- camera operations (used by tools/commands)
@@ -247,6 +258,8 @@ public partial class ModelViewport : Control
 
     // ---------------------------------------------------------------- picking
 
+    public void QueueOverlayRedraw() => _overlay.QueueRedraw();
+
     /// <summary>Model-space ray through a viewport pixel.</summary>
     public (Vec3 Origin, Vec3 Direction) ScreenRay(Vector2 screen)
     {
@@ -256,11 +269,30 @@ public partial class ModelViewport : Control
     }
 
     /// <summary>Model point under the cursor, or null when the ray hits no geometry.</summary>
-    public Vec3? PickGeometry(Vector2 screen)
+    public Vec3? PickGeometry(Vector2 screen) => Pick(screen)?.Point;
+
+    /// <summary>Face or edge under the cursor (edges within <see cref="PickRadiusPixels"/>), with its instance path.</summary>
+    public PickHit? Pick(Vector2 screen)
     {
-        // Geometry picking arrives with the model core.
-        return null;
+        if (Document is not { } doc)
+            return null;
+        var (origin, direction) = ScreenRay(screen);
+        var perPixel = Camera.Perspective
+            ? 2 * Math.Tan(Camera.HalfFovRadians) / Math.Max(Size.Y, 1)
+            : Camera.OrthoHeight / Math.Max(Size.Y, 1);
+        Func<double, double> tolerance = Camera.Perspective
+            ? t => t * perPixel * PickRadiusPixels
+            : _ => perPixel * PickRadiusPixels;
+        return doc.Picker.Pick(doc.Model.Entities, new Ray(origin, direction), tolerance, IsVisible);
     }
+
+    private static bool IsVisible(object o) => o switch
+    {
+        Face f => !f.Hidden && f.Tag is not { Visible: false },
+        Edge e => (e.Flags & (EdgeFlags.Hidden | EdgeFlags.Soft)) == 0 && e.Tag is not { Visible: false },
+        ComponentInstance i => !i.Hidden && i.Tag is not { Visible: false },
+        _ => true,
+    };
 
     /// <summary>
     /// Point under the cursor for zooming: geometry if any, otherwise the point on the ray at the target's depth.

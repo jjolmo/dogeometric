@@ -1,5 +1,6 @@
 using Dogeometric.App.Viewport;
 using Dogeometric.Core.IO;
+using Dogeometric.Core.Modeling;
 using Dogeometric.Formats.Skp;
 using Godot;
 using Model = Dogeometric.Core.Modeling.Model;
@@ -13,17 +14,20 @@ namespace Dogeometric.App.UI;
 public sealed class DocumentController(Control host, ModelViewport viewport, StatusBar status)
 {
     private readonly ModelRenderer _renderer = new();
+    private readonly SelectionRenderer _selectionRenderer = new();
 
-    public Model Model { get; private set; } = new();
+    public Document Document { get; private set; } = new(new Model());
+    public Model Model => Document.Model;
     public string? Path { get; private set; }
 
     public string Title => (Path == null ? "Untitled" : System.IO.Path.GetFileName(Path)) + " - Dogeometric";
 
     public event Action? Changed;
 
+    /// <summary>File › New: an empty model; the camera keeps SketchUp's new-model view.</summary>
     public void New()
     {
-        SetModel(new Model(), null);
+        SetModel(new Model(), null, zoomExtents: false);
     }
 
     public void ShowOpen() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Open",
@@ -87,6 +91,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         {
             var imported = Load(path);
             Merge(imported);
+            Document.Undo.Clear();
             Rebuild();
             Changed?.Invoke();
         }
@@ -148,17 +153,37 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private static Model Load(string path) =>
         path.EndsWith(".skp", StringComparison.OrdinalIgnoreCase) ? SkpImporter.Import(path) : DogFile.Load(path);
 
-    private void SetModel(Model model, string? path)
+    private void SetModel(Model model, string? path, bool zoomExtents = true)
     {
-        Model = model;
+        Document = new Document(model);
+        Document.GeometryChanged += changed =>
+        {
+            _renderer.Build(Model, viewport.ModelRoot, changed);
+            RebuildSelection();
+        };
+        Document.Selection.Changed += RebuildSelection;
+        Document.Context.Changed += RebuildSelection;
         Path = path;
+        viewport.Document = Document;
         viewport.ModelBounds = () => Model.Entities.Bounds();
         Rebuild();
-        viewport.ZoomExtents();
+        if (zoomExtents)
+            viewport.ZoomExtents();
+        DocumentReplaced?.Invoke();
         Changed?.Invoke();
     }
 
-    private void Rebuild() => _renderer.Build(Model, viewport.ModelRoot);
+    /// <summary>Raised when a different document is loaded (tools must drop references to the old one).</summary>
+    public event Action? DocumentReplaced;
+
+    private void Rebuild()
+    {
+        Document.Picker.Invalidate();
+        _renderer.Build(Model, viewport.ModelRoot);
+        RebuildSelection();
+    }
+
+    private void RebuildSelection() => _selectionRenderer.Build(Document, viewport.SelectionRoot);
 
     /// <summary>Import places the other file's contents into this model (materials, tags and definitions merged).</summary>
     private void Merge(Model other)
