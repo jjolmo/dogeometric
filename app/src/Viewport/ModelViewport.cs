@@ -358,6 +358,9 @@ public partial class ModelViewport : Control
 
     public void QueueOverlayRedraw() => _overlay.QueueRedraw();
 
+    /// <summary>The drawn view as an image (the 3D scene; tool feedback on the overlay is left out).</summary>
+    public Image Snapshot() => _subViewport.GetTexture().GetImage();
+
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
 

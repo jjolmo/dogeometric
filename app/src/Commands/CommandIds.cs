@@ -11,6 +11,7 @@ public static class CommandIds
     public const int SaveCopyAs = 21136;
     public const int Import = 21933;
     public const int Export3DModel = 21149;
+    public const int Export2DGraphic = 21237;
     public const int Exit = 57665;
 
     // Edit

@@ -29,7 +29,7 @@ public static class SkpShadows
         return values == null ? null : ToSettings(values);
     }
 
-    /// <summary>SketchUp 2021+ files are zips holding model.dat; older ones are the model itself.</summary>
+    /// <summary>Newer files (2024) are zips holding model.dat; older ones are the model itself.</summary>
     private static byte[] ModelBytes(string path)
     {
         using var file = File.OpenRead(path);
@@ -50,7 +50,7 @@ public static class SkpShadows
         return File.ReadAllBytes(path);
     }
 
-    /// <summary>2021+: tagged records, a key (b6 36, length, ASCII) then its value (a4 38 wrapping a typed record).</summary>
+    /// <summary>Zipped model.dat: tagged records, a key (b6 36, length, ASCII) then its value (a4 38 wrapping a typed record).</summary>
     public static Dictionary<string, object>? ReadModern(byte[] d)
     {
         var at = d.AsSpan().IndexOf("TempShadowInfo"u8);
@@ -93,7 +93,7 @@ public static class SkpShadows
         return values.Count > 0 ? values : null;
     }
 
-    /// <summary>Before 2021: keys as ff fe ff, length, UTF-16 text, then a type byte and the value.</summary>
+    /// <summary>Older files: keys as ff fe ff, length, UTF-16 text, then a type byte and the value.</summary>
     public static Dictionary<string, object>? ReadLegacy(byte[] d)
     {
         var marker = Encoding.Unicode.GetBytes("TempShadowInfo");

@@ -261,6 +261,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             _exportOptionsDialog = dialog;
         });
 
+    /// <summary>File › Export › 2D Graphic: the view as it is drawn, as PNG or JPEG.</summary>
+    public void ShowExport2D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 2D Graphic",
+        ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image"], path =>
+        {
+            var image = viewport.Snapshot();
+            var error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                ? image.SaveJpg(path, 0.92f)
+                : image.SavePng(path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? path : path + ".png");
+            status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
+        });
+
     private FileDialog? _exportOptionsDialog;
 
     public void Open(string path)
@@ -469,7 +480,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 && !dir.StartsWith(Backups.Folder) ? dir : OS.GetSystemDir(OS.SystemDir.Documents),
         };
         if (mode == FileDialog.FileModeEnum.SaveFile && (Path ?? _recoveredFrom) is { } suggested)
-            dialog.CurrentFile = System.IO.Path.GetFileNameWithoutExtension(suggested) + ".dog";
+            dialog.CurrentFile = System.IO.Path.GetFileNameWithoutExtension(suggested) + System.IO.Path.GetExtension(filters[0].Split(';', ',')[0].Trim());
         configure?.Invoke(dialog);
         host.AddChild(dialog);
         dialog.FileSelected += p =>

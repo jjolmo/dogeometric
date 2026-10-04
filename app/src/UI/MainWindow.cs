@@ -640,6 +640,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.SaveCopyAs, _document.ShowSaveCopyAs);
         _commands.Register(CommandIds.Import, _document.ShowImport);
         _commands.Register(CommandIds.Export3DModel, _document.ShowExport3D);
+        _commands.Register(CommandIds.Export2DGraphic, _document.ShowExport2D);
         _commands.Register(CommandIds.Exit, Quit);
 
         Document Doc() => _document.Document;
