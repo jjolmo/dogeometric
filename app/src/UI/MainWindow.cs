@@ -931,6 +931,7 @@ public partial class MainWindow : Control
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         list.AddChild(TraySection.Create("Components", _components, expanded: false));
         list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
+        list.AddChild(TraySection.Create("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), expanded: false));
         _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
         list.AddChild(TraySection.Create("Outliner", _outliner, expanded: false));
     }

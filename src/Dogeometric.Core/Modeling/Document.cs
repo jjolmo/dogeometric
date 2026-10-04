@@ -159,6 +159,30 @@ public static class Editing
         return changed;
     }
 
+    /// <summary>Soften Edges: edges turning by at most <paramref name="maxDegrees"/> soft (smooth too if asked), steeper ones hard;
+    /// coplanar ones only with <paramref name="softenCoplanar"/>. Returns how many are soft.</summary>
+    public static int SoftenEdges(Entities e, IEnumerable<Edge> edges, double maxDegrees, bool smoothNormals, bool softenCoplanar)
+    {
+        var soft = 0;
+        foreach (var edge in edges)
+        {
+            var faces = Topology.FacesOf(e, edge).Take(3).ToList();
+            if (faces.Count != 2)
+                continue;
+            var cos = Math.Clamp(faces[0].Normal.Normalized().Dot(faces[1].Normal.Normalized()), -1, 1);
+            var angle = Math.Acos(Math.Abs(cos)) * 180 / Math.PI;
+            var coplanar = angle < 0.01;
+            var on = coplanar ? softenCoplanar : angle <= maxDegrees;
+            edge.Flags &= ~(EdgeFlags.Soft | EdgeFlags.Smooth);
+            if (on)
+            {
+                edge.Flags |= EdgeFlags.Soft | (smoothNormals ? EdgeFlags.Smooth : EdgeFlags.None);
+                soft++;
+            }
+        }
+        return soft;
+    }
+
     public static void RemoveOrphanVertices(Entities e)
     {
         var used = new HashSet<Vertex>();
