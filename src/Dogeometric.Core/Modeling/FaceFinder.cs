@@ -87,10 +87,8 @@ public static class FaceFinder
     public static Face? Merge(Entities e, Face a, Face b, Edge shared)
     {
         var plane = new Plane(a.Normal, a.Normal.Dot(a.OuterLoop.Points.First()));
+        // The faces keep their loops (and so their outlines) while the plane is rebuilt; the edge is just gone.
         e.Edges.Remove(shared);
-        foreach (var f in new[] { a, b })
-            foreach (var loop in f.Loops)
-                loop.Edges.RemoveAll(x => x.Edge == shared);
         var seeds = Topology.EdgesOf(a).Concat(Topology.EdgesOf(b)).Distinct().ToList();
         var before = e.Faces.ToHashSet();
         Reface(e, plane, seeds, forcedReplaced: [a, b], seedsCreateFaces: false);
@@ -134,7 +132,7 @@ public static class FaceFinder
         while (queue.Count > 0)
         {
             var x = queue.Dequeue();
-            if (!edges.Add(x))
+            if (!e.Edges.Contains(x) || !edges.Add(x))
                 continue;
             foreach (var vert in new[] { x.Start, x.End })
                 foreach (var next in adjacency.GetValueOrDefault(vert) ?? [])
@@ -168,7 +166,8 @@ public static class FaceFinder
         foreach (var region in regions)
         {
             var sample = InteriorPoint(region, To2D);
-            var source = replaced.FirstOrDefault(f => ContainsPoint(f, sample, To2D));
+            // Merging: the sample may sit on the erased edge between the two faces, inside neither alone.
+            var source = replaced.FirstOrDefault(f => ContainsPoint(f, sample, To2D)) ?? forcedReplaced?.FirstOrDefault();
             var hasNewEdge = seedsCreateFaces && region.Edges.Any(x => seedSet.Contains(x.Edge));
             var existing = planeFaces.Except(replaced).FirstOrDefault(f => SameBoundary(f.OuterLoop, region));
             if (existing != null || (source == null && !hasNewEdge))

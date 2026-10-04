@@ -11,7 +11,7 @@ public static class ExtensionCatalog
         new("Round Corner", "Fredo6", "Rounds, sharpens or bevels the edges and corners of a shape (Tools › Fredo6 Collection).", true),
         new("Make Faces", "The Sketchup Dude", "Creates the faces missing between closed loops of edges (Extensions menu).", true),
         new("Selection Toys", "Thomas Thomassen", "Filters the selection by kind, selects copies and related faces (context menu and toolbar).", true),
-        new("CleanUp³", "Thomas Thomassen", "Merges coplanar faces, erases stray edges and other cleaning.", false),
+        new("CleanUp³", "Thomas Thomassen", "Merges coplanar faces, repairs split edges, erases stray edges, purges (Extensions menu).", true),
         new("JointPushPull", "Fredo6", "Push/Pull of many faces at once, joined or along their normals.", false),
         new("CircleByDiameter", "The Sketchup Dude", "Draws a circle from two points of its diameter.", false),
         new("Select Curve", "Thomas Thomassen", "Selects whole curves with one click.", false),

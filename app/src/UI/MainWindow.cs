@@ -226,6 +226,23 @@ public partial class MainWindow : Control
                 doc.Selection.Set(only ? SelectionToys.Only(kind, doc.Context.Entities, sel) : SelectionToys.Without(kind, doc.Context.Entities, sel));
             });
         }
+        foreach (var (id, label, tip, options) in new (int, string, string, Func<CleanUpOptions>?)[]
+        {
+            (ExtensionIds.CleanUp, "Clean...", "Clean up the model with the chosen options.", null),
+            (ExtensionIds.CleanUpLast, "Clean with Last Settings", "Clean up again with the last options.", () => CleanUpDialog.Last with { Scope = CurrentCleanUpScope() }),
+            (ExtensionIds.CleanUpEraseHidden, "Erase Hidden Geometry", "Erase hidden entities.", () => Single(o => o with { EraseHidden = true })),
+            (ExtensionIds.CleanUpEraseStray, "Erase Stray Edges", "Erase edges not connected to any face.", () => Single(o => o with { EraseStrayEdges = true })),
+            (ExtensionIds.CleanUpToUntagged, "Geometry to Untagged", "Put edges and faces on Untagged.", () => Single(o => o with { GeometryToUntagged = true })),
+            (ExtensionIds.CleanUpMergeFaces, "Merge Faces", "Remove edges separating coplanar faces.", () => Single(o => o with { MergeFaces = true })),
+            (ExtensionIds.CleanUpMergeMaterials, "Merge Materials", "Merge identical materials.", () => Single(o => o with { MergeMaterials = true })),
+            (ExtensionIds.CleanUpRepairEdges, "Repair Edges", "Join edges split in two along a straight line.", () => Single(o => o with { RepairSplitEdges = true })),
+        })
+        {
+            _commands.AddToMenu("Extensions", id, label, tip, submenu: "CleanUp³", groupStart: id == ExtensionIds.CleanUpEraseHidden);
+            _commands.Register(id, options == null
+                ? () => CleanUpDialog.Show(this, RunCleanUp)
+                : () => RunCleanUp(options()));
+        }
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
@@ -276,6 +293,46 @@ public partial class MainWindow : Control
         d.Canceled += d.QueueFree;
         AddChild(d);
         d.PopupCentered();
+    }
+
+    /// <summary>CleanUp³'s scope for its menu commands: the selection, else the open group, else the model.</summary>
+    private CleanUpOptions.Scopes CurrentCleanUpScope()
+    {
+        var doc = _document.Document;
+        return !doc.Selection.IsEmpty ? CleanUpOptions.Scopes.Selected
+            : doc.Context.Path.Count > 0 ? CleanUpOptions.Scopes.Local : CleanUpOptions.Scopes.Model;
+    }
+
+    /// <summary>A single CleanUp³ action: only it, nothing purged.</summary>
+    private CleanUpOptions Single(Func<CleanUpOptions, CleanUpOptions> only) => only(new CleanUpOptions
+    {
+        Scope = CurrentCleanUpScope(),
+        Purge = false,
+        MergeFaces = false,
+        RepairSplitEdges = false,
+        EraseStrayEdges = false,
+    });
+
+    private void RunCleanUp(CleanUpOptions options)
+    {
+        var doc = _document.Document;
+        var selection = doc.Selection.Items.ToList();
+        var started = DateTime.Now;
+        SortedDictionary<string, int> stats = [];
+        doc.Undo.Begin("Cleanup Model", doc.Model.AllEntities.ToArray());
+        try
+        {
+            stats = CleanUp.Run(doc.Model, doc.Context.Entities, selection, options);
+            doc.Undo.Commit();
+        }
+        catch
+        {
+            doc.Undo.Abort();
+            throw;
+        }
+        doc.Selection.Clear();
+        _status.SetHint("CleanUp³: done.");
+        CleanUpDialog.Statistics(this, stats, DateTime.Now - started);
     }
 
     private void RegisterCommands()

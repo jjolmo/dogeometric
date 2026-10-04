@@ -19,6 +19,14 @@ public static class ExtensionIds
     public const int DeselectFaces = 90036;
     public const int DeselectGroups = 90037;
     public const int DeselectComponents = 90038;
+    public const int CleanUp = 90041;
+    public const int CleanUpLast = 90042;
+    public const int CleanUpEraseHidden = 90043;
+    public const int CleanUpEraseStray = 90044;
+    public const int CleanUpToUntagged = 90045;
+    public const int CleanUpMergeFaces = 90046;
+    public const int CleanUpMergeMaterials = 90047;
+    public const int CleanUpRepairEdges = 90048;
 }
 
 /// <summary>Dogeometric's own commands, which SketchUp does not have.</summary>

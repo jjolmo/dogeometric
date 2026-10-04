@@ -169,9 +169,10 @@ public sealed class CommandRegistry
     /// <summary>
     /// An extension's menu item, appended to a top-level menu as SketchUp's <c>UI.menu("Tools").add_item</c> does
     /// (after a separator, once per extension). <paramref name="submenu"/> puts it in a submenu of that menu;
-    /// <paramref name="after"/> places it right after the item with that label instead.
+    /// <paramref name="after"/> places it right after the item with that label instead; <paramref name="groupStart"/> puts a
+    /// separator before it inside the submenu.
     /// </summary>
-    public void AddToMenu(string menu, int id, string label, string description, string? submenu = null, bool separator = true, string? after = null)
+    public void AddToMenu(string menu, int id, string label, string description, string? submenu = null, bool separator = true, string? after = null, bool groupStart = false)
     {
         var index = _menus.FindIndex(m => m.Label.Replace("&", "") == menu);
         if (index < 0)
@@ -183,7 +184,7 @@ public sealed class CommandRegistry
         {
             var at = children.FindIndex(c => c.Children != null && c.Label == submenu);
             if (at >= 0)
-                children[at] = children[at] with { Children = [.. children[at].Children!, item] };
+                children[at] = children[at] with { Children = groupStart ? [.. children[at].Children!, new MenuNode("", null, null, true), item] : [.. children[at].Children!, item] };
             else
             {
                 if (separator)
