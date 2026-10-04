@@ -380,18 +380,8 @@ public sealed class ModelRenderer
             return null;
         if (_textures.TryGetValue(m, out var cached))
             return cached;
-        var image = new Image();
-        var data = tex.Data;
-        var err = data switch
-        {
-            [0x89, 0x50, ..] => image.LoadPngFromBuffer(data),
-            [0xFF, 0xD8, ..] => image.LoadJpgFromBuffer(data),
-            [(byte)'B', (byte)'M', ..] => image.LoadBmpFromBuffer(data),
-            [(byte)'R', (byte)'I', (byte)'F', (byte)'F', ..] => image.LoadWebpFromBuffer(data),
-            _ => Error.FileUnrecognized,
-        };
         Texture2D? texture = null;
-        if (err == Error.Ok)
+        if (TextureImages.Decode(tex.Data) is { } image)
         {
             image.GenerateMipmaps();
             texture = ImageTexture.CreateFromImage(image);

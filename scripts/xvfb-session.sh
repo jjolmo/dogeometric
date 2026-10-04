@@ -16,7 +16,7 @@ case "${1:-}" in
     dotnet build app/Dogeometric.csproj -nologo -v q | grep -E "error|Build succeeded" | sort -u
     "$GODOT" --headless --path app --import >/dev/null 2>&1 || true
     # Own user:// data (toolbar layout, shortcuts) so test runs never touch the real profile.
-    DISPLAY=$DISPLAY_NUM VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json XDG_DATA_HOME=/tmp/dogeometric-xvfb-data \
+    DISPLAY=$DISPLAY_NUM VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json XDG_DATA_HOME=/tmp/dogeometric-xvfb-data DOGEOMETRIC_NO_NATIVE_DIALOGS=1 \
       nohup "$GODOT" --path app --resolution 1600x960 --position 0,0 -- ${2:+"$2"} > /tmp/dogeometric-xvfb.log 2>&1 &
     sleep 8
     echo "running on $DISPLAY_NUM"

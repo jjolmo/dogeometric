@@ -76,6 +76,17 @@ public partial class MainWindow : Control
 
         _document = new DocumentController(this, _viewport, _status);
         _document.Changed += () => GetWindow().Title = _document.Title;
+        _document.ImageImportRequested += path =>
+        {
+            var data = File.ReadAllBytes(path);
+            if (TextureImages.Decode(data) is not { } image)
+            {
+                _status.SetHint($"Could not read {System.IO.Path.GetFileName(path)} as an image.");
+                return;
+            }
+            _viewport.Tools.Activate(new TexturePlaceTool(System.IO.Path.GetFileName(path), data, image.GetWidth(), image.GetHeight(),
+                UI.Tray.CreateMaterialDialog.AverageColor(image)));
+        };
         BuildTray();
         _document.DocumentReplaced += HookDocument;
         _document.New();

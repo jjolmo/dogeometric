@@ -38,6 +38,15 @@ public partial class MaterialsPanel : VBoxContainer
         }
         _current = new Label { Text = "Current: " + (CurrentMaterial?.Name ?? "Default") };
         AddChild(_current);
+        var create = new Button { Text = "Create Material…", FocusMode = FocusModeEnum.None };
+        create.Pressed += () => CreateMaterialDialog.Show(this, _doc().Model.Materials.Count + 1, m =>
+        {
+            var doc = _doc();
+            doc.Operation("Create Material", _ => doc.Model.Materials.Add(m));
+            Refresh();
+            Use(m);
+        });
+        AddChild(create);
         AddChild(new Label { Text = "In Model" });
         _grid = new GridContainer { Columns = 6 };
         AddChild(_grid);
@@ -59,6 +68,14 @@ public partial class MaterialsPanel : VBoxContainer
     private void Swatch(string name, Color color, Material? m)
     {
         var b = SwatchButton(name, color);
+        // Textured materials show their picture, as SketchUp's swatches do.
+        if (m?.Texture is { } tex && Viewport.TextureImages.Decode(tex.Data) is { } image)
+        {
+            image.Resize(32, 32, Image.Interpolation.Bilinear);
+            var thumb = ImageTexture.CreateFromImage(image);
+            b.AddThemeStyleboxOverride("normal", new StyleBoxTexture { Texture = thumb });
+            b.AddThemeStyleboxOverride("hover", new StyleBoxTexture { Texture = thumb, ModulateColor = new Color(0.85f, 0.85f, 1f) });
+        }
         b.Pressed += () => Use(m);
         _grid.AddChild(b);
     }

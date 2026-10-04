@@ -103,7 +103,10 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         ["*.skp, *.dog ; Models", "*.dog ; Dogeometric", "*.skp ; SketchUp"], Open);
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric"], Import);
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images (as texture)"], Import);
+
+    /// <summary>File › Import of a picture: the main window hands it to the texture placing tool.</summary>
+    public event Action<string>? ImageImportRequested;
 
     public void Save()
     {
@@ -163,6 +166,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     private void Import(string path)
     {
+        if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
+        {
+            ImageImportRequested?.Invoke(path);
+            return;
+        }
         try
         {
             var imported = Load(path);
@@ -321,7 +329,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Access = FileDialog.AccessEnum.Filesystem,
             Title = title,
             Filters = filters,
-            UseNativeDialog = true,
+            // The system's file picker; test sessions (no desktop portal) set DOGEOMETRIC_NO_NATIVE_DIALOGS.
+            UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
             CurrentDir = Path != null ? System.IO.Path.GetDirectoryName(Path) : OS.GetSystemDir(OS.SystemDir.Documents),
         };
         configure?.Invoke(dialog);
