@@ -100,6 +100,28 @@ public static class Editing
         RemoveOrphanVertices(e);
     }
 
+    /// <summary>
+    /// SketchUp's Soften/Smooth Edges: every edge between two faces meeting at less than
+    /// <paramref name="maxDegrees"/> becomes soft and smooth. Returns how many changed.
+    /// </summary>
+    public static int SoftenByAngle(Entities e, IEnumerable<Edge> edges, double maxDegrees = 20)
+    {
+        var cos = Math.Cos(maxDegrees * Math.PI / 180);
+        var changed = 0;
+        foreach (var edge in edges)
+        {
+            var faces = Topology.FacesOf(e, edge).Take(3).ToList();
+            if (faces.Count != 2 || edge.Flags.HasFlag(EdgeFlags.Soft))
+                continue;
+            if (faces[0].Normal.Dot(faces[1].Normal) >= cos)
+            {
+                edge.Flags |= EdgeFlags.Soft | EdgeFlags.Smooth;
+                changed++;
+            }
+        }
+        return changed;
+    }
+
     public static void RemoveOrphanVertices(Entities e)
     {
         var used = new HashSet<Vertex>();

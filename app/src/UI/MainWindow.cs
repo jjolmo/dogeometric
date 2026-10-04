@@ -113,6 +113,16 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.Text3D, () => Text3DDialog.Show(this, r =>
+        {
+            var doc = Doc();
+            var name = r.Text.Split('\n')[0];
+            var def = new ComponentDefinition { Name = name.Length > 24 ? name[..24] : name, Description = "3D Text" };
+            Text3D.Build(def.Entities, r.Contours.Select(c => (IReadOnlyList<Dogeometric.Core.Geometry.Vec3>)c).ToList(), r.Filled, r.Extrude);
+            doc.Operation("Place 3D Text", _ => doc.Model.Definitions.Add(def));
+            _components.Refresh();
+            _viewport.Tools.Activate(new ComponentPlaceTool(def));
+        }));
         _commands.Register(CommandIds.BackEdges, () =>
         {
             _document.ShowBackEdges = !_document.ShowBackEdges;

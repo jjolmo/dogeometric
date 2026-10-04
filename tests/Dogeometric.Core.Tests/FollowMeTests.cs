@@ -55,4 +55,16 @@ public class FollowMeTests
         List<Edge> edges = [e.EdgeBetween(c, e.VertexAt(new(1, 0, 0))), e.EdgeBetween(c, e.VertexAt(new(0, 1, 0))), e.EdgeBetween(c, e.VertexAt(new(0, 0, 1)))];
         Assert.Null(FollowMe.OrderPath(edges, Vec3.Zero));
     }
+
+    [Fact]
+    public void Text_outline_with_a_counter_extrudes_to_a_ring()
+    {
+        var e = new Entities();
+        IReadOnlyList<Vec3> outer = [new(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)];
+        IReadOnlyList<Vec3> counter = [new(3, 3, 0), new(7, 3, 0), new(7, 7, 0), new(3, 7, 0)];
+        Text3D.Build(e, [outer, counter], filled: true, extrude: 2);
+        var r = Check(e);
+        Assert.True(r.IsWatertight);
+        Assert.Equal((100 - 16) * 2, r.Volume, 6);
+    }
 }
