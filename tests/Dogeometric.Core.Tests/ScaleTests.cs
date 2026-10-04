@@ -41,5 +41,17 @@ public class ScaleTests
             Assert.Equal(outward[f], f.Normal.Dot(Centroid(f) - new Vec3(5, 5, 5)) > 0);
     }
 
+    [Fact]
+    public void Flip_along_red_mirrors_a_group_in_place()
+    {
+        var (model, a, _) = TestModels.TwoBoxGroups();
+        var before = new Entities { Instances = { a } }.Bounds();
+        Transforming.Flip(model.Entities, [a], 0, Transform.Identity);
+        Assert.True(a.Transform.IsMirroring);
+        var after = new Entities { Instances = { a } }.Bounds();
+        Assert.Equal(before.Min.X, after.Min.X, 6);
+        Assert.Equal(before.Max.X, after.Max.X, 6);
+    }
+
     private static Vec3 Centroid(Face f) => f.OuterLoop.Points.Aggregate(Vec3.Zero, (s, p) => s + p) / f.OuterLoop.Points.Count();
 }

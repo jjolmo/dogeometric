@@ -134,6 +134,51 @@ public static class Transforming
             .Then(Geometry.Transform.Translation(anchor))
             .Then(frame);
 
+    /// <summary>
+    /// Flip Along: mirrors the items along one axis (0 red, 1 green, 2 blue) about their middle. A lone group or
+    /// component flips along its own axes, anything else along <paramref name="axes"/> (the drawing axes).
+    /// </summary>
+    public static void Flip(Entities e, IReadOnlyList<object> items, int axis, Geometry.Transform axes)
+    {
+        Geometry.Transform frame;
+        Geometry.Bounds3 box;
+        if (items is [ComponentInstance inst])
+        {
+            frame = inst.Transform;
+            box = inst.Definition.Entities.Bounds();
+        }
+        else
+        {
+            frame = axes;
+            var toFrame = axes.Inverse();
+            var points = new List<Geometry.Vec3>();
+            foreach (var item in items)
+            {
+                switch (item)
+                {
+                    case Face f:
+                        points.AddRange(f.OuterLoop.Points);
+                        break;
+                    case Edge edge:
+                        points.Add(edge.Start.Position);
+                        points.Add(edge.End.Position);
+                        break;
+                    case ComponentInstance ci:
+                        var b = ci.Definition.Entities.Bounds();
+                        if (!b.IsEmpty)
+                            for (var i = 0; i < 8; i++)
+                                points.Add(ci.Transform.ApplyPoint(new Geometry.Vec3((i & 1) == 0 ? b.Min.X : b.Max.X, (i & 2) == 0 ? b.Min.Y : b.Max.Y, (i & 4) == 0 ? b.Min.Z : b.Max.Z)));
+                        break;
+                }
+            }
+            box = Geometry.Bounds3.FromPoints(points.Select(toFrame.ApplyPoint));
+        }
+        if (box.IsEmpty)
+            return;
+        var t = Scale(frame, box.Center, axis == 0 ? -1 : 1, axis == 1 ? -1 : 1, axis == 2 ? -1 : 1);
+        Apply(e, items, t);
+    }
+
     public static void Apply(Entities e, IEnumerable<object> items, Geometry.Transform t)
     {
         var vertices = new HashSet<Vertex>();

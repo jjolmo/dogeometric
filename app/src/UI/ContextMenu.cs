@@ -71,6 +71,18 @@ public static class ContextMenu
                     FaceFinder.Reverse(f);
             }));
         }
+        if (sel.Any(x => x is Face or Edge or ComponentInstance))
+        {
+            // SketchUp names the directions after the group's or component's own axes when one is selected.
+            var owner = single is ComponentInstance ci ? ci.IsGroup ? "Group's" : "Component's" : null;
+            var flip = new PopupMenu();
+            flip.AddItem(owner == null ? "Red Direction" : $"{owner} Red", 0);
+            flip.AddItem(owner == null ? "Green Direction" : $"{owner} Green", 1);
+            flip.AddItem(owner == null ? "Blue Direction" : $"{owner} Blue", 2);
+            var items = sel.ToList();
+            flip.IdPressed += id => doc.Operation("Flip Along", e => Transforming.Flip(e, items, (int)id, doc.Context.Path.Count == 0 ? doc.Model.Axes : Transform.Identity));
+            menu.AddSubmenuNodeItem("Flip Along", flip);
+        }
         if (faces.Count > 0 || sel.OfType<ComponentInstance>().Any())
         {
             var intersect = new PopupMenu();
