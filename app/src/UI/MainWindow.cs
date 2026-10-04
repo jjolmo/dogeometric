@@ -154,6 +154,7 @@ public partial class MainWindow : Control
         Bar("Large Tool Set", Toolbars.LargeToolSet, ToolbarDocks.Dock.Left, lines: 2);
         // Extension toolbars, as each extension adds its own.
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
+        Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -184,6 +185,16 @@ public partial class MainWindow : Control
             "Inspect and repair solid groups and components.");
         _commands.Register(ExtensionIds.SolidInspector, () => _viewport.Tools.Activate(new SolidInspectorTool()),
             () => _viewport.Tools.Active is SolidInspectorTool);
+        foreach (var (id, label, tip, m) in new[]
+        {
+            (ExtensionIds.RoundCornerRound, "Round Corner", "Round corners in 3D", Dogeometric.Core.Modeling.RoundCornerMode.Round),
+            (ExtensionIds.RoundCornerSharp, "Sharp Corner", "Sharp corners in 3D", Dogeometric.Core.Modeling.RoundCornerMode.Sharp),
+            (ExtensionIds.RoundCornerBevel, "Bevel", "Bevel edges and corners", Dogeometric.Core.Modeling.RoundCornerMode.Bevel),
+        })
+        {
+            _commands.AddToMenu("Tools", id, label, tip + ".", submenu: "Fredo6 Collection");
+            _commands.Register(id, () => _viewport.Tools.Activate(new RoundCornerTool(m)), () => _viewport.Tools.Active.CommandId == id);
+        }
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);

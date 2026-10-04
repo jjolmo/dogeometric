@@ -8,7 +8,7 @@ public static class ExtensionCatalog
     public static readonly Extension[] All =
     [
         new("Solid Inspector²", "Thomas Thomassen", "Finds and repairs what keeps a group from being a solid (Tools menu).", true),
-        new("Round Corner", "Fredo6", "Rounds, sharpens or bevels the edges and corners of a shape.", false),
+        new("Round Corner", "Fredo6", "Rounds, sharpens or bevels the edges and corners of a shape (Tools › Fredo6 Collection).", true),
         new("Make Faces", "The Sketchup Dude", "Creates the faces missing between closed loops of edges.", false),
         new("Selection Toys", "Thomas Thomassen", "Selects and filters the selection by kind of entity.", false),
         new("CleanUp³", "Thomas Thomassen", "Merges coplanar faces, erases stray edges and other cleaning.", false),
