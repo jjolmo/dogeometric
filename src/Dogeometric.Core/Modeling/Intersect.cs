@@ -12,11 +12,16 @@ public static class Intersect
     /// <summary>A face in world coordinates.</summary>
     private sealed record WorldFace(Face Source, Transform ToWorld, List<List<Vec3>> Loops, Vec3 Normal, double D, Bounds3 Bounds);
 
-    public static List<Edge> WithModel(Document doc) => Run(doc, withSelectionOnly: false);
+    public static List<Edge> WithModel(Document doc) => Run(doc, Scope.Model);
 
-    public static List<Edge> WithSelection(Document doc) => Run(doc, withSelectionOnly: true);
+    public static List<Edge> WithSelection(Document doc) => Run(doc, Scope.Selection);
 
-    private static List<Edge> Run(Document doc, bool withSelectionOnly)
+    /// <summary>With Context: against the faces of the group being edited (or the top level), not inside other groups.</summary>
+    public static List<Edge> WithContext(Document doc) => Run(doc, Scope.Context);
+
+    private enum Scope { Model, Selection, Context }
+
+    private static List<Edge> Run(Document doc, Scope scope)
     {
         var ctx = doc.Context;
         var selected = new List<WorldFace>();
@@ -36,9 +41,13 @@ public static class Intersect
             return [];
 
         List<WorldFace> others;
-        if (withSelectionOnly)
+        if (scope == Scope.Selection)
         {
             others = selected;
+        }
+        else if (scope == Scope.Context)
+        {
+            others = ctx.Entities.Faces.Where(f => !f.Hidden).Select(f => Make(f, ctx.ToWorld)).ToList();
         }
         else
         {

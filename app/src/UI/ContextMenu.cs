@@ -88,7 +88,13 @@ public static class ContextMenu
             var intersect = new PopupMenu();
             intersect.AddItem("With Model", 1);
             intersect.AddItem("With Selection", 2);
-            intersect.IdPressed += id => runCommand(id == 1 ? CommandIds.IntersectWithModel : CommandIds.IntersectWithSelection);
+            intersect.AddItem("With Context", 3);
+            intersect.IdPressed += id => runCommand(id switch
+            {
+                1 => CommandIds.IntersectWithModel,
+                2 => CommandIds.IntersectWithSelection,
+                _ => CommandIds.IntersectWithContext,
+            });
             menu.AddSubmenuNodeItem("Intersect Faces", intersect);
         }
         if (single is Face face)

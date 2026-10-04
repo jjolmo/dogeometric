@@ -116,6 +116,7 @@ public static class CommandIds
     public const int DisplaySectionCuts = 21348;
     public const int IntersectWithModel = 21524;
     public const int IntersectWithSelection = 21527;
+    public const int IntersectWithContext = 21526;
     public const int ZoomWindow = 10526;
     public const int Cut = 57635;
     public const int Copy = 57634;
