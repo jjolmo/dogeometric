@@ -11,6 +11,9 @@ public partial class OverlayCanvas : Control
     {
         if (View == null)
             return;
+        foreach (var c in View.CenterPoints())
+            if (View.ToScreen(c.Point) is { } p)
+                Tools.CenterMarker.Draw(this, p, Tools.CenterMarker.Color with { A = 0.8f }, 4);
         View.Annotations.Draw(View, this);
         View.Tools?.Active.Draw(this);
     }

@@ -1,5 +1,6 @@
 using Dogeometric.App.Viewport;
 using Dogeometric.Core.IO;
+using Dogeometric.Core.Inference;
 using Dogeometric.Core.Modeling;
 using Dogeometric.Formats.Skp;
 using Godot;
@@ -74,6 +75,27 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     {
         get => _renderer.ShowBackEdges;
         set => _renderer.ShowBackEdges = value;
+    }
+
+    private List<CenterPoint>? _centers;
+
+    /// <summary>View › Center Points (Dogeometric's own): centres of groups, faces and the selection, shown and snapped to.</summary>
+    public bool ShowCenterPoints
+    {
+        get => AppPreferences.Current.ShowCenterPoints;
+        set
+        {
+            AppPreferences.Current.ShowCenterPoints = value;
+            AppPreferences.Save();
+            viewport.QueueOverlayRedraw();
+        }
+    }
+
+    private IReadOnlyList<CenterPoint> Centers()
+    {
+        if (!ShowCenterPoints)
+            return [];
+        return _centers ??= CenterPoints.Of(Document.Context.Entities, Document.Context.ToWorld, Document.Selection.Items.ToList());
     }
 
     /// <summary>View › Guides.</summary>
@@ -333,6 +355,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         };
         Document.Selection.Changed += RebuildSelection;
         Document.Context.Changed += RebuildSelection;
+        Document.GeometryChanged += _ => _centers = null;
+        Document.Selection.Changed += () => _centers = null;
+        Document.Context.Changed += () => _centers = null;
+        _centers = null;
+        viewport.CenterPoints = Centers;
         Path = path;
         viewport.Document = Document;
         viewport.ModelBounds = () => Model.Entities.Bounds();

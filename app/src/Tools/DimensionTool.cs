@@ -68,7 +68,7 @@ public sealed class DimensionTool : DrawingTool
         var normal = view - axis * view.Dot(axis);
         var ray = View.ScreenRay(Mouse);
         Vec3 point;
-        if (Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.OnEdge } snap)
+        if (Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center or InferenceKind.OnEdge } snap)
             point = snap.Point;
         else if (!normal.IsZero(1e-9) && InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), normal.Normalized(), s) is { } hit)
             point = hit;

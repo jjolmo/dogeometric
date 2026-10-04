@@ -174,6 +174,9 @@ public partial class MainWindow : Control
     {
         _commands.AddToMenu("File", OwnIds.RecoverBackup, "Recover Backup...",
             "Open one of the automatic backups as an unsaved copy.", after: "Revert");
+        _commands.AddToMenu("View", OwnIds.CenterPoints, "Center Points",
+            "Show the centres of groups, components, faces and the selection, and snap to them.", after: "Guides");
+        _commands.Register(OwnIds.CenterPoints, () => _document.ShowCenterPoints = !_document.ShowCenterPoints, () => _document.ShowCenterPoints);
         _commands.Register(OwnIds.RecoverBackup, () =>
             RecoverBackupDialog.Show(this, (file, original) => _document.ConfirmDiscard(() => _document.OpenRecovered(file, original))));
 

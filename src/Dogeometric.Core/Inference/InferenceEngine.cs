@@ -16,6 +16,7 @@ public enum InferenceKind
     GuidePoint,
     Origin,
     InPlane,
+    Center,
 }
 
 /// <summary>The snapped point and what it snapped to (drives the cursor marker colour and tooltip).</summary>
@@ -56,6 +57,9 @@ public sealed class InferenceEngine
     private (Vec3 Dir, string Name)[] AxisDirections =>
         [(Axes.X.Normalized(), "Red"), (Axes.Y.Normalized(), "Green"), (Axes.Z.Normalized(), "Blue")];
 
+    /// <summary>Centre points to snap to (View › Center Points); empty when they are off.</summary>
+    public IReadOnlyList<CenterPoint> Centers { get; set; } = [];
+
     /// <summary>Locked axis (arrow keys), or null.</summary>
     public Vec3? LockedAxis { get; set; }
 
@@ -75,7 +79,7 @@ public sealed class InferenceEngine
         }
 
         var hit = view.Pick(x, y);
-        var snap = SnapToPoints(view, x, y, hit, context, contextToWorld, Axes.Origin);
+        var snap = SnapToPoints(view, x, y, hit, context, contextToWorld, Axes.Origin, Centers);
         if (snap != null)
             return snap;
 
@@ -125,7 +129,8 @@ public sealed class InferenceEngine
     }
 
     /// <summary>Endpoints, midpoints and the origin within <see cref="SnapPixels"/> of the cursor.</summary>
-    private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld, Vec3 origin)
+    private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld, Vec3 origin,
+        IReadOnlyList<CenterPoint> centers)
     {
         InferenceResult? best = null;
         var bestDist = SnapPixels;
@@ -135,8 +140,8 @@ public sealed class InferenceEngine
             if (view.ToScreen(world) is not { } s)
                 return;
             var d = Math.Sqrt((s.X - x) * (s.X - x) + (s.Y - y) * (s.Y - y));
-            // Endpoints beat midpoints at equal distance.
-            if (d < bestDist || (d <= bestDist + 0.5 && kind == InferenceKind.Endpoint && best?.Kind == InferenceKind.Midpoint))
+            // Endpoints beat midpoints and centres at equal distance.
+            if (d < bestDist || (d <= bestDist + 0.5 && kind == InferenceKind.Endpoint && best?.Kind is InferenceKind.Midpoint or InferenceKind.Center))
             {
                 bestDist = d;
                 best = new InferenceResult(world, kind, label + inside) { Edge = edge, InGroup = inside != "" };
@@ -144,6 +149,8 @@ public sealed class InferenceEngine
         }
 
         Consider(origin, InferenceKind.Origin, "Origin");
+        foreach (var c in centers)
+            Consider(c.Point, InferenceKind.Center, c.Label);
 
         void FromEdge(Edge e, Transform xf, string inside = "")
         {
@@ -174,8 +181,12 @@ public sealed class InferenceEngine
             if (hit.Edge is { } he)
                 FromEdge(he, toWorld, inside);
             if (hit.Face is { } hf)
+            {
                 foreach (var e in Topology.EdgesOf(hf))
                     FromEdge(e, toWorld, inside);
+                if (centers.Count > 0 && inside != "")
+                    Consider(toWorld.ApplyPoint(CenterPoints.FaceCenter(hf)), InferenceKind.Center, "Center of Face", null, inside);
+            }
         }
         return best;
     }

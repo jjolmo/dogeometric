@@ -32,6 +32,7 @@ public abstract class DrawingTool : Tool
         if (View.Document is not { } doc)
             return;
         Inference.Axes = doc.Model.Axes;
+        Inference.Centers = View.CenterPoints();
         Current = Inference.Infer(new ViewProjection(View), Mouse.X, Mouse.Y, From, doc.Context.Entities, doc.Context.ToWorld);
         OnInferenceChanged();
         View.QueueOverlayRedraw();
@@ -145,6 +146,7 @@ public abstract class DrawingTool : Tool
             InferenceKind.OnAxis => (AxisColor(inf.AxisDirection), "circle"),
             InferenceKind.OnGuide => (new Color("#bb2025"), "square"),
             InferenceKind.GuidePoint => (new Color("#5e9440"), "circle"),
+            InferenceKind.Center => (CenterMarker.Color, "center"),
             _ => (Colors.Black, "dot"),
         };
         if (inf.InGroup)
@@ -179,6 +181,9 @@ public abstract class DrawingTool : Tool
                 overlay.DrawColoredPolygon([p + new Vector2(0, -h), p + new Vector2(h, 0), p + new Vector2(0, h), p + new Vector2(-h, 0)], fill);
                 break;
             }
+            case "center":
+                CenterMarker.Draw(overlay, p, fill, 6.5f);
+                break;
             default:
                 overlay.DrawCircle(p, 2, fill);
                 break;

@@ -33,6 +33,8 @@ public sealed class AppPreferences
     // Compatibility.
     public bool InvertWheelZoom { get; set; }
 
+    public bool ShowCenterPoints { get; set; }
+
     // Graphics.
     /// <summary>Multisample anti-aliasing: 0, 2, 4 or 8 samples.</summary>
     public int Antialiasing { get; set; } = 4;

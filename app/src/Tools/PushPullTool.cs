@@ -153,7 +153,7 @@ public sealed class PushPullTool : DrawingTool
     /// <summary>Signed distance along the face normal: snapped geometry projects onto it, otherwise the cursor ray.</summary>
     private double DistanceFromCursor()
     {
-        if (Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.OnEdge or InferenceKind.Origin } snap)
+        if (Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center or InferenceKind.OnEdge or InferenceKind.Origin } snap)
             return (snap.Point - _anchor).Dot(_normal);
         var ray = View.ScreenRay(Mouse);
         var p = InferenceEngine.ClosestOnLine(new Ray(ray.Origin, ray.Direction), _anchor, _normal);

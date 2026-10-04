@@ -161,7 +161,7 @@ public sealed class ScaleTool : DrawingTool
         // Work in box coordinates: the ray, and a snapped point when the inference found one.
         var origin = boxFromWorld.ApplyPoint(toBox.ApplyPoint(ray.Origin));
         var direction = boxFromWorld.ApplyVector(toBox.ApplyVector(ray.Direction)).Normalized();
-        Vec3? snapped = Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.OnEdge } inf
+        Vec3? snapped = Current is { Kind: InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center or InferenceKind.OnEdge } inf
             ? boxFromWorld.ApplyPoint(toBox.ApplyPoint(inf.Point))
             : null;
 

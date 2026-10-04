@@ -13,4 +13,5 @@ public static class ExtensionIds
 public static class OwnIds
 {
     public const int RecoverBackup = 95001;
+    public const int CenterPoints = 95002;
 }

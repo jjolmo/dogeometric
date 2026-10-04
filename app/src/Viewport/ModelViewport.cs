@@ -48,6 +48,9 @@ public partial class ModelViewport : Control
     /// <summary>Bounds of the model contents, used by Zoom Extents.</summary>
     public Func<Bounds3> ModelBounds { get; set; } = () => Bounds3.Empty;
 
+    /// <summary>Centre points shown and snapped to (View › Center Points); empty when off.</summary>
+    public Func<IReadOnlyList<Core.Inference.CenterPoint>> CenterPoints { get; set; } = () => [];
+
     /// <summary>Text being typed into the Measurements box (empty when not typing).</summary>
     public string VcbTyping { get; private set; } = "";
 

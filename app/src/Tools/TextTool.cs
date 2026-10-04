@@ -31,7 +31,7 @@ public sealed class TextTool : DrawingTool
             return;
         if (_anchor == null)
         {
-            if (View.Pick(position) == null && inf.Kind is not (InferenceKind.Endpoint or InferenceKind.Midpoint))
+            if (View.Pick(position) == null && inf.Kind is not (InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center))
             {
                 // Empty space: screen text.
                 Edit(doc, position, "Enter text", text => doc.Operation("Text", e => e.Texts.Add(new TextLabel(text)
@@ -81,7 +81,7 @@ public sealed class TextTool : DrawingTool
     {
         var model = doc.Model;
         string L(double mm) => Length.Format(mm, model.Units, model.UnitPrecision);
-        if (inf.Kind is InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Origin)
+        if (inf.Kind is InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center or InferenceKind.Origin)
         {
             var p = inf.Point;
             return $"{L(p.X)}, {L(p.Y)}, {L(p.Z)}";
