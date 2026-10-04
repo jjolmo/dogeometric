@@ -1,4 +1,5 @@
 using Dogeometric.Core.Geometry;
+using Dogeometric.Core.IO;
 using Dogeometric.Core.Modeling;
 using Dogeometric.Core.Units;
 using Godot;
@@ -72,7 +73,14 @@ public partial class EntityInfoPanel : VBoxContainer
                 Check("Hidden", x.Hidden, v => doc.Operation("Hide", _ => x.Hidden = v));
                 break;
             case ComponentInstance i:
-                Title(i.IsGroup ? "Group" : $"Component ({i.Definition.Entities.Instances.Count} nested)");
+                // SketchUp calls a closed, consistently oriented mesh without nested instances a solid.
+                var report = i.Definition.Entities.Instances.Count == 0
+                    ? MeshCheck.Analyze(MeshExtractor.ExtractInstance(i))
+                    : null;
+                var solid = report is { IsWatertight: true };
+                var kind = i.IsGroup ? "Group" : $"Component ({i.Definition.Entities.Instances.Count} nested)";
+                Title(solid ? $"Solid {kind}" : kind);
+                SolidBadge(i, solid);
                 TagRow(doc, i.Tag, t => doc.Operation("Change Tag", _ => i.Tag = t));
                 Edit("Instance", i.Name, v => doc.Operation("Rename", _ => i.Name = v));
                 if (!i.IsGroup)
@@ -85,6 +93,8 @@ public partial class EntityInfoPanel : VBoxContainer
                     var s = new Vec3(b.Size.X * t.X.Length, b.Size.Y * t.Y.Length, b.Size.Z * t.Z.Length);
                     Row("Size", $"{Length.Format(s.X, LengthUnit.Millimeters, 1)} × {Length.Format(s.Y, LengthUnit.Millimeters, 1)} × {Length.Format(s.Z, LengthUnit.Millimeters, 1)}");
                 }
+                if (solid)
+                    Row("Volume", Volume(Math.Abs(report!.Volume)));
                 Row("Material", i.Material?.Name ?? "Default");
                 Check("Hidden", i.Hidden, v => doc.Operation("Hide", _ => i.Hidden = v));
                 Check("Locked", i.Locked, v => doc.Operation("Lock", _ => i.Locked = v));
@@ -93,6 +103,29 @@ public partial class EntityInfoPanel : VBoxContainer
     }
 
     private static string Area(double mm2) => mm2 >= 1e6 ? $"{mm2 / 1e6:0.###} m²" : mm2 >= 100 ? $"{mm2 / 100:0.##} cm²" : $"{mm2:0.##} mm²";
+
+    private static string Volume(double mm3) => mm3 >= 1e9 ? $"{mm3 / 1e9:0.###} m³" : mm3 >= 1000 ? $"{mm3 / 1000:0.##} cm³" : $"{mm3:0.##} mm³";
+
+    /// <summary>Opens Solid Inspector² on a group or component (set by the main window).</summary>
+    public static Action<ComponentInstance>? InspectSolid { get; set; }
+
+    /// <summary>A plain "is it a solid" indicator; when it is not, a link runs Solid Inspector² on it.</summary>
+    private void SolidBadge(ComponentInstance instance, bool solid)
+    {
+        var row = new HBoxContainer();
+        var dot = new Label { Text = solid ? "● Solid" : "● Not a solid" };
+        dot.AddThemeColorOverride("font_color", solid ? Color.Color8(0, 140, 60) : Color.Color8(200, 30, 30));
+        row.AddChild(dot);
+        if (!solid && InspectSolid is { } inspect)
+        {
+            var link = new LinkButton { Text = "Inspect…", TooltipText = "Find out why with Solid Inspector²", FocusMode = FocusModeEnum.None };
+            link.AddThemeColorOverride("font_color", Color.Color8(0, 90, 200));
+            link.AddThemeColorOverride("font_hover_color", Color.Color8(0, 60, 160));
+            link.Pressed += () => inspect(instance);
+            row.AddChild(link);
+        }
+        AddChild(row);
+    }
 
     private void Title(string text) => AddChild(new Label { Text = text, ThemeTypeVariation = "HeaderSmall" });
 

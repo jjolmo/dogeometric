@@ -49,7 +49,7 @@ public sealed class SolidInspectorTool : Tool
             _current = null;
             _window?.List(_errors, _filter);
             View.QueueOverlayRedraw();
-        });
+        }, KeyDown);
         _window.CloseRequested += () => Manager.Activate(new SelectTool());
         if (View.Document is { } doc)
         {

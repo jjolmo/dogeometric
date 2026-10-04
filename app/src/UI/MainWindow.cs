@@ -161,6 +161,11 @@ public partial class MainWindow : Control
             "Inspect and repair solid groups and components.");
         _commands.Register(ExtensionIds.SolidInspector, () => _viewport.Tools.Activate(new SolidInspectorTool()),
             () => _viewport.Tools.Active is SolidInspectorTool);
+        EntityInfoPanel.InspectSolid = instance =>
+        {
+            _document.Document.Selection.Set([instance]);
+            _viewport.Tools.Activate(new SolidInspectorTool());
+        };
     }
 
     private void RegisterCommands()

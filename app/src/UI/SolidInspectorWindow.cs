@@ -20,7 +20,7 @@ public sealed partial class SolidInspectorWindow : Window
     private Action<SolidErrorKind?> _select = null!;
     private SolidErrorKind? _selected;
 
-    public static SolidInspectorWindow Open(Node owner, Action fixAll, Action<SolidErrorKind> fixKind, Action<SolidErrorKind?> select)
+    public static SolidInspectorWindow Open(Node owner, Action fixAll, Action<SolidErrorKind> fixKind, Action<SolidErrorKind?> select, Func<InputEventKey, bool> key)
     {
         var w = new SolidInspectorWindow
         {
@@ -59,6 +59,12 @@ public sealed partial class SolidInspectorWindow : Window
         layout.AddChild(scroll);
         w.AddChild(root);
 
+        // Keys typed while the window has focus still drive the tool (Esc, Tab, arrows, Return), as in the extension.
+        w.WindowInput += e =>
+        {
+            if (e is InputEventKey { Pressed: true } k && key(k))
+                w.SetInputAsHandled();
+        };
         owner.GetTree().Root.AddChild(w);
         // Beside the main window's right edge, as the extension's dialog first opens.
         var main = owner.GetWindow();
