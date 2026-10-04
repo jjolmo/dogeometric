@@ -8,20 +8,22 @@ using Material = Dogeometric.Core.Modeling.Material;
 namespace Dogeometric.App.Tools;
 
 /// <summary>SketchUp's Texture › Position (fixed pins), live: red moves, green scales and turns about red, blue scales or
-/// shears the other side. Return or a click away keeps it, Esc puts it back.</summary>
+/// shears the other side, yellow distorts in perspective. Return or a click away keeps it, Esc puts it back.</summary>
 public sealed class TexturePositionTool(Face face, bool back) : Tool
 {
     private static readonly Color Red = new(0.9f, 0.1f, 0.1f);
     private static readonly Color Green = new(0.1f, 0.65f, 0.15f);
     private static readonly Color Blue = new(0.15f, 0.3f, 0.95f);
+    private static readonly Color Yellow = new(0.95f, 0.85f, 0.1f);
 
     private const double Inch = 25.4;
-    private (double X, double Y) _o, _u, _v;
+    private (double X, double Y) _o, _u, _v, _w;
+    private bool _distorted;
     private int _dragging = -1;
     private Material _material = null!;
 
     public override int CommandId => 0;
-    public override string StatusText => "Drag the pins: red moves, green scales and rotates, blue scales or shears. Return or click elsewhere to finish.";
+    public override string StatusText => "Drag the pins: red moves, green scales and rotates, blue scales or shears, yellow distorts. Return or click elsewhere to finish.";
 
     public override void Activate()
     {
@@ -30,18 +32,28 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
         var (tw, th) = (tex.WidthMm, tex.HeightMm);
         if ((back ? face.BackMapping : face.FrontMapping) is { } m)
         {
-            // The tile's corners in the face's plane frame: [u v 1]·M with u, v in tile inches.
+            // The tile's corners in the face's plane frame: [u v 1]·M with u, v in tile inches, divided by w.
             var k = m.Matrix;
+            (double, double) Map(double ui, double vi)
+            {
+                var w = ui * k[2] + vi * k[5] + k[8];
+                if (Math.Abs(w) < 1e-12)
+                    w = 1;
+                return ((ui * k[0] + vi * k[3] + k[6]) / w * Inch, (ui * k[1] + vi * k[4] + k[7]) / w * Inch);
+            }
             double twi = tw / Inch, thi = th / Inch;
-            _o = (k[6] * Inch, k[7] * Inch);
-            _u = ((twi * k[0] + k[6]) * Inch, (twi * k[1] + k[7]) * Inch);
-            _v = ((thi * k[3] + k[6]) * Inch, (thi * k[4] + k[7]) * Inch);
+            _o = Map(0, 0);
+            _u = Map(twi, 0);
+            _v = Map(0, thi);
+            _w = Map(twi, thi);
+            _distorted = Math.Abs(k[2]) > 1e-12 || Math.Abs(k[5]) > 1e-12;
         }
         else
         {
             _o = (0, 0);
             _u = (tw, 0);
             _v = (0, th);
+            _w = (tw, th);
         }
         View.QueueOverlayRedraw();
     }
@@ -68,13 +80,13 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
         return Texturing.PlanePoint(face, ToWorld.Inverse().ApplyPoint(hit));
     }
 
-    private (double X, double Y)[] Pins => [_o, _u, _v];
+    private (double X, double Y)[] Pins => [_o, _u, _v, _w];
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
         if (button != MouseButton.Left || View.Document is not { } doc)
             return;
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 4; i++)
             if (View.ToScreen(World(Pins[i])) is { } s && s.DistanceTo(position) < 10)
             {
                 _dragging = i;
@@ -96,6 +108,7 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
                 _o = p;
                 _u = (_u.X + dx, _u.Y + dy);
                 _v = (_v.X + dx, _v.Y + dy);
+                _w = (_w.X + dx, _w.Y + dy);
                 break;
             case 1:
             {
@@ -112,12 +125,20 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
                 var (c, s) = (Math.Cos(angle), Math.Sin(angle));
                 _u = p;
                 _v = (_o.X + (vx * c - vy * s) * scale, _o.Y + (vx * s + vy * c) * scale);
+                var (wx, wy) = (_w.X - _o.X, _w.Y - _o.Y);
+                _w = (_o.X + (wx * c - wy * s) * scale, _o.Y + (wx * s + wy * c) * scale);
                 break;
             }
             case 2:
                 _v = p;
                 break;
+            case 3:
+                _w = p;
+                _distorted = true;
+                break;
         }
+        if (!_distorted)
+            _w = (_u.X + _v.X - _o.X, _u.Y + _v.Y - _o.Y);
         Preview();
     }
 
@@ -126,7 +147,9 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
         if (View.Document is not { } doc)
             return;
         var tex = _material.Texture!;
-        var mapping = TextureMapping.FromPlanePoints(_o, _u, _v, tex.WidthMm, tex.HeightMm);
+        var mapping = _distorted
+            ? TextureMapping.FromQuad(_o, _u, _w, _v, tex.WidthMm, tex.HeightMm)
+            : TextureMapping.FromPlanePoints(_o, _u, _v, tex.WidthMm, tex.HeightMm);
         doc.Preview("Position Texture", _ =>
         {
             if (back)
@@ -164,13 +187,12 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
 
     public override void Draw(Control overlay)
     {
-        var corner = (_u.X + _v.X - _o.X, _u.Y + _v.Y - _o.Y);
-        (double, double)[] outline = [_o, _u, corner, _v];
+        (double, double)[] outline = [_o, _u, _w, _v];
         for (var i = 0; i < 4; i++)
             if (View.ToScreen(World(outline[i])) is { } a && View.ToScreen(World(outline[(i + 1) % 4])) is { } b)
                 overlay.DrawDashedLine(a, b, new Color(0.2f, 0.2f, 0.2f), 1, 4);
-        Color[] colors = [Red, Green, Blue];
-        for (var i = 0; i < 3; i++)
+        Color[] colors = [Red, Green, Blue, Yellow];
+        for (var i = 0; i < 4; i++)
             if (View.ToScreen(World(Pins[i])) is { } s)
             {
                 overlay.DrawCircle(s, 7, Colors.White);

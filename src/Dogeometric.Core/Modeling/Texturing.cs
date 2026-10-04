@@ -22,6 +22,36 @@ public sealed record TextureMapping(double[] Matrix)
             (vEnd.X / inch - ox) / th, (vEnd.Y / inch - oy) / th, 0,
             ox, oy, 1]);
     }
+
+    /// <summary>
+    /// A perspective mapping that places the tile's four corners (u, v) = (0,0), (1,0), (1,1), (0,1) at four plane
+    /// points (mm), as Texture › Position's yellow pin distorts it.
+    /// </summary>
+    public static TextureMapping FromQuad((double X, double Y) p00, (double X, double Y) p10, (double X, double Y) p11, (double X, double Y) p01,
+        double tileWmm, double tileHmm)
+    {
+        const double inch = 25.4;
+        double x0 = p00.X / inch, y0 = p00.Y / inch, x1 = p10.X / inch, y1 = p10.Y / inch;
+        double x2 = p11.X / inch, y2 = p11.Y / inch, x3 = p01.X / inch, y3 = p01.Y / inch;
+        double sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+        double g = 0, h = 0;
+        if (Math.Abs(sx) > 1e-12 || Math.Abs(sy) > 1e-12)
+        {
+            double dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2;
+            var den = dx1 * dy2 - dx2 * dy1;
+            if (Math.Abs(den) > 1e-12)
+            {
+                g = (sx * dy2 - dx2 * sy) / den;
+                h = (dx1 * sy - sx * dy1) / den;
+            }
+        }
+        // [s t 1]·M with s, t in tiles; the rows for u and v divide by the tile size in inches.
+        var (tw, th) = (tileWmm / inch, tileHmm / inch);
+        return new TextureMapping([
+            (x1 - x0 + g * x1) / tw, (y1 - y0 + g * y1) / tw, g / tw,
+            (x3 - x0 + h * x3) / th, (y3 - y0 + h * y3) / th, h / th,
+            x0, y0, 1]);
+    }
 }
 
 /// <summary>Texture coordinates of faces, the way SketchUp computes them (and OpenSKP reproduces).</summary>
