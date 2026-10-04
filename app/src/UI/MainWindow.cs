@@ -327,13 +327,14 @@ public partial class MainWindow : Control
         _commands.Register(ExtensionIds.SandboxFlipEdge, () => _viewport.Tools.Activate(new FlipEdgeTool()), () => _viewport.Tools.Active is FlipEdgeTool);
         foreach (var (kind, label) in new[]
         {
-            (Deformation.Taper, "Box Tapering"), (Deformation.Twist, "Box Twisting"),
-            (Deformation.Shear, "Planar Shearing"), (Deformation.Bend, "Radial Bending"),
+            (Deformation.Scale, "Box Scaling"), (Deformation.Taper, "Box Tapering"), (Deformation.Shear, "Planar Shearing"),
+            (Deformation.Stretch, "Box Stretching"), (Deformation.Twist, "Box Twisting"), (Deformation.Rotate, "Box Rotation"),
+            (Deformation.Bend, "Radial Bending"),
         })
         {
             var id = ExtensionIds.FredoScale(kind);
             _commands.AddToMenu("Tools", id, label, $"FredoScale: {label.ToLowerInvariant()} of the selection.", submenu: "Fredo6 Collection",
-                groupStart: kind == Deformation.Taper);
+                groupStart: kind == Deformation.Scale);
             _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
         _commands.AddToMenu("Tools", ExtensionIds.CurviloftLoft, "Curviloft - Loft by Spline", "Create loft junctions between curves, along splines through them.",

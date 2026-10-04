@@ -16,10 +16,20 @@ public enum Deformation
 
     /// <summary>The box bends round an arc of that angle (amount: degrees).</summary>
     Bend,
+
+    /// <summary>Box scaling: the near end stays, the rest scales along the axis (amount: percent).</summary>
+    Scale,
+
+    /// <summary>Box stretching: everything past the box's middle slides along the axis, the ends keep their shape
+    /// (amount: millimetres).</summary>
+    Stretch,
+
+    /// <summary>The whole box turns about its axis through the centre (amount: degrees).</summary>
+    Rotate,
 }
 
 /// <summary>
-/// FredoScale (Fredo6): tapers, twists, shears or bends geometry along one axis of its bounding box. Faces that stop
+/// FredoScale (Fredo6): scales, stretches, rotates, tapers, twists, shears or bends geometry along one axis of its bounding box. Faces that stop
 /// being flat are split into triangles, as SketchUp does when geometry is bent.
 /// </summary>
 public static class FredoScale
@@ -86,6 +96,17 @@ public static class FredoScale
                 var theta = angle * t;
                 var q = Set(p, a, start + r * Math.Sin(theta));
                 return Set(q, b, pivotB + r * Math.Cos(theta));
+            }
+            case Deformation.Scale:
+                return Set(p, a, start + (Get(p, a) - start) * amount / 100);
+            case Deformation.Stretch:
+                return t > 0.5 ? Set(p, a, Get(p, a) + amount) : p;
+            case Deformation.Rotate:
+            {
+                var angle = amount * Math.PI / 180;
+                double u = Get(p, b) - Get(centre, b), w = Get(p, c) - Get(centre, c);
+                var q = Set(p, b, Get(centre, b) + u * Math.Cos(angle) - w * Math.Sin(angle));
+                return Set(q, c, Get(centre, c) + u * Math.Sin(angle) + w * Math.Cos(angle));
             }
             default:
                 return p;

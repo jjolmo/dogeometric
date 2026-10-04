@@ -1,3 +1,4 @@
+using Dogeometric.Core.Modeling;
 namespace Dogeometric.App.UI;
 
 /// <summary>SketchUp 2021's default toolbars: command ids in SketchUp's order, and each command's icon.</summary>
@@ -15,7 +16,9 @@ public static class Toolbars
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
     public static readonly int[] ToolsOnSurface = Enum.GetValues<Dogeometric.App.Tools.SurfaceShape>().Select(Commands.ExtensionIds.SurfaceShape).ToArray();
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
-    public static readonly int[] FredoScale = Enum.GetValues<Dogeometric.Core.Modeling.Deformation>().Select(Commands.ExtensionIds.FredoScale).ToArray();
+    // In the original toolbar's order.
+    public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }
+        .Select(Commands.ExtensionIds.FredoScale).ToArray();
     public static readonly int[] Sandbox =
     [
         Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,

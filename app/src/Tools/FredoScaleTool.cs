@@ -5,7 +5,7 @@ using Godot;
 
 namespace Dogeometric.App.Tools;
 
-/// <summary>FredoScale's tapering, twisting, shearing and bending of the selection's box: arrows pick the axis; drag sideways
+/// <summary>FredoScale's scaling, stretching, rotation, tapering, twisting, shearing and bending of the selection's box: arrows pick the axis; drag sideways
 /// (live) and click, or type the amount.</summary>
 public sealed class FredoScaleTool(Deformation kind) : Tool
 {
@@ -16,8 +16,10 @@ public sealed class FredoScaleTool(Deformation kind) : Tool
 
     public override int CommandId => ExtensionIds.FredoScale(kind);
     public override string CursorImage => "scale";
-    public override string VcbLabel => kind == Deformation.Taper ? "Percent" : "Angle";
-    public override string VcbValue => kind == Deformation.Taper ? $"{_amount:0.#}%" : $"{_amount:0.#}°";
+    private bool Percent => kind is Deformation.Taper or Deformation.Scale;
+
+    public override string VcbLabel => Percent ? "Percent" : kind == Deformation.Stretch ? "Length" : "Angle";
+    public override string VcbValue => Percent ? $"{_amount:0.#}%" : kind == Deformation.Stretch ? $"{_amount:0.#} mm" : $"{_amount:0.#}°";
 
     private int Axis
     {
@@ -30,6 +32,9 @@ public sealed class FredoScaleTool(Deformation kind) : Tool
         Deformation.Taper => "Box Tapering",
         Deformation.Twist => "Box Twisting",
         Deformation.Shear => "Planar Shearing",
+        Deformation.Scale => "Box Scaling",
+        Deformation.Stretch => "Box Stretching",
+        Deformation.Rotate => "Box Rotation",
         _ => "Radial Bending",
     };
 
@@ -39,7 +44,7 @@ public sealed class FredoScaleTool(Deformation kind) : Tool
 
     public override void Activate()
     {
-        _amount = kind == Deformation.Taper ? 100 : 0;
+        _amount = Percent ? 100 : 0;
         View.ShowVcbValue(VcbValue);
     }
 
@@ -100,14 +105,14 @@ public sealed class FredoScaleTool(Deformation kind) : Tool
         if (!_dragging)
             return;
         var dx = position.X - _start.X;
-        _amount = kind == Deformation.Taper ? Math.Max(0, 100 + dx / 2) : dx / 2;
+        _amount = Percent ? Math.Max(0, 100 + dx / 2) : dx / 2;
         View.ShowVcbValue(VcbValue);
         Preview();
     }
 
     public override bool ApplyVcb(string text)
     {
-        var t = text.Trim().TrimEnd('%', '°');
+        var t = text.Trim().TrimEnd('%', '°').Replace("mm", "").Trim();
         if (!double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v))
             return false;
         _amount = v;

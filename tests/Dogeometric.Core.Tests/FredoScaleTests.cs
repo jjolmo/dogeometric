@@ -51,4 +51,27 @@ public class FredoScaleTests
         Assert.Empty(SolidInspector.Find(e));
         Assert.All(e.Faces, f => Assert.All(f.OuterLoop.Points, p => Assert.True(Math.Abs((p - f.OuterLoop.Points.First()).Dot(f.Normal.Normalized())) < 1e-3)));
     }
+
+    [Fact]
+    public void Stretching_lengthens_the_middle_and_keeps_a_solid()
+    {
+        var e = Bar();
+        FredoScale.Apply(e, e.Faces.Cast<object>().ToList(), Deformation.Stretch, 2, 20);
+        Assert.Equal(120, e.Vertices.Max(v => v.Position.Z), 6);
+        Assert.Equal(0, e.Vertices.Min(v => v.Position.Z), 6);
+        Assert.Equal(12000, Check(e).Volume, 6);
+        Assert.Empty(SolidInspector.Find(e));
+    }
+
+    [Fact]
+    public void Box_scaling_and_rotation_keep_their_shape()
+    {
+        var e = Bar();
+        FredoScale.Apply(e, e.Faces.Cast<object>().ToList(), Deformation.Scale, 2, 50);
+        Assert.Equal(5000, Check(e).Volume, 6);
+        FredoScale.Apply(e, e.Faces.Cast<object>().ToList(), Deformation.Rotate, 2, 90);
+        Assert.Equal(5000, Check(e).Volume, 6);
+        Assert.Equal(0, e.Vertices.Min(v => v.Position.X), 6);
+        Assert.Empty(SolidInspector.Find(e));
+    }
 }
