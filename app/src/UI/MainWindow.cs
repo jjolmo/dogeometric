@@ -231,6 +231,9 @@ public partial class MainWindow : Control
                 doc.Selection.Set(only ? SelectionToys.Only(kind, doc.Context.Entities, sel) : SelectionToys.Without(kind, doc.Context.Entities, sel));
             });
         }
+        // The reference install's Extensions menu: Make Faces, SUbD, CleanUp³.
+        _commands.AddToMenu("Extensions", ExtensionIds.SubdSubdivide, "Subdivide...", "SUbD: Catmull-Clark subdivision of the selected groups (or the open one).", submenu: "SUbD");
+        _commands.Register(ExtensionIds.SubdSubdivide, SubdSubdivide);
         foreach (var (id, label, tip, options) in new (int, string, string, Func<CleanUpOptions>?)[]
         {
             (ExtensionIds.CleanUp, "Clean...", "Clean up the model with the chosen options.", null),
@@ -451,6 +454,47 @@ public partial class MainWindow : Control
         AddChild(d);
         d.PopupCentered();
         radius.GrabFocus();
+    }
+
+    /// <summary>SUbD › Subdivide: asks the levels, then subdivides the selected groups' contents (or the open group's).</summary>
+    private void SubdSubdivide()
+    {
+        var doc = _document.Document;
+        var targets = doc.Selection.Items.OfType<ComponentInstance>().Select(i => i.Definition.Entities).Distinct().ToList();
+        if (targets.Count == 0 && doc.Context.Path.Count > 0)
+            targets.Add(doc.Context.Entities);
+        if (targets.Count == 0)
+        {
+            _status.SetHint("SUbD: select a group or component to subdivide, or open one.");
+            return;
+        }
+        var d = new ConfirmationDialog { Title = "SUbD", OkButtonText = "Subdivide" };
+        var row = new HBoxContainer();
+        row.AddChild(new Label { Text = "Subdivision levels" });
+        var levels = new SpinBox { MinValue = 1, MaxValue = 4, Value = 2 };
+        row.AddChild(levels);
+        d.AddChild(row);
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            var made = 0;
+            doc.Undo.Begin("Subdivide", targets.ToArray());
+            try
+            {
+                foreach (var e in targets)
+                    made += CatmullClark.Apply(e, (int)levels.Value);
+                doc.Undo.Commit();
+            }
+            catch
+            {
+                doc.Undo.Abort();
+                throw;
+            }
+            _status.SetHint($"SUbD: {made} faces.");
+        };
+        d.Canceled += d.QueueFree;
+        AddChild(d);
+        d.PopupCentered();
     }
 
     /// <summary>Tools › Loop subdivision smooth: asks how many rounds and whether to soften, then subdivides.</summary>

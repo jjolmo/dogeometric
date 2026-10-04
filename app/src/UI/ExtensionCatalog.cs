@@ -20,7 +20,7 @@ public static class ExtensionCatalog
         new("FredoScale", "Fredo6", "Tapers, twists, shears and bends along the selection's box (Tools › Fredo6 Collection). Box stretching to come.", true),
         new("Curviloft", "Fredo6", "Skins surfaces between curves (loft, rails).", false),
         new("Tools on Surface", "Fredo6", "Draws lines, shapes and offsets on curved surfaces.", false),
-        new("SUbD", "Thomas Thomassen", "Subdivision surfaces.", false),
+        new("SUbD", "Thomas Thomassen", "Catmull-Clark subdivision of groups (Extensions › SUbD). Live control cage and creases to come.", true),
         new("Loop subdivision smooth", "Nathan B", "Smooths faces by Loop subdivision (Tools menu).", true),
         new("Sandbox Tools", "SketchUp", "Terrain from contours and from scratch, Smoove, Add Detail, Flip Edge (Stamp and Drape to come).", true),
     ];
