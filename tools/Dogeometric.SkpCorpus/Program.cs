@@ -57,14 +57,16 @@ foreach (var file in Directory.EnumerateFiles(root, "*.skp", SearchOption.AllDir
         {
             // Absent keys are zero: the oracle only writes counts it saw.
             oracleDiff = Diff(fields.ToDictionary(f => f, f => o.TryGetValue(f, out var v) ? v.GetInt64() : 0), counts, skip: ["layers"]);
-            if (o.TryGetValue("bounds_mm", out var bj) && bj.GetArrayLength() == 6)
+            // Prefer the geometry-only box; SketchUp sizes face-camera instances for every view angle, so skip those.
+            var faceCamera = o.TryGetValue("face_camera", out var fc) && fc.ValueKind == JsonValueKind.True;
+            if (!faceCamera && (o.TryGetValue("geometry_bounds_mm", out var bj) || o.TryGetValue("bounds_mm", out bj)) && bj.GetArrayLength() == 6)
             {
                 var b = model.Entities.Bounds();
                 var expected = bj.EnumerateArray().Select(x => x.GetDouble()).ToArray();
                 double[] actual = [b.Min.X, b.Min.Y, b.Min.Z, b.Max.X, b.Max.Y, b.Max.Z];
                 var worst = expected.Zip(actual).Max(p => Math.Abs(p.First - p.Second));
                 if (worst > 0.5)
-                    oracleDiff = (oracleDiff == "" ? "" : oracleDiff + ", ") + $"bounds off by {worst:0.#}mm";
+                    oracleDiff = (oracleDiff == "" ? "" : oracleDiff + ", ") + $"bounds off by {worst:0.#}mm (got {string.Join(' ', actual.Select(v => v.ToString("0.##")))})";
             }
         }
 

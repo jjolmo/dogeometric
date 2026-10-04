@@ -12,7 +12,7 @@ find . -iname '*.skp' | sort | while read -r rel; do
   grep -qF "$(basename "$rel")\"" oracle.jsonl && continue   # already done (resumable)
   win="$WIN_DIR\\${rel//\//\\}"
   timeout 300 flatpak run --command=bottles-cli com.usebottles.bottles run -b SketchUp -p 'SketchUp 2021' -- \
-    -RubyStartup "$WIN_DIR\\oracle.rb" "$win" > /dev/null 2>&1
+    -RubyStartup "$WIN_DIR\\oracle.rb" "$win" < /dev/null > /dev/null 2>&1  # wine would eat the file list on stdin
   if ! grep -qF "$(basename "$rel")\"" oracle.jsonl; then
     echo "{\"file\": \"$rel\", \"error\": \"SketchUp did not open it (timeout or crash)\"}" >> oracle.jsonl
   fi

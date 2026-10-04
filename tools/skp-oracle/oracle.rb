@@ -41,8 +41,32 @@ module DogeometricOracle
     acc['pages'] = model.pages.size
     acc['units'] = model.options['UnitsOptions']['LengthUnit']
     bb = model.bounds
-    acc['bounds_mm'] = bb.empty? ? [] : [bb.min.x.to_mm, bb.min.y.to_mm, bb.min.z.to_mm, bb.max.x.to_mm, bb.max.y.to_mm, bb.max.z.to_mm].map { |v| v.round(2) }
+    acc['bounds_mm'] = mm(bb)
+    # Edges and instances only: model.bounds also covers dimensions, text and guides, which Dogeometric doesn't
+    # import yet. Instances contribute their transformed definition box, as Entities.Bounds() does.
+    acc['geometry_bounds_mm'] = mm(geometry_bounds(model.entities, {}))
+    acc['face_camera'] = model.definitions.any? { |d| d.behavior.always_face_camera? && d.instances.any? }
     acc
+  end
+
+  def self.mm(bb)
+    bb.empty? ? [] : [bb.min.x.to_mm, bb.min.y.to_mm, bb.min.z.to_mm, bb.max.x.to_mm, bb.max.y.to_mm, bb.max.z.to_mm].map { |v| v.round(2) }
+  end
+
+  def self.geometry_bounds(entities, cache)
+    bb = Geom::BoundingBox.new
+    entities.each do |e|
+      case e
+      when Sketchup::Edge
+        bb.add(e.start.position, e.end.position)
+      when Sketchup::Group, Sketchup::ComponentInstance
+        d = e.definition
+        inner = (cache[d] ||= geometry_bounds(d.entities, cache))
+        next if inner.empty?
+        (0..7).each { |i| bb.add(inner.corner(i).transform(e.transformation)) }
+      end
+    end
+    bb
   end
 
   # Waits for the model passed on the command line to load, appends its counts to oracle.jsonl and exits the
