@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
         Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
         Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
         Bar("Select Curve", Toolbars.SelectCurve, ToolbarDocks.Dock.Top);
@@ -265,6 +266,14 @@ public partial class MainWindow : Control
         {
             _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection", groupStart: id == ExtensionIds.JointPushPull);
             _commands.Register(id, () => _viewport.Tools.Activate(new JointPushPullTool(m)), () => _viewport.Tools.Active.CommandId == id);
+        }
+        foreach (var kind in Enum.GetValues<SplineKind>())
+        {
+            var info = Splines.Info(kind);
+            var id = ExtensionIds.Spline(kind);
+            _commands.AddToMenu("Draw", id, info.Menu, $"BezierSpline: draw a {info.Menu}.", submenu: "BezierSpline curves",
+                groupStart: kind == SplineKind.ArcCorners);
+            _commands.Register(id, () => _viewport.Tools.Activate(new BezierSplineTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
         EntityInfoPanel.InspectSolid = instance =>
         {

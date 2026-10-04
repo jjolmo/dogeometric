@@ -27,6 +27,9 @@ public static class ExtensionIds
     public const int SelectCurve = 90052;
     public const int LoopSubdivision = 90053;
     public const int Sphere = 90054;
+    /// <summary>BezierSpline's curve tools, one id per family from 90101.</summary>
+    public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
+
     public const int CleanUp = 90041;
     public const int CleanUpLast = 90042;
     public const int CleanUpEraseHidden = 90043;

@@ -16,7 +16,7 @@ public static class ExtensionCatalog
         new("CircleByDiameter", "The Sketchup Dude", "Draws a circle from the two ends of its diameter (Draw menu).", true),
         new("rp_sphere", "", "Creates a sphere from its radius and segments (Draw menu).", true),
         new("Select Curve", "Thomas Thomassen", "Selects runs of connected visible edges with one click (Tools menu).", true),
-        new("BezierSpline", "Fredo6", "Bézier, B-spline and other curves.", false),
+        new("BezierSpline", "Fredo6", "Bézier, B-spline, Catmull, F-spline, Courbette, arc/chamfer/dog-bone corners, dividers (Draw › BezierSpline curves).", true),
         new("FredoScale", "Fredo6", "Scales, tapers, twists, bends and stretches.", false),
         new("Curviloft", "Fredo6", "Skins surfaces between curves (loft, rails).", false),
         new("Tools on Surface", "Fredo6", "Draws lines, shapes and offsets on curved surfaces.", false),

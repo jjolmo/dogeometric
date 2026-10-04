@@ -29,7 +29,12 @@ public sealed class Curve
 
     /// <summary>Polygons are curves with straight-edged semantics: their extrusions keep hard edges.</summary>
     public bool IsPolygon { get; set; }
+
+    /// <summary>A BezierSpline curve: its family, control points and settings, kept so it can be edited later.</summary>
+    public SplineData? Spline { get; set; }
 }
+
+public sealed record SplineData(SplineKind Kind, IReadOnlyList<Vec3> ControlPoints, int Precision, double Parameter, bool Closed);
 
 public sealed class Edge(Vertex start, Vertex end)
 {

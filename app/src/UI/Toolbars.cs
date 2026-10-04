@@ -13,6 +13,7 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] BezierSpline = Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline).ToArray();
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] SelectionToys =
@@ -87,4 +88,10 @@ public static class Toolbars
         [24202] = "solid_subtract", [24203] = "solid_trim", [24204] = "solid_split",
         [21169] = "position_camera", [10525] = "look_around", [10520] = "walk", [21337] = "section_plane",
     };
+
+    static Toolbars()
+    {
+        foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>())
+            Icons[Commands.ExtensionIds.Spline(kind)] = "spline_" + kind.ToString().ToLowerInvariant();
+    }
 }
