@@ -51,7 +51,7 @@ public sealed class MoveTool : DrawingTool
     /// <summary>Glued components only slide along their face: the offset loses its part along the face's normal.</summary>
     private Vec3 Slide(Vec3 worldOffset)
     {
-        if (_copy || _items.Count == 0 || View.Document is not { } doc || _items.Any(i => i is not ComponentInstance { GluedTo: not null } g || _items.Contains(g.GluedTo!)))
+        if (_items.Count == 0 || View.Document is not { } doc || _items.Any(i => i is not ComponentInstance { GluedTo: not null } g || _items.Contains(g.GluedTo!)))
             return worldOffset;
         var n = doc.Context.ToWorld.ApplyNormal(((ComponentInstance)_items[0]).GluedTo!.Normal).Normalized();
         return _items.Cast<ComponentInstance>().All(i => doc.Context.ToWorld.ApplyNormal(i.GluedTo!.Normal).Normalized().Dot(n) > 0.999)

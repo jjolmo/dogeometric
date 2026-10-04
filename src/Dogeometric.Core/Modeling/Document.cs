@@ -336,6 +336,8 @@ public static class Transforming
             c.Name = inst.Name;
             c.Tag = inst.Tag;
             c.Material = inst.Material;
+            if (inst.GluedTo != null)
+                c.GluedTo = Gluing.FaceUnder(e, c);
             copies.Add(c);
         }
 

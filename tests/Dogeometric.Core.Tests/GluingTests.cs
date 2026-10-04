@@ -82,4 +82,13 @@ public class GluingTests
         foreach (var (p, q) in World(a).Zip(wa).Concat(World(b).Zip(wb)))
             Assert.True(p.DistanceTo(q) < 1e-9);
     }
+
+    [Fact]
+    public void A_copy_slid_along_the_face_is_glued_too()
+    {
+        var (m, front, vent) = GluedVent();
+        var copy = (ComponentInstance)Transforming.Copy(m.Entities, [vent], Transform.Translation(new Vec3(30, 0, 0))).Single();
+        Assert.Same(front, copy.GluedTo);
+        Assert.Equal(2, Gluing.Openings(m.Entities)[front].Count);
+    }
 }
