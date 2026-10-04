@@ -19,15 +19,19 @@ public static class FaceFinder
 
     public static void Update(Entities e, IReadOnlyCollection<Edge> newEdges, Vec3? preferredNormal = null)
     {
-        var handled = new HashSet<Edge>();
+        // Each plane is rebuilt once with every new edge in it. Tracking planes rather than edges matters: an edge
+        // can lie in two planes (where two faces meet), and the second one must still be rebuilt.
+        var done = new List<Plane>();
         foreach (var edge in newEdges)
         {
-            if (handled.Contains(edge) || !e.Edges.Contains(edge))
+            if (!e.Edges.Contains(edge))
                 continue;
             foreach (var plane in CandidatePlanes(e, edge, preferredNormal))
             {
-                var used = Reface(e, plane, newEdges);
-                handled.UnionWith(used);
+                if (done.Any(p => p.SameAs(plane)))
+                    continue;
+                done.Add(plane);
+                Reface(e, plane, newEdges);
             }
         }
     }

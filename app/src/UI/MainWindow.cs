@@ -111,6 +111,8 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.IntersectWithModel, () => Intersect.WithModel(Doc()));
+        _commands.Register(CommandIds.IntersectWithSelection, () => Intersect.WithSelection(Doc()));
         _commands.Register(CommandIds.Cut, () => Clipboard.Cut(Doc()));
         _commands.Register(CommandIds.Copy, () => Clipboard.Copy(Doc()));
         _commands.Register(CommandIds.Paste, () =>

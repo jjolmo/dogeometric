@@ -64,6 +64,14 @@ public static class ContextMenu
                     FaceFinder.Reverse(f);
             }));
         }
+        if (faces.Count > 0 || sel.OfType<ComponentInstance>().Any())
+        {
+            var intersect = new PopupMenu();
+            intersect.AddItem("With Model", 1);
+            intersect.AddItem("With Selection", 2);
+            intersect.IdPressed += id => runCommand(id == 1 ? CommandIds.IntersectWithModel : CommandIds.IntersectWithSelection);
+            menu.AddSubmenuNodeItem("Intersect Faces", intersect);
+        }
         if (single is Face face)
         {
             Item("Align View", () => AlignView(doc, view, face));
