@@ -113,6 +113,7 @@ public partial class ModelViewport : Control
             TonemapMode = Godot.Environment.ToneMapper.Linear,
         };
         root.AddChild(new WorldEnvironment { Environment = env });
+        _environment = env;
 
         _camera = new Camera3D { Current = true };
         root.AddChild(_camera);
@@ -292,6 +293,7 @@ public partial class ModelViewport : Control
         _camera.Far = _camera.Near * 1e6f;
 
         UpdateHorizon();
+        UpdateFog();
         _overlay?.QueueRedraw();
         CameraChanged?.Invoke();
     }
@@ -326,6 +328,41 @@ public partial class ModelViewport : Control
 
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
+
+    private Godot.Environment? _environment;
+    private Bounds3 _fogBounds = Bounds3.Empty;
+
+    /// <summary>View › Fog: geometry fades into the background colour with distance, as SketchUp's fog.</summary>
+    public bool ShowFog
+    {
+        get => _environment?.FogEnabled ?? false;
+        set
+        {
+            if (_environment == null)
+                return;
+            _environment.FogEnabled = value;
+            _environment.FogMode = Godot.Environment.FogModeEnum.Depth;
+            _environment.FogLightColor = new Color(0.74f, 0.76f, 0.79f); // SketchUp's ground grey
+            _environment.FogDensity = 1;
+            _environment.FogDepthCurve = 1;
+            _environment.FogSkyAffect = 0; // the sky gradient stays
+            _fogBounds = ModelBounds(); // measured once: big models are slow to measure on every camera move
+            UpdateFog();
+        }
+    }
+
+    /// <summary>Fog starts at the model's near side and is full at its far side, following the camera.</summary>
+    private void UpdateFog()
+    {
+        if (_environment is not { FogEnabled: true })
+            return;
+        var bounds = _fogBounds;
+        var distance = Camera.Distance;
+        var radius = bounds.IsEmpty ? distance : bounds.Diagonal * 0.5;
+        var centreDepth = bounds.IsEmpty ? distance : Math.Max(Camera.DepthOf(bounds.Center), 1);
+        _environment.FogDepthBegin = (float)(Math.Max(centreDepth - radius, 0) * Space.MetersPerUnit);
+        _environment.FogDepthEnd = (float)((centreDepth + radius * 1.5) * Space.MetersPerUnit);
+    }
 
     /// <summary>View › Section Planes / Section Cuts.</summary>
     public bool ShowSectionPlanes { get; set; } = true;

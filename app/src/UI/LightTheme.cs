@@ -42,7 +42,8 @@ public static class LightTheme
         theme.SetColor("font_separator_color", "PopupMenu", TextDisabled);
         theme.SetColor("font_accelerator_color", "PopupMenu", Text);
         // SketchUp only draws a mark on checked items; unchecked ones are blank.
-        var blank = new PlaceholderTexture2D { Size = new Vector2(12, 12) };
+        // A transparent image: a PlaceholderTexture2D draws as a magenta checkerboard.
+        var blank = ImageTexture.CreateFromImage(Image.CreateEmpty(12, 12, false, Image.Format.Rgba8));
         theme.SetIcon("unchecked", "PopupMenu", blank);
         theme.SetIcon("radio_unchecked", "PopupMenu", blank);
         var separator = new StyleBoxLine { Color = Border, Thickness = 1 };
