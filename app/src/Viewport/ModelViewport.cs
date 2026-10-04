@@ -164,6 +164,13 @@ public partial class ModelViewport : Control
         SyncCamera();
     }
 
+    /// <summary>Applies a camera change from a tool and updates the view.</summary>
+    public void ChangeCamera(Action<ViewCamera> change)
+    {
+        change(Camera);
+        SyncCamera();
+    }
+
     public void ChangeFovBy(double degrees)
     {
         Camera.SetFov(Camera.FovDegrees + degrees);
@@ -390,6 +397,16 @@ public partial class ModelViewport : Control
     /// <summary>
     /// Point under the cursor for zooming: geometry if any, otherwise the point on the ray at the target's depth.
     /// </summary>
+    /// <summary>Geometry under the cursor, else the ground (the drawing axes' red-green plane), else null.</summary>
+    public Vec3? PickGround(Vector2 screen)
+    {
+        if (PickGeometry(screen) is { } hit)
+            return hit;
+        var (origin, direction) = ScreenRay(screen);
+        var axes = Document?.Model.Axes ?? Transform.Identity;
+        return Core.Inference.InferenceEngine.IntersectPlane(new Core.Picking.Ray(origin, direction), axes.Z.Normalized(), axes.Origin);
+    }
+
     public Vec3 PickPoint(Vector2 screen)
     {
         if (PickGeometry(screen) is { } hit)

@@ -326,6 +326,9 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Pie, () => new PieTool());
         RegisterTool(CommandIds.Arc3Point, () => new ThreePointArcTool());
         RegisterTool(CommandIds.RotatedRectangle, () => new RotatedRectangleTool());
+        RegisterTool(CommandIds.PositionCamera, () => new PositionCameraTool());
+        RegisterTool(CommandIds.LookAround, () => new LookAroundTool());
+        RegisterTool(CommandIds.Walk, () => new WalkTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }

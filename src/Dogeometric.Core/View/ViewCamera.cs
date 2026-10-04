@@ -136,6 +136,42 @@ public sealed class ViewCamera
         OrthoHeight /= factor;
     }
 
+    /// <summary>SketchUp's default eye height for Position Camera and Walk (5' 6").</summary>
+    public const double DefaultEyeHeight = 1676.4;
+
+    /// <summary>Look Around: turns the view about the eye (yaw about blue, pitch about the camera's right).</summary>
+    public void LookAround(double yaw, double pitch)
+    {
+        var eye = Eye;
+        var distance = Math.Max(Distance, 1);
+        Orbit(eye, yaw, 0);
+        var dir = Direction.RotatedAround(Right, pitch);
+        // Never past straight up or down.
+        if (dir.AngleTo(Vec3.UnitZ) > MinPolarAngle && dir.AngleTo(-Vec3.UnitZ) > MinPolarAngle)
+            Set(eye, eye + dir * distance, Vec3.UnitZ);
+        Eye = eye;
+    }
+
+    /// <summary>Position Camera / Walk: puts the eye at <paramref name="eye"/> looking along <paramref name="direction"/>.</summary>
+    public void PlaceEye(Vec3 eye, Vec3 direction)
+    {
+        var d = direction.IsZero(1e-9) ? Direction : direction.Normalized();
+        Perspective = true;
+        Set(eye, eye + d * 1000, Vec3.UnitZ);
+    }
+
+    /// <summary>Walk: moves the eye forward (horizontally), sideways and up, and turns about blue.</summary>
+    public void Walk(double forward, double sideways, double up, double turn)
+    {
+        var flat = new Vec3(Direction.X, Direction.Y, 0);
+        flat = flat.IsZero(1e-9) ? Up : flat.Normalized();
+        var delta = flat * forward + Right * sideways + Vec3.UnitZ * up;
+        Eye += delta;
+        Target += delta;
+        if (turn != 0)
+            Orbit(Eye, turn, 0);
+    }
+
     /// <summary>Changes the field of view (Zoom tool with Shift, or Field of View tool).</summary>
     public void SetFov(double degrees) => FovDegrees = Math.Clamp(degrees, 1, 120);
 
