@@ -50,7 +50,10 @@ public sealed class RotateTool : DrawingTool
             if (_items.Count == 0)
                 return;
             _center = inf.Point;
-            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : InferenceEngine.MostFacing(View.Camera.Direction));
+            // On the face under the cursor, on the ground when on the ground, else the axis plane facing the viewer.
+            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal)
+                : inf.Kind == InferenceKind.InPlane ? Vec3.UnitZ
+                : InferenceEngine.MostFacing(View.Camera.Direction));
             _lastCopy = null;
         }
         else if (_startDir == null)

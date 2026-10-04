@@ -171,21 +171,28 @@ public sealed class ModelRenderer
             return null;
         var verts = new List<Vector3>();
         var uvs = new List<Vector2>();
-        void Add(Vec3 a, Vec3 b)
+        void Add(Vec3 a, Vec3 b, float uvStart = 0)
         {
             var ga = Space.ToGodot(a);
             var gb = Space.ToGodot(b);
             verts.Add(ga);
             verts.Add(gb);
-            uvs.Add(Vector2.Zero);
-            uvs.Add(new Vector2(ga.DistanceTo(gb), 0));
+            uvs.Add(new Vector2(uvStart, 0));
+            uvs.Add(new Vector2(uvStart + ga.DistanceTo(gb), 0));
         }
+        // Infinite guides reach 1 km each way, in pieces growing tenfold from the point nearest the origin: a single
+        // segment with both ends far off screen is dropped by some rasterisers (software Vulkan does).
+        double[] steps = [-1_000_000, -100_000, -10_000, -1_000, 0, 1_000, 10_000, 100_000, 1_000_000];
         foreach (var g in e.GuideLines)
         {
             if (g.Start is { } s && g.End is { } en)
+            {
                 Add(s, en);
-            else
-                Add(g.Point - g.Direction * 1_000_000, g.Point + g.Direction * 1_000_000);
+                continue;
+            }
+            var centre = g.Point - g.Direction * g.Point.Dot(g.Direction);
+            for (var i = 0; i + 1 < steps.Length; i++)
+                Add(centre + g.Direction * steps[i], centre + g.Direction * steps[i + 1], (float)((steps[i] - steps[0]) * Space.MetersPerUnit));
         }
         foreach (var p in e.GuidePoints)
         {

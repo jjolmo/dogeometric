@@ -89,6 +89,7 @@ public static class CommandIds
     public const int Scale = 21236;
     public const int FollowMe = 21525;
     public const int Dimension = 21410;
+    public const int Protractor = 21057;
     public const int SectionPlane = 21337;
     public const int ReverseSection = 21334;
     public const int ActiveSectionCut = 21335;
