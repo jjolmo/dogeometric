@@ -325,6 +325,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Arc, () => new CenterArcTool(false));
         RegisterTool(CommandIds.Pie, () => new PieTool());
         RegisterTool(CommandIds.Arc3Point, () => new ThreePointArcTool());
+        RegisterTool(CommandIds.RotatedRectangle, () => new RotatedRectangleTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }
