@@ -312,7 +312,7 @@ public partial class MainWindow : Control
         foreach (var shape in Enum.GetValues<SurfaceShape>())
         {
             var id = ExtensionIds.SurfaceShape(shape);
-            _commands.AddToMenu("Tools", id, $"{shape} on Surface", $"Tools on Surface: draw a {shape.ToString().ToLowerInvariant()} on a surface.",
+            _commands.AddToMenu("Tools", id, $"{shape.Label()} on Surface", $"Tools on Surface: draw a {shape.Label().ToLowerInvariant()} on a surface.",
                 submenu: "Fredo6 Collection", groupStart: shape == SurfaceShape.Line);
             _commands.Register(id, () => _viewport.Tools.Activate(new SurfaceShapeTool(shape)), () => _viewport.Tools.Active.CommandId == id);
         }

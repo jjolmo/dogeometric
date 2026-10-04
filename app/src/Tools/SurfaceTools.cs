@@ -81,6 +81,12 @@ public sealed class DrapeTool : Tool
 /// <summary>Tools on Surface's shapes (new ones go last: their command ids follow this order).</summary>
 public enum SurfaceShape { Line, Rectangle, Circle, Polygon, Ellipse, Parallelogram, Arc, Sector, Circle3P, Polyline, Freehand }
 
+public static class SurfaceShapes
+{
+    /// <summary>The shape's name as Tools on Surface shows it.</summary>
+    public static string Label(this SurfaceShape shape) => shape == SurfaceShape.Circle3P ? "Circle 3P" : shape.ToString();
+}
+
 /// <summary>
 /// Tools on Surface (Fredo6): shapes drawn on a surface, flat or curved. The shape is laid out in the plane touching
 /// the surface at the first click, then laid onto the faces, splitting them. Polyline ends with Return, a double
@@ -114,7 +120,7 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
     public override string StatusText => (_points.Count, shape) switch
     {
         (0, SurfaceShape.Freehand) => "Freehand on Surface: press and drag on the surface.",
-        (0, _) => $"{shape} on Surface: click a point on the surface.",
+        (0, _) => $"{shape.Label()} on Surface: click a point on the surface.",
         (_, SurfaceShape.Polyline) => "Click the next point; Return, a double click or the first point ends it.",
         (_, SurfaceShape.Freehand) => "Drag, then release.",
         (1, SurfaceShape.Circle or SurfaceShape.Polygon or SurfaceShape.Ellipse) => "Click to set the size.",
@@ -183,7 +189,7 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
     {
         var outline = Outline(_points);
         if (outline.Count >= 2 && _target is { } t)
-            SurfaceTarget.Lay(doc, $"{shape} on Surface", t, outline, -_normal, closed);
+            SurfaceTarget.Lay(doc, $"{shape.Label()} on Surface", t, outline, -_normal, closed);
         Reset();
     }
 

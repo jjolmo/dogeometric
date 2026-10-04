@@ -22,7 +22,9 @@ public sealed class ToolManager
 
     public void Activate(Tool tool)
     {
-        if (tool.GetType() == Active.GetType())
+        // Picking the active tool's button again keeps it; tools sharing a class (each spline, surface shape or
+        // component placement) are different tools.
+        if (tool.GetType() == Active.GetType() && tool.CommandId == Active.CommandId && tool.CommandId != 0)
             return;
         Active.Deactivate();
         // Navigation tools remember the tool they interrupted, so Esc can go back to it.
