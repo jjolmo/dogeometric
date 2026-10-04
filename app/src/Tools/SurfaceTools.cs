@@ -1,3 +1,4 @@
+using Dogeometric.App.Viewport;
 using Dogeometric.App.Commands;
 using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Modeling;
@@ -313,31 +314,19 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
     }
 }
 
-/// <summary>Tools on Surface's Eraser: a click erases the whole curve under the cursor (hard edges running through
-/// points where only two meet), and the faces either side heal back into the surface.</summary>
-public sealed class SurfaceEraserTool : Tool
+/// <summary>The curve under the cursor on a surface: hard edges running through points where only two meet, in
+/// whatever group they lie.</summary>
+internal static class SurfaceCurves
 {
-    private List<Edge> _hover = [];
-
-    public override int CommandId => ExtensionIds.SurfaceEraser;
-    public override string CursorImage => "eraser";
-    public override string StatusText => "Eraser on Surface: click a curve drawn on a surface to erase it.";
-
-    private Entities? _entities;
-    private Transform _toWorld = Transform.Identity;
-
-    /// <summary>The curve under the cursor, in whatever group it lies (like the shapes, which draw into the clicked group).</summary>
-    private List<Edge> CurveAt(Vector2 position)
+    public static (Entities Entities, Transform ToWorld, List<Edge> Edges)? At(Document doc, ModelViewport view, Vector2 position)
     {
-        if (View.Document is not { } doc || View.Pick(position) is not { Edge: { } edge } hit)
-            return [];
+        if (view.Pick(position) is not { Edge: { } edge } hit)
+            return null;
         var e = hit.Path.Count > 0 ? hit.Path[^1].Definition.Entities : doc.Model.Entities;
-        _entities = e;
-        _toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+        var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
         bool Hard(Edge x) => (x.Flags & (EdgeFlags.Soft | EdgeFlags.Hidden)) == 0;
-        var hard = e.Edges.Where(Hard).ToList();
         var at = new Dictionary<Vertex, List<Edge>>();
-        foreach (var x in hard)
+        foreach (var x in e.Edges.Where(Hard))
             foreach (var v in new[] { x.Start, x.End })
             {
                 if (!at.TryGetValue(v, out var list))
@@ -353,7 +342,150 @@ public sealed class SurfaceEraserTool : Tool
                 if (at.TryGetValue(v, out var list) && list.Count == 2 && list.First(y => y != x) is var next && chain.Add(next))
                     queue.Enqueue(next);
         }
-        return [.. chain];
+        return (e, toWorld, [.. chain]);
+    }
+
+    public static void Draw(ModelViewport view, Control overlay, Transform toWorld, IEnumerable<Edge> edges)
+    {
+        foreach (var x in edges)
+            if (view.ToScreen(toWorld.ApplyPoint(x.Start.Position)) is { } a && view.ToScreen(toWorld.ApplyPoint(x.End.Position)) is { } b)
+                overlay.DrawLine(a, b, new Color(0, 0, 1), 3);
+    }
+}
+
+/// <summary>Tools on Surface's Offset: click a curve drawn on a surface, then move sideways (or type the distance)
+/// and click; the offset curve is laid on the surface.</summary>
+public sealed class SurfaceOffsetTool : Tool
+{
+    private (Entities Entities, Transform ToWorld, List<Edge> Edges)? _hover;
+    private (Entities Entities, Transform ToWorld)? _target;
+    private List<Vec3> _chain = [];
+    private bool _closed;
+    private Vec3 _normal;
+    private double _distance;
+    private double _side = 1;
+
+    public override int CommandId => ExtensionIds.SurfaceOffset;
+    public override string CursorImage => "offset";
+    public override string VcbLabel => "Distance";
+    public override string VcbValue => _chain.Count > 0 ? Length.Format(Math.Abs(_distance), LengthUnit.Millimeters, 1) : "";
+    public override string StatusText => _chain.Count == 0
+        ? "Offset on Surface: click a curve drawn on a surface."
+        : "Move to the side and click, or type the distance.";
+
+    public override void MouseMove(Vector2 position, Vector2 relative)
+    {
+        if (View.Document is not { } doc)
+            return;
+        if (_chain.Count == 0)
+            _hover = SurfaceCurves.At(doc, View, position);
+        else if (PointOnPlane(position) is { } p)
+        {
+            _distance = CurveOffset.SideDistance(_chain, _closed, _normal, p);
+            _side = Math.Sign(_distance) is 0 ? 1 : Math.Sign(_distance);
+            View.ShowVcbValue(VcbValue);
+        }
+        View.QueueOverlayRedraw();
+    }
+
+    private Vec3? PointOnPlane(Vector2 position)
+    {
+        var ray = View.ScreenRay(position);
+        var centre = _chain.Aggregate(Vec3.Zero, (a, q) => a + q) / _chain.Count;
+        return Dogeometric.Core.Inference.InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), _normal, centre);
+    }
+
+    public override void MouseDown(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || View.Document is not { } doc)
+            return;
+        if (_chain.Count == 0)
+        {
+            if (SurfaceCurves.At(doc, View, position) is not { } curve)
+                return;
+            var points = Curviloft.Chains(curve.Edges).OrderByDescending(c => c.Count).First();
+            _closed = points.Count > 3 && points[0].DistanceTo(points[^1]) < Tolerance.Length;
+            if (_closed)
+                points.RemoveAt(points.Count - 1);
+            _chain = points.Select(curve.ToWorld.ApplyPoint).ToList();
+            var faces = curve.Edges.SelectMany(x => Topology.FacesOf(curve.Entities, x)).Distinct().ToList();
+            var n = faces.Aggregate(Vec3.Zero, (a, f) => a + f.Normal.Normalized());
+            if (n.IsZero(1e-9))
+            {
+                _chain = [];
+                return;
+            }
+            _normal = curve.ToWorld.ApplyNormal(n).Normalized();
+            _target = (curve.Entities, curve.ToWorld);
+            _hover = null;
+            RefreshStatus();
+            return;
+        }
+        Finish(doc, _distance);
+    }
+
+    private void Finish(Document doc, double distance)
+    {
+        if (Math.Abs(distance) > Tolerance.Length && _target is { } t)
+            SurfaceTarget.Lay(doc, "Offset on Surface", t, CurveOffset.Offset(_chain, _closed, _normal, distance), -_normal, _closed);
+        _chain = [];
+        _target = null;
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+    }
+
+    public override bool ApplyVcb(string text)
+    {
+        if (_chain.Count == 0 || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+            return false;
+        Finish(doc, Math.Abs(mm) * _side);
+        return true;
+    }
+
+    public override bool KeyDown(InputEventKey key)
+    {
+        if (key.Keycode != Key.Escape || _chain.Count == 0)
+            return false;
+        _chain = [];
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+        return true;
+    }
+
+    public override void Draw(Control overlay)
+    {
+        if (_chain.Count == 0)
+        {
+            if (_hover is { } h)
+                SurfaceCurves.Draw(View, overlay, h.ToWorld, h.Edges);
+            return;
+        }
+        var pts = CurveOffset.Offset(_chain, _closed, _normal, _distance);
+        for (var i = 0; i + 1 < pts.Count + (_closed ? 1 : 0); i++)
+            if (View.ToScreen(pts[i]) is { } a && View.ToScreen(pts[(i + 1) % pts.Count]) is { } b)
+                overlay.DrawLine(a, b, new Color(0.85f, 0.1f, 0.1f), 1.5f, true);
+    }
+}
+
+/// <summary>Tools on Surface's Eraser: a click erases the whole curve under the cursor (hard edges running through
+/// points where only two meet), and the faces either side heal back into the surface.</summary>
+public sealed class SurfaceEraserTool : Tool
+{
+    private List<Edge> _hover = [];
+
+    public override int CommandId => ExtensionIds.SurfaceEraser;
+    public override string CursorImage => "eraser";
+    public override string StatusText => "Eraser on Surface: click a curve drawn on a surface to erase it.";
+
+    private Entities? _entities;
+    private Transform _toWorld = Transform.Identity;
+
+    private List<Edge> CurveAt(Vector2 position)
+    {
+        if (View.Document is not { } doc || SurfaceCurves.At(doc, View, position) is not { } curve)
+            return [];
+        (_entities, _toWorld) = (curve.Entities, curve.ToWorld);
+        return curve.Edges;
     }
 
     public override void MouseMove(Vector2 position, Vector2 relative)
@@ -379,9 +511,6 @@ public sealed class SurfaceEraserTool : Tool
 
     public override void Draw(Control overlay)
     {
-        var xf = _toWorld;
-        foreach (var x in _hover)
-            if (View.ToScreen(xf.ApplyPoint(x.Start.Position)) is { } a && View.ToScreen(xf.ApplyPoint(x.End.Position)) is { } b)
-                overlay.DrawLine(a, b, new Color(0, 0, 1), 3);
+        SurfaceCurves.Draw(View, overlay, _toWorld, _hover);
     }
 }

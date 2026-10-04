@@ -165,7 +165,7 @@ public static class FaceFinder
         var newFaces = new List<Face>();
         foreach (var region in regions)
         {
-            var sample = InteriorPoint(region, To2D);
+            var sample = InteriorPoint(region, holesOf.GetValueOrDefault(region));
             // Merging: the sample may sit on the erased edge between the two faces, inside neither alone.
             var source = replaced.FirstOrDefault(f => ContainsPoint(f, sample, To2D)) ?? forcedReplaced?.FirstOrDefault();
             var hasNewEdge = seedsCreateFaces && region.Edges.Any(x => seedSet.Contains(x.Edge));
@@ -310,11 +310,13 @@ public static class FaceFinder
         return !f.InnerLoops.Any(l => PointInPolygon(q, l.Points.Select(to2D).ToList()));
     }
 
-    /// <summary>A point strictly inside a cycle: centre of its first ear-clipped triangle.</summary>
-    private static Vec3 InteriorPoint(Cycle c, Func<Vec3, (double X, double Y)> to2D)
+    /// <summary>A point strictly inside a cycle and outside its holes: centre of its first ear-clipped triangle.</summary>
+    private static Vec3 InteriorPoint(Cycle c, List<Cycle>? holes)
     {
-        var idx = Polygon.Triangulate(c.Points);
-        return idx.Count >= 3 ? (c.Points[idx[0]] + c.Points[idx[1]] + c.Points[idx[2]]) / 3 : c.Points[0];
+        var holePoints = holes?.Select(h => (IReadOnlyList<Vec3>)h.Points).ToList() ?? [];
+        var all = c.Points.Concat(holePoints.SelectMany(h => h)).ToList();
+        var idx = Polygon.Triangulate(c.Points, holePoints);
+        return idx.Count >= 3 ? (all[idx[0]] + all[idx[1]] + all[idx[2]]) / 3 : c.Points[0];
     }
 
     private static bool PointInPolygon((double X, double Y) p, List<(double X, double Y)> poly)

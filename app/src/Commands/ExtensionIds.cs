@@ -45,6 +45,7 @@ public static class ExtensionIds
     public static int SurfaceShape(Dogeometric.App.Tools.SurfaceShape shape) => 90131 + (int)shape;
 
     public const int SurfaceEraser = 90150;
+    public const int SurfaceOffset = 90151;
     public const int CurviloftLoft = 90095;
     public const int CurviloftSkin = 90096;
     public const int CleanUp = 90041;

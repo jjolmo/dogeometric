@@ -316,6 +316,8 @@ public partial class MainWindow : Control
                 submenu: "Fredo6 Collection", groupStart: shape == SurfaceShape.Line);
             _commands.Register(id, () => _viewport.Tools.Activate(new SurfaceShapeTool(shape)), () => _viewport.Tools.Active.CommandId == id);
         }
+        _commands.AddToMenu("Tools", ExtensionIds.SurfaceOffset, "Offset on Surface", "Tools on Surface: offset a curve drawn on a surface.", submenu: "Fredo6 Collection");
+        _commands.Register(ExtensionIds.SurfaceOffset, () => _viewport.Tools.Activate(new SurfaceOffsetTool()), () => _viewport.Tools.Active is SurfaceOffsetTool);
         _commands.AddToMenu("Tools", ExtensionIds.SurfaceEraser, "Eraser on Surface", "Tools on Surface: erase a curve drawn on a surface.", submenu: "Fredo6 Collection");
         _commands.Register(ExtensionIds.SurfaceEraser, () => _viewport.Tools.Activate(new SurfaceEraserTool()), () => _viewport.Tools.Active is SurfaceEraserTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxAddDetail, "Add Detail", "Split the selected triangles to add detail.", submenu: "Sandbox");
