@@ -1,0 +1,47 @@
+# Vendored OpenSKP (.NET)
+
+Source: https://github.com/iamahsanmehmood/openskp, tag `nuget-v1.3.0` (commit e8b5af6), `packages/dotnet/OpenSkp`.
+Licence: MIT (see `LICENSE` in this folder). Copyright (c) 2024-2026 Ahsan Mehmood.
+
+Vendored rather than referenced from NuGet so Dogeometric can carry fixes before they land upstream.
+Every change is listed here and should be offered upstream.
+
+## Patches
+
+1. **Group definitions** (`Definition.IsGroup`). VFF (2021+): tag `8315` of a definition record is its behaviour
+   type — 0 component, 1 group, 2 image (upstream already used 2 for images). Legacy (2013–2020): a definition placed
+   by a `CGroup` entity is a group. Verified against SketchUp 2021's own Ruby API (`ComponentDefinition#group?`) on
+   the whole test corpus: 54/54 VFF files and the legacy files agree.
+2. **Planarity tolerance** (`Create.cs`). The writer accepted a face only if every point was within span × 1e-6" of the
+   fitted plane, so faces SketchUp had saved as planar (off by up to SketchUp's own 0.001" tolerance) were
+   fan-triangulated on export. The tolerance is now max(span × 1e-6, 0.004"): real SketchUp faces deviate up to
+   ~0.0015" from the plane this writer fits, and 0.004" (0.1 mm) covers the whole test corpus.
+3. **Root-level group placement** (`SkpBuilder.AddGroupInstance`). The root builder could only place groups inline
+   (`AddGroup`), one definition per group, so copies of a group that SketchUp stores sharing one definition came back
+   as separate definitions. The new method mirrors `AddInstance` but writes a `CGroup`, like the existing
+   `ComponentDefinitionBuilder.AddGroupInstance`.
+4. **Definition kind and behaviour in legacy files** (`Create.cs`, `Legacy.cs`). In the 43-byte gap before a
+   definition's thumbnail, byte −9 holds the behaviour flags (1 = always faces camera, 2 = shadows face sun; upstream
+   already read these) and byte −4 is 1 for group definitions. Found by comparing definitions SketchUp reports as
+   groups/components in real files. The writer zeroed the gap, so groups came back as plain definitions in
+   SketchUp and 2D figures stopped facing the camera; `ComponentDefinitionBuilder` now has `IsGroupDefinition`,
+   `AlwaysFacesCamera` and `ShadowsFaceSun`, and the reader also takes the group byte into account.
+5. **Self-touching loops** (`Create.cs`, `WriteEdgeChain`). Vertex slots were resolved once for the whole chain
+   before writing, so a point that appears twice in one loop (common in 2D silhouettes) got two vertices and
+   duplicate edges. Each point is now looked up again right before use.
+6. **Big-object escape in the scaffold renumbering** (`Create.cs`, `ShiftRef`). When a shifted reference passed
+   0x7FFF it was rewritten with the escape tag `FF FF` (MFC's *new class* tag) instead of `FF 7F` (0x7FFF, the
+   big-object tag `NewOfKnownClass`/`Backref` already use). Only models with more than 32 767 archive objects hit it;
+   SketchUp rejected those files ("Unexpected file format") and OpenSKP's own reader failed on them.
+7. **Fan triangulation without partial writes** (`Create.cs`, `FaceWriting.WriteFaceOrTriangulate`). The
+   autoTriangulate fallback wrote fan triangles one by one; a collinear triangle (common in concave faces) threw after
+   earlier ones were already in the buffer but not in the entity count, corrupting the enclosing definition (SketchUp:
+   "Unexpected file format"). All triangles are now validated first and collinear ones skipped. Dogeometric itself
+   no longer uses autoTriangulate (it triangulates non-planar faces with its own ear clipping), so this only guards
+   other callers.
+
+## Note on `_scaffold/blank_v17.skp`
+
+Shipped unchanged from upstream: the empty-document template the writer splices geometry into. Upstream documents
+that its bytes come from a bare `SUModelCreate` + save with Trimble's SDK (SketchUp's own empty-document
+boilerplate, no user content). It is part of the upstream MIT package; Dogeometric does not use the SDK.

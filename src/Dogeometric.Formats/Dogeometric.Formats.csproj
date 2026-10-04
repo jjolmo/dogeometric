@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Dogeometric.Formats</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Dogeometric.Core/Dogeometric.Core.csproj" />
+    <!-- OpenSKP 1.3.0 (MIT), vendored with Dogeometric patches: see third_party/OpenSkp/PATCHES.md.
+         Re-run the corpus check (tools/Dogeometric.SkpCorpus) after any change. -->
+    <ProjectReference Include="../../third_party/OpenSkp/OpenSkp.csproj" />
+  </ItemGroup>
+</Project>

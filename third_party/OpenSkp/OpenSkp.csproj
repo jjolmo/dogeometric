@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <Version>1.3.0</Version>
+    <Authors>Ahsan Mehmood</Authors>
+    <Description>Open-source SketchUp (.skp) binary file parser, writer, and converter - extract geometry, metadata, layers, and materials; create and edit .skp files; convert to GLB, OBJ, STL, PLY, DXF, and IFC4.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://openskp.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/iamahsanmehmood/openskp.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>sketchup;skp;parser;writer;converter;conversion;3d;glb;gltf;cad;bim;dxf;autocad;ifc;obj;stl;ply</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Bundled blank-document scaffold Create.cs splices new geometry
+         into to build a new .skp file - see Create.cs's own header
+         comment for the full explanation and the disclosure of this
+         file's SDK-authored origin. -->
+    <EmbeddedResource Include="_scaffold\blank_v17.skp" LogicalName="OpenSkp._scaffold.blank_v17.skp" />
+  </ItemGroup>
+</Project>
