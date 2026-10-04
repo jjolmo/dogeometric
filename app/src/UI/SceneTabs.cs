@@ -18,6 +18,9 @@ public partial class SceneTabs : HBoxContainer
     private ModelViewport _view = null!;
     private Action _tagsChanged = null!;
     private int _current = -1;
+
+    /// <summary>View › Scene Tabs: off hides the tabs even when the model has scenes.</summary>
+    public bool Enabled { get; set; } = true;
     private Tween? _tween;
 
     public static SceneTabs Create(Func<Document> doc, ModelViewport view, Action tagsChanged) =>
@@ -31,7 +34,7 @@ public partial class SceneTabs : HBoxContainer
             c.QueueFree();
         }
         var scenes = _doc().Model.Scenes;
-        Visible = scenes.Count > 0;
+        Visible = Enabled && scenes.Count > 0;
         if (_current >= scenes.Count)
             _current = scenes.Count - 1;
         for (var i = 0; i < scenes.Count; i++)

@@ -137,6 +137,11 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
         _commands.Register(CommandIds.AddScene, () => _scenes.Add());
+        _commands.Register(CommandIds.SceneTabs, () =>
+        {
+            _scenes.Enabled = !_scenes.Enabled;
+            _scenes.Refresh();
+        }, () => _scenes.Enabled);
         _commands.Register(CommandIds.UpdateScene, () => _scenes.UpdateCurrent());
         _commands.Register(CommandIds.DeleteScene, () => _scenes.DeleteCurrent());
         _commands.Register(CommandIds.NextScene, () => _scenes.Step(1));

@@ -108,6 +108,7 @@ public static class CommandIds
     public const int ModelInfo = 21076;
     public const int Preferences = 10521;
     public const int AddScene = 21067;
+    public const int SceneTabs = 10534;
     public const int UpdateScene = 21068;
     public const int DeleteScene = 21078;
     public const int NextScene = 10535;
