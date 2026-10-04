@@ -30,6 +30,14 @@ public sealed class ModelRenderer
     private readonly Shader _faceShader = GD.Load<Shader>("res://shaders/face.gdshader");
     private readonly Shader _faceTransparentShader = GD.Load<Shader>("res://shaders/face_transparent.gdshader");
     private readonly ShaderMaterial _edgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/edge.gdshader") };
+    private readonly ShaderMaterial _backEdgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/back_edge.gdshader") };
+
+    /// <summary>View › Edge Style › Back Edges: hidden edges show dashed.</summary>
+    public bool ShowBackEdges
+    {
+        get => _edgeMaterial.NextPass != null;
+        set => _edgeMaterial.NextPass = value ? _backEdgeMaterial : null;
+    }
     private readonly ShaderMaterial _guideMaterial = new() { Shader = GD.Load<Shader>("res://shaders/guide.gdshader") };
 
     /// <summary>View › Guides.</summary>

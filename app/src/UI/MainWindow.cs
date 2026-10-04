@@ -113,6 +113,11 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Undo, () => Doc().Undo.Undo());
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
+        _commands.Register(CommandIds.BackEdges, () =>
+        {
+            _document.ShowBackEdges = !_document.ShowBackEdges;
+            RefreshToolbars();
+        }, () => _document.ShowBackEdges);
         _commands.Register(CommandIds.DisplaySectionPlanes, () =>
         {
             _viewport.ShowSectionPlanes = !_viewport.ShowSectionPlanes;

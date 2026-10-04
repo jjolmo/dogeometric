@@ -29,6 +29,13 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>View › Edge Style › Back Edges.</summary>
+    public bool ShowBackEdges
+    {
+        get => _renderer.ShowBackEdges;
+        set => _renderer.ShowBackEdges = value;
+    }
+
     /// <summary>View › Guides.</summary>
     public bool ShowGuides
     {
