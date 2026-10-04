@@ -12,12 +12,16 @@ internal static class SurfaceTarget
 {
     public static (Entities Entities, Transform ToWorld)? Of(Document doc, PickHit hit)
     {
-        if (hit.Face == null)
+        var entities = hit.Path.Count > 0 ? hit.Path[^1].Definition.Entities : doc.Model.Entities;
+        if (FaceOf(hit, entities) == null)
             return null;
         var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
-        var entities = hit.Path.Count > 0 ? hit.Path[^1].Definition.Entities : doc.Model.Entities;
         return (entities, toWorld);
     }
+
+    /// <summary>The face clicked, or one beside the edge clicked (edges win picks near them).</summary>
+    public static Face? FaceOf(PickHit hit, Entities entities) =>
+        hit.Face ?? (hit.Edge is { } edge ? Topology.FacesOf(entities, edge).FirstOrDefault() : null);
 
     /// <summary>Lays a world-space path on <paramref name="target"/> along a world direction, as one undoable step.</summary>
     public static int Lay(Document doc, string name, (Entities Entities, Transform ToWorld) target, IReadOnlyList<Vec3> worldPath, Vec3 worldDirection, bool closed)
@@ -118,7 +122,7 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
             return;
         if (_first == null)
         {
-            if (View.Pick(position) is not { Face: { } face } hit || SurfaceTarget.Of(doc, hit) is not { } target)
+            if (View.Pick(position) is not { } hit || SurfaceTarget.Of(doc, hit) is not { } target || SurfaceTarget.FaceOf(hit, target.Entities) is not { } face)
                 return;
             _first = hit.Point;
             _normal = target.ToWorld.ApplyNormal(face.Normal).Normalized();
