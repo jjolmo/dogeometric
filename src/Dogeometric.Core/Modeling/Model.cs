@@ -21,6 +21,7 @@ public sealed class Model
     public List<Scene> Scenes { get; } = [];
     public LengthUnit Units { get; set; } = LengthUnit.Millimeters;
     public int UnitPrecision { get; set; } = 1;
+    public ShadowSettings Shadows { get; set; } = new();
 
     /// <summary>
     /// SketchUp's drawing axes (Axes tool): origin and red/green/blue directions, orthonormal. Inference, arrow-key

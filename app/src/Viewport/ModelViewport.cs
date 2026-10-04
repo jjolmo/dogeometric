@@ -135,6 +135,25 @@ public partial class ModelViewport : Control
 
         ModelRoot = new Node3D { Name = "Model" };
         root.AddChild(ModelRoot);
+
+        _sun = new DirectionalLight3D
+        {
+            Visible = false,
+            LightEnergy = 1,
+            DirectionalShadowMode = DirectionalLight3D.ShadowMode.Orthogonal,
+            ShadowBias = 0.02f,
+            ShadowNormalBias = 1f,
+        };
+        root.AddChild(_sun);
+        var groundMesh = new PlaneMesh { Size = new Vector2(1, 1) };
+        _ground = new MeshInstance3D
+        {
+            Mesh = groundMesh,
+            Visible = false,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ground_shadow.gdshader") },
+        };
+        root.AddChild(_ground);
         SelectionRoot = new Node3D { Name = "Selection" };
         root.AddChild(SelectionRoot);
     }
@@ -306,6 +325,7 @@ public partial class ModelViewport : Control
 
         UpdateHorizon();
         UpdateFog();
+        UpdateShadowRange();
         _overlay?.QueueRedraw();
         CameraChanged?.Invoke();
     }
@@ -374,6 +394,45 @@ public partial class ModelViewport : Control
         var centreDepth = bounds.IsEmpty ? distance : Math.Max(Camera.DepthOf(bounds.Center), 1);
         _environment.FogDepthBegin = (float)(Math.Max(centreDepth - radius, 0) * Space.MetersPerUnit);
         _environment.FogDepthEnd = (float)((centreDepth + radius * 1.5) * Space.MetersPerUnit);
+    }
+
+    private DirectionalLight3D _sun = null!;
+    private MeshInstance3D _ground = null!;
+    private Bounds3 _shadowBounds = Bounds3.Empty;
+
+    /// <summary>
+    /// Points the sun and turns its shadows on or off from the model's settings (the faces' shading comes from the
+    /// renderer's lit materials).
+    /// </summary>
+    public void ApplyShadows(ShadowSettings s)
+    {
+        var dir = s.SunDirection();
+        var lit = s.Enabled || s.UseSunForShading;
+        _sun.Visible = lit && dir.Z > 0;
+        if (_sun.Visible)
+            _sun.Basis = Basis.LookingAt(-Space.DirToGodot(dir), Math.Abs(dir.Z) > 0.999 ? Vector3.Forward : Vector3.Up);
+        _sun.ShadowEnabled = s.Enabled;
+        _shadowBounds = ModelBounds();
+        _ground.Visible = s.Enabled && s.OnGround && _sun.Visible && !_shadowBounds.IsEmpty;
+        if (_ground.Visible)
+        {
+            // Wide enough for a low sun's long shadows.
+            var size = (float)(Math.Max(_shadowBounds.Diagonal, 1) * 20 * Space.MetersPerUnit);
+            var c = _shadowBounds.Center;
+            _ground.Transform = new Transform3D(Basis.Identity.Scaled(new Vector3(size, 1, size)), Space.ToGodot(new Vec3(c.X, c.Y, 0)));
+            ((ShaderMaterial)_ground.MaterialOverride).SetShaderParameter("strength", s.Light / 100f * 0.45f);
+        }
+        UpdateShadowRange();
+    }
+
+    /// <summary>The sun's shadow map covers from the eye to just past the model, so small models get sharp shadows.</summary>
+    private void UpdateShadowRange()
+    {
+        if (_sun is not { ShadowEnabled: true })
+            return;
+        var radius = _shadowBounds.IsEmpty ? Camera.Distance : _shadowBounds.Diagonal;
+        var depth = _shadowBounds.IsEmpty ? Camera.Distance : Math.Max(Camera.DepthOf(_shadowBounds.Center), 0);
+        _sun.DirectionalShadowMaxDistance = (float)((depth + radius * 2) * Space.MetersPerUnit);
     }
 
     /// <summary>View › Section Planes / Section Cuts.</summary>

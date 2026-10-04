@@ -27,6 +27,7 @@ public partial class MainWindow : Control
     private TagsPanel _tags = null!;
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
+    private ShadowsPanel _shadows = null!;
     private SceneTabs _scenes = null!;
     private Action _rebuildMenus = () => { };
     private readonly List<Toolbar> _toolbars = [];
@@ -682,6 +683,14 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.HiddenObjects, () => _document.ShowHiddenObjects = !_document.ShowHiddenObjects, () => _document.ShowHiddenObjects);
         _commands.Register(CommandIds.FieldOfView, () => _viewport.Tools.Activate(new ZoomTool()));
         _commands.Register(CommandIds.Edges, () => _document.ShowEdges = !_document.ShowEdges, () => _document.ShowEdges);
+        _commands.Register(CommandIds.Shadows, () =>
+        {
+            var doc = Doc();
+            doc.Undo.Begin("Shadow Settings");
+            doc.Model.Shadows = doc.Model.Shadows with { Enabled = !doc.Model.Shadows.Enabled };
+            doc.Undo.Commit();
+            _document.ApplyShadows();
+        }, () => _document.Document.Model.Shadows.Enabled);
         _commands.Register(CommandIds.Fog, () => _viewport.ShowFog = !_viewport.ShowFog, () => _viewport.ShowFog);
         _commands.Register(CommandIds.HiddenGeometry, () => _document.ShowHiddenGeometry = !_document.ShowHiddenGeometry, () => _document.ShowHiddenGeometry);
         _commands.Register(CommandIds.BackEdges, () =>
@@ -931,6 +940,10 @@ public partial class MainWindow : Control
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         list.AddChild(TraySection.Create("Components", _components, expanded: false));
         list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
+        _shadows = ShadowsPanel.Create(() => _document.Document, _document.ApplyShadows);
+        _document.ShadowsChanged += _shadows.Refresh;
+        _document.DocumentReplaced += _shadows.Refresh;
+        list.AddChild(TraySection.Create("Shadows", _shadows, expanded: false));
         list.AddChild(TraySection.Create("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), expanded: false));
         _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
         list.AddChild(TraySection.Create("Outliner", _outliner, expanded: false));

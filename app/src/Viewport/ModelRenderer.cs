@@ -28,6 +28,7 @@ public sealed class ModelRenderer
     private static readonly Rgba DefaultBack = new(164, 178, 187);
 
     private readonly Shader _faceShader = GD.Load<Shader>("res://shaders/face.gdshader");
+    private readonly Shader _faceLitShader = GD.Load<Shader>("res://shaders/face_lit.gdshader");
     private readonly Shader _faceTransparentShader = GD.Load<Shader>("res://shaders/face_transparent.gdshader");
     private readonly ShaderMaterial _edgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/edge.gdshader") };
     private readonly ShaderMaterial _backEdgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/back_edge.gdshader") };
@@ -82,6 +83,33 @@ public sealed class ModelRenderer
             _meshes.Clear();
         }
     }
+
+    public ShadowSettings Shadows => _shadows;
+
+    /// <summary>
+    /// Takes the model's shadow settings. Light and Dark update the materials in place; returns true when the
+    /// geometry must be rebuilt (lit or not, shadows cast or received).
+    /// </summary>
+    public bool SetShadows(ShadowSettings s)
+    {
+        var old = _shadows;
+        _shadows = s;
+        if (s.Enabled != old.Enabled || s.UseSunForShading != old.UseSunForShading || s.OnFaces != old.OnFaces || s.FromEdges != old.FromEdges)
+        {
+            _faceMaterials.Clear();
+            _meshes.Clear();
+            return true;
+        }
+        foreach (var m in _faceMaterials.Values.Where(m => m.Shader == _faceLitShader))
+        {
+            m.SetShaderParameter("sun_light", s.Light / 100f);
+            m.SetShaderParameter("sun_dark", s.Dark / 100f);
+        }
+        return false;
+    }
+
+    private ShadowSettings _shadows = new();
+    private bool SunLit => _shadows.Enabled || _shadows.UseSunForShading;
 
     // SketchUp's default template style shows textures.
     private FaceStyle _faceStyle = FaceStyle.ShadedWithTextures;
@@ -148,7 +176,7 @@ public sealed class ModelRenderer
         var mesh = MeshFor(entities);
         if (mesh.Faces != null && FaceStyle != FaceStyle.Wireframe)
         {
-            var faces = new MeshInstance3D { Mesh = mesh.Faces, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+            var faces = new MeshInstance3D { Mesh = mesh.Faces, CastShadow = _shadows.Enabled ? GeometryInstance3D.ShadowCastingSetting.DoubleSided : GeometryInstance3D.ShadowCastingSetting.Off };
             for (var i = 0; i < mesh.Surfaces.Count; i++)
             {
                 var (front, back) = mesh.Surfaces[i];
@@ -165,7 +193,7 @@ public sealed class ModelRenderer
             parent.AddChild(faces);
         }
         if (mesh.Edges != null && ShowEdges)
-            parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+            parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = _shadows is { Enabled: true, FromEdges: true } ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Hidden != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Hidden, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Guides != null && ShowGuides)
@@ -338,7 +366,14 @@ public sealed class ModelRenderer
             (front, back) = (null, null);
         var xray = FaceStyle == FaceStyle.XRay;
         var transparent = xray || (front?.Opacity ?? 1) < 1 || (back?.Opacity ?? 1) < 1;
-        m = new ShaderMaterial { Shader = transparent ? _faceTransparentShader : _faceShader };
+        var lit = SunLit && !transparent && FaceStyle != FaceStyle.HiddenLine;
+        m = new ShaderMaterial { Shader = transparent ? _faceTransparentShader : lit ? _faceLitShader : _faceShader };
+        if (lit)
+        {
+            m.SetShaderParameter("sun_light", _shadows.Light / 100f);
+            m.SetShaderParameter("sun_dark", _shadows.Dark / 100f);
+            m.SetShaderParameter("receive_shadows", _shadows.Enabled && _shadows.OnFaces);
+        }
         var frontColor = ToColor(front, DefaultFront);
         var backColor = ToColor(back, DefaultBack);
         if (FaceStyle == FaceStyle.HiddenLine)

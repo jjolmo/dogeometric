@@ -104,6 +104,7 @@ public static class CommandIds
     public const int Edges = 10614;
     public const int HiddenGeometry = 21155;
     public const int Fog = 10618;
+    public const int Shadows = 10602;
     public const int HiddenObjects = 21153;
     public const int HideRestOfModel = 21586;
     public const int HideSimilarComponents = 21587;

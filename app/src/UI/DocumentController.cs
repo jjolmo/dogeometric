@@ -30,6 +30,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>Shows the model's shadow settings (Shadows window, View › Shadows, a model loaded).</summary>
+    public void ApplyShadows()
+    {
+        if (_renderer.SetShadows(Model.Shadows))
+            Rebuild();
+        viewport.ApplyShadows(Model.Shadows);
+        ShadowsChanged?.Invoke();
+    }
+
+    public event Action? ShadowsChanged;
+
     /// <summary>View › Component Edit › Hide Rest of Model / Hide Similar Components.</summary>
     public bool HideRestOfModel { get; set; }
     public bool HideSimilarComponents { get; set; }
@@ -348,6 +359,14 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         _recoveredFrom = null;
         Document.GeometryChanged += changed =>
         {
+            // Undo and redo can bring back other shadow settings.
+            if (Model.Shadows != _renderer.Shadows)
+            {
+                if (_renderer.SetShadows(Model.Shadows))
+                    changed = null;
+                viewport.ApplyShadows(Model.Shadows);
+                ShadowsChanged?.Invoke();
+            }
             _renderer.Build(Model, viewport.ModelRoot, changed);
             RebuildSelection();
             viewport.UpdateSection();
@@ -363,9 +382,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         Path = path;
         viewport.Document = Document;
         viewport.ModelBounds = () => Model.Entities.Bounds();
+        _renderer.SetShadows(Model.Shadows);
         Rebuild();
         viewport.UpdateSection();
         viewport.UpdateAxes();
+        viewport.ApplyShadows(Model.Shadows);
         if (zoomExtents)
             viewport.ZoomExtents();
         DocumentReplaced?.Invoke();

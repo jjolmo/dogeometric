@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json;
 using Dogeometric.Core.Geometry;
@@ -53,6 +54,7 @@ public static class DogFile
                 w.WriteEndArray();
             }
             w.WriteString("sourceVersion", model.SourceVersion);
+            WriteShadows(w, model.Shadows);
 
             w.WriteStartArray("materials");
             foreach (var m in model.Materials)
@@ -400,6 +402,8 @@ public static class DogFile
             UnitPrecision = r.GetProperty("unitPrecision").GetInt32(),
             SourceVersion = r.TryGetProperty("sourceVersion", out var sv) ? sv.GetString() ?? "" : "",
         };
+        if (r.TryGetProperty("shadows", out var shadows))
+            model.Shadows = ReadShadows(shadows);
         if (r.TryGetProperty("axes", out var axes))
             model.Axes = Transform.FromColumnMajor(axes.EnumerateArray().Select(x => x.GetDouble()).ToArray());
 
@@ -683,5 +687,46 @@ public static class DogFile
     {
         var a = j.EnumerateArray().Select(x => x.GetDouble()).ToArray();
         return new Vec3(a[0], a[1], a[2]);
+    }
+
+    private static void WriteShadows(Utf8JsonWriter w, ShadowSettings s)
+    {
+        w.WriteStartObject("shadows");
+        w.WriteBoolean("enabled", s.Enabled);
+        w.WriteString("time", s.Time.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture));
+        w.WriteNumber("utcOffset", s.UtcOffset);
+        w.WriteNumber("latitude", s.Latitude);
+        w.WriteNumber("longitude", s.Longitude);
+        w.WriteNumber("northAngle", s.NorthAngle);
+        w.WriteNumber("light", s.Light);
+        w.WriteNumber("dark", s.Dark);
+        w.WriteBoolean("useSunForShading", s.UseSunForShading);
+        w.WriteBoolean("onFaces", s.OnFaces);
+        w.WriteBoolean("onGround", s.OnGround);
+        w.WriteBoolean("fromEdges", s.FromEdges);
+        w.WriteEndObject();
+    }
+
+    private static ShadowSettings ReadShadows(JsonElement e)
+    {
+        var d = new ShadowSettings();
+        bool Flag(string name, bool fallback) => e.TryGetProperty(name, out var v) ? v.GetBoolean() : fallback;
+        double Number(string name, double fallback) => e.TryGetProperty(name, out var v) ? v.GetDouble() : fallback;
+        var time = e.TryGetProperty("time", out var t) && DateTime.TryParse(t.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) ? parsed : d.Time;
+        return new ShadowSettings
+        {
+            Enabled = Flag("enabled", d.Enabled),
+            Time = time,
+            UtcOffset = Number("utcOffset", d.UtcOffset),
+            Latitude = Number("latitude", d.Latitude),
+            Longitude = Number("longitude", d.Longitude),
+            NorthAngle = Number("northAngle", d.NorthAngle),
+            Light = (int)Number("light", d.Light),
+            Dark = (int)Number("dark", d.Dark),
+            UseSunForShading = Flag("useSunForShading", d.UseSunForShading),
+            OnFaces = Flag("onFaces", d.OnFaces),
+            OnGround = Flag("onGround", d.OnGround),
+            FromEdges = Flag("fromEdges", d.FromEdges),
+        };
     }
 }
