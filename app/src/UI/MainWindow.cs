@@ -321,6 +321,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.SectionPlane, () => new SectionPlaneTool());
         RegisterTool(CommandIds.Protractor, () => new ProtractorTool());
         RegisterTool(CommandIds.Axes, () => new AxesTool());
+        RegisterTool(CommandIds.Freehand, () => new FreehandTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }
