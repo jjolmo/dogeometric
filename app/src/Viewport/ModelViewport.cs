@@ -327,6 +327,13 @@ public partial class ModelViewport : Control
     /// <summary>World segments where the active section cuts the model (drawn as thick lines).</summary>
     public List<(Vec3 A, Vec3 B)> SectionCut { get; private set; } = [];
 
+    /// <summary>Places the drawn axes where the model's drawing axes are (Axes tool).</summary>
+    public void UpdateAxes()
+    {
+        if (Document != null)
+            Axes.Transform = ModelRenderer.ToGodot(Document.Model.Axes);
+    }
+
     /// <summary>Applies the model's active section: the shaders' cut plane and the cut lines.</summary>
     public void UpdateSection()
     {

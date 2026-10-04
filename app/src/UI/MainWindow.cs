@@ -319,6 +319,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.ZoomWindow, () => new ZoomWindowTool());
         RegisterTool(CommandIds.SectionPlane, () => new SectionPlaneTool());
         RegisterTool(CommandIds.Protractor, () => new ProtractorTool());
+        RegisterTool(CommandIds.Axes, () => new AxesTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }

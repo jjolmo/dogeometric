@@ -50,7 +50,11 @@ public sealed class InferenceEngine
 {
     public const double SnapPixels = 8;
 
-    private static readonly (Vec3 Dir, string Name)[] Axes = [(Vec3.UnitX, "Red"), (Vec3.UnitY, "Green"), (Vec3.UnitZ, "Blue")];
+    /// <summary>The drawing axes (the model's, see Model.Axes).</summary>
+    public Transform Axes { get; set; } = Transform.Identity;
+
+    private (Vec3 Dir, string Name)[] AxisDirections =>
+        [(Axes.X.Normalized(), "Red"), (Axes.Y.Normalized(), "Green"), (Axes.Z.Normalized(), "Blue")];
 
     /// <summary>Locked axis (arrow keys), or null.</summary>
     public Vec3? LockedAxis { get; set; }
@@ -71,7 +75,7 @@ public sealed class InferenceEngine
         }
 
         var hit = view.Pick(x, y);
-        var snap = SnapToPoints(view, x, y, hit, context, contextToWorld);
+        var snap = SnapToPoints(view, x, y, hit, context, contextToWorld, Axes.Origin);
         if (snap != null)
             return snap;
 
@@ -97,11 +101,11 @@ public sealed class InferenceEngine
         // otherwise land on the ground.
         if (from is { } s)
         {
-            var normal = MostFacing(view.ViewDirection);
+            var normal = MostFacing(view.ViewDirection, Axes);
             if (IntersectPlane(ray, normal, s) is { } q)
                 return new InferenceResult(q, InferenceKind.InPlane, "");
         }
-        if (IntersectPlane(ray, Vec3.UnitZ, Vec3.Zero) is { } g)
+        if (IntersectPlane(ray, Axes.Z.Normalized(), Axes.Origin) is { } g)
             return new InferenceResult(g, InferenceKind.InPlane, "");
         return new InferenceResult(ray.At(1000), InferenceKind.None, "");
     }
@@ -121,7 +125,7 @@ public sealed class InferenceEngine
     }
 
     /// <summary>Endpoints, midpoints and the origin within <see cref="SnapPixels"/> of the cursor.</summary>
-    private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld)
+    private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld, Vec3 origin)
     {
         InferenceResult? best = null;
         var bestDist = SnapPixels;
@@ -139,7 +143,7 @@ public sealed class InferenceEngine
             }
         }
 
-        Consider(Vec3.Zero, InferenceKind.Origin, "Origin");
+        Consider(origin, InferenceKind.Origin, "Origin");
 
         void FromEdge(Edge e, Transform xf, string inside = "")
         {
@@ -177,13 +181,13 @@ public sealed class InferenceEngine
     }
 
     /// <summary>The red/green/blue axis through <paramref name="from"/> whose screen direction the cursor follows.</summary>
-    private static InferenceResult? AxisInference(IViewProjection view, Ray ray, double x, double y, Vec3 from)
+    private InferenceResult? AxisInference(IViewProjection view, Ray ray, double x, double y, Vec3 from)
     {
         if (view.ToScreen(from) is null)
             return null;
         InferenceResult? best = null;
         var bestDist = SnapPixels;
-        foreach (var (dir, name) in Axes)
+        foreach (var (dir, name) in AxisDirections)
         {
             var p = ClosestOnLine(ray, from, dir);
             if (view.ToScreen(p) is not { } s || p.DistanceTo(from) < Tolerance.Length)
@@ -227,8 +231,13 @@ public sealed class InferenceEngine
         return best;
     }
 
-    public static string AxisName(Vec3 dir) =>
-        Math.Abs(dir.X) > 0.99 ? "On Red Axis" : Math.Abs(dir.Y) > 0.99 ? "On Green Axis" : Math.Abs(dir.Z) > 0.99 ? "On Blue Axis" : "Parallel to Edge";
+    public string AxisName(Vec3 dir) => AxisName(dir, Axes);
+
+    public static string AxisName(Vec3 dir, Transform axes) =>
+        Math.Abs(dir.Dot(axes.X.Normalized())) > 0.99 ? "On Red Axis"
+        : Math.Abs(dir.Dot(axes.Y.Normalized())) > 0.99 ? "On Green Axis"
+        : Math.Abs(dir.Dot(axes.Z.Normalized())) > 0.99 ? "On Blue Axis"
+        : "Parallel to Edge";
 
     /// <summary>Point on the line (origin, dir) closest to the ray.</summary>
     public static Vec3 ClosestOnLine(Ray ray, Vec3 origin, Vec3 dir)
@@ -254,11 +263,15 @@ public sealed class InferenceEngine
     }
 
     /// <summary>The red/green/blue plane normal most aligned with the view direction.</summary>
-    public static Vec3 MostFacing(Vec3 viewDir)
+    public static Vec3 MostFacing(Vec3 viewDir) => MostFacing(viewDir, Transform.Identity);
+
+    /// <summary>The plane normal among the given drawing axes most aligned with the view direction.</summary>
+    public static Vec3 MostFacing(Vec3 viewDir, Transform axes)
     {
-        var ax = Math.Abs(viewDir.X);
-        var ay = Math.Abs(viewDir.Y);
-        var az = Math.Abs(viewDir.Z);
-        return az >= ax && az >= ay ? Vec3.UnitZ : ax >= ay ? Vec3.UnitX : Vec3.UnitY;
+        var (x, y, z) = (axes.X.Normalized(), axes.Y.Normalized(), axes.Z.Normalized());
+        var ax = Math.Abs(viewDir.Dot(x));
+        var ay = Math.Abs(viewDir.Dot(y));
+        var az = Math.Abs(viewDir.Dot(z));
+        return az >= ax && az >= ay ? z : ax >= ay ? x : y;
     }
 }

@@ -48,11 +48,13 @@ public sealed class RectangleTool : DrawingTool
     {
         if (inf.Face is { } f)
             _normal = inf.EntityToWorld.ApplyNormal(f.Normal);
+        else if (inf.Kind == InferenceKind.InPlane)
+            _normal = Blue; // on the ground
         else
-            _normal = InferenceEngine.MostFacing(View.Camera.Direction);
+            _normal = MostFacingPlane();
         // In-plane axes follow the drawing axes when the plane is axis-aligned.
         var n = _normal;
-        var candidates = new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ }.Where(a => Math.Abs(a.Dot(n)) < 0.99).ToList();
+        var candidates = new[] { Red, Green, Blue }.Where(a => Math.Abs(a.Dot(n)) < 0.99).ToList();
         _uAxis = (candidates[0] - n * candidates[0].Dot(n)).Normalized();
         _vAxis = n.Cross(_uAxis).Normalized();
     }

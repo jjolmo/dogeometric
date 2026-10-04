@@ -115,15 +115,16 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags)
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes)
     {
-        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags]);
+        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes);
 
         public void Restore(Model m)
         {
             Replace(m.Definitions, Definitions);
             Replace(m.Materials, Materials);
             Replace(m.Tags, Tags);
+            m.Axes = Axes;
         }
     }
 

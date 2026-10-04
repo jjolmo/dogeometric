@@ -59,7 +59,7 @@ public class CircleTool(bool polygon) : DrawingTool
         if (_center == null)
         {
             _center = inf.Point;
-            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : InferenceEngine.MostFacing(View.Camera.Direction));
+            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : MostFacingPlane());
             RefreshStatus();
             return;
         }
@@ -127,7 +127,7 @@ public class CircleTool(bool polygon) : DrawingTool
                 return true;
             // Before the first click, arrows lock the circle's normal (→ red, ← green, ↑ blue).
             case Key.Right or Key.Left or Key.Up when _center == null:
-                var axis = key.Keycode == Key.Right ? Vec3.UnitX : key.Keycode == Key.Left ? Vec3.UnitY : Vec3.UnitZ;
+                var axis = key.Keycode == Key.Right ? Red : key.Keycode == Key.Left ? Green : Blue;
                 _lockedNormal = _lockedNormal == axis ? null : axis;
                 View.QueueOverlayRedraw();
                 return true;

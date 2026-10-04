@@ -31,6 +31,7 @@ public abstract class DrawingTool : Tool
     {
         if (View.Document is not { } doc)
             return;
+        Inference.Axes = doc.Model.Axes;
         Current = Inference.Infer(new ViewProjection(View), Mouse.X, Mouse.Y, From, doc.Context.Entities, doc.Context.ToWorld);
         OnInferenceChanged();
         View.QueueOverlayRedraw();
@@ -43,9 +44,9 @@ public abstract class DrawingTool : Tool
         // Arrow keys toggle an axis lock (→ red, ← green, ↑ blue), like SketchUp.
         Vec3? axis = key.Keycode switch
         {
-            Key.Right => Vec3.UnitX,
-            Key.Left => Vec3.UnitY,
-            Key.Up => Vec3.UnitZ,
+            Key.Right => Red,
+            Key.Left => Green,
+            Key.Up => Blue,
             _ => null,
         };
         if (axis is { } a && From != null)
@@ -92,11 +93,22 @@ public abstract class DrawingTool : Tool
 
     // ------------------------------------------------------------------ feedback drawing
 
-    public static Color AxisColor(Vec3? dir) => dir switch
+    // The model's drawing axes (Axes tool), as unit directions.
+    protected Transform Axes => View.Document?.Model.Axes ?? Transform.Identity;
+    protected Vec3 Red => Axes.X.Normalized();
+    protected Vec3 Green => Axes.Y.Normalized();
+    protected Vec3 Blue => Axes.Z.Normalized();
+
+    /// <summary>The drawing-axes plane most facing the viewer (its normal).</summary>
+    protected Vec3 MostFacingPlane() => InferenceEngine.MostFacing(View.Camera.Direction, Axes);
+
+    protected bool IsAxis(Vec3 d) => Math.Abs(d.Dot(Red)) > 0.99 || Math.Abs(d.Dot(Green)) > 0.99 || Math.Abs(d.Dot(Blue)) > 0.99;
+
+    protected Color AxisColor(Vec3? dir) => dir switch
     {
-        { } d when Math.Abs(d.X) > 0.99 => new Color(0.86f, 0, 0),
-        { } d when Math.Abs(d.Y) > 0.99 => new Color(0, 0.62f, 0),
-        { } d when Math.Abs(d.Z) > 0.99 => new Color(0, 0, 0.86f),
+        { } d when Math.Abs(d.Dot(Red)) > 0.99 => new Color(0.86f, 0, 0),
+        { } d when Math.Abs(d.Dot(Green)) > 0.99 => new Color(0, 0.62f, 0),
+        { } d when Math.Abs(d.Dot(Blue)) > 0.99 => new Color(0, 0, 0.86f),
         { } => new Color(0.86f, 0, 0.86f),
         _ => Colors.Black,
     };

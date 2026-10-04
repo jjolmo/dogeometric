@@ -124,4 +124,16 @@ public class DogFileTests
         Assert.Same(back.Entities.SectionPlanes[1], back.Entities.ActiveSection);
         Assert.Equal(new Vec3(0, 0, -1), back.Entities.ActiveSection!.Normal);
     }
+
+    [Fact]
+    public void Drawing_axes_round_trip_and_undo()
+    {
+        var model = new Model();
+        var axes = new Transform(Vec3.UnitY, -Vec3.UnitX, Vec3.UnitZ, new Vec3(10, 20, 30));
+        var doc = new Document(model);
+        doc.Operation("Place Axes", _ => model.Axes = axes);
+        Assert.Equal(axes, RoundTrip(model).Axes);
+        doc.Undo.Undo();
+        Assert.Equal(Transform.Identity, model.Axes);
+    }
 }

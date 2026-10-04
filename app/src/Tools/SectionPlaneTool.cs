@@ -20,7 +20,7 @@ public sealed class SectionPlaneTool : DrawingTool
 
     /// <summary>Arrow direction (world) for the cursor: into the face under it.</summary>
     private Vec3 Normal(InferenceResult inf) =>
-        _locked ?? (inf.Face is { } f ? -inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : InferenceEngine.MostFacing(View.Camera.Direction));
+        _locked ?? (inf.Face is { } f ? -inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : MostFacingPlane());
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
@@ -40,9 +40,9 @@ public sealed class SectionPlaneTool : DrawingTool
     {
         Vec3? axis = key.Keycode switch
         {
-            Key.Right => Vec3.UnitX,
-            Key.Left => Vec3.UnitY,
-            Key.Up => Vec3.UnitZ,
+            Key.Right => Red,
+            Key.Left => Green,
+            Key.Up => Blue,
             _ => null,
         };
         if (axis is { } a)

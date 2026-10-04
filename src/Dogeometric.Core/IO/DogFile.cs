@@ -45,6 +45,13 @@ public static class DogFile
             w.WriteStartObject();
             w.WriteString("units", model.Units.ToString());
             w.WriteNumber("unitPrecision", model.UnitPrecision);
+            if (model.Axes != Transform.Identity)
+            {
+                w.WriteStartArray("axes");
+                foreach (var v in model.Axes.ToColumnMajor())
+                    w.WriteNumberValue(v);
+                w.WriteEndArray();
+            }
             w.WriteString("sourceVersion", model.SourceVersion);
 
             w.WriteStartArray("materials");
@@ -336,6 +343,8 @@ public static class DogFile
             UnitPrecision = r.GetProperty("unitPrecision").GetInt32(),
             SourceVersion = r.TryGetProperty("sourceVersion", out var sv) ? sv.GetString() ?? "" : "",
         };
+        if (r.TryGetProperty("axes", out var axes))
+            model.Axes = Transform.FromColumnMajor(axes.EnumerateArray().Select(x => x.GetDouble()).ToArray());
 
         foreach (var m in r.GetProperty("materials").EnumerateArray())
         {

@@ -64,7 +64,7 @@ public sealed class ArcTool : DrawingTool
         if (!perp.IsZero(1e-9))
             return perp.Normalized();
         // Fall back to the axis plane facing the viewer.
-        return InferenceEngine.MostFacing(View.Camera.Direction).Cross(chord).Normalized();
+        return MostFacingPlane().Cross(chord).Normalized();
     }
 
     public override bool ApplyVcb(string text)

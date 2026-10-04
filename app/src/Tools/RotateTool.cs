@@ -52,8 +52,8 @@ public sealed class RotateTool : DrawingTool
             _center = inf.Point;
             // On the face under the cursor, on the ground when on the ground, else the axis plane facing the viewer.
             _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal)
-                : inf.Kind == InferenceKind.InPlane ? Vec3.UnitZ
-                : InferenceEngine.MostFacing(View.Camera.Direction));
+                : inf.Kind == InferenceKind.InPlane ? Blue
+                : MostFacingPlane());
             _lastCopy = null;
         }
         else if (_startDir == null)
@@ -185,7 +185,7 @@ public sealed class RotateTool : DrawingTool
                 View.QueueOverlayRedraw();
                 return true;
             case Key.Right or Key.Left or Key.Up when _center == null:
-                var axis = key.Keycode == Key.Right ? Vec3.UnitX : key.Keycode == Key.Left ? Vec3.UnitY : Vec3.UnitZ;
+                var axis = key.Keycode == Key.Right ? Red : key.Keycode == Key.Left ? Green : Blue;
                 _lockedNormal = _lockedNormal == axis ? null : axis;
                 return true;
         }
@@ -197,7 +197,7 @@ public sealed class RotateTool : DrawingTool
         if (_center is { } c && View.ToScreen(c) is { } sc)
         {
             // Protractor: a circle in the rotation plane, coloured by its normal axis.
-            var color = AxisColor(Math.Abs(_normal.X) > 0.99 || Math.Abs(_normal.Y) > 0.99 || Math.Abs(_normal.Z) > 0.99 ? _normal : null);
+            var color = AxisColor(IsAxis(_normal) ? _normal : null);
             var radius = 60 * View.Camera.WorldPerPixel(View.Size.Y, View.Camera.DepthOf(c));
             var (u, v) = Polygon.PlaneAxes(_normal);
             Vector2? prev = null;

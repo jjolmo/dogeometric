@@ -77,7 +77,7 @@ public sealed class DimensionTool : DrawingTool
         var offset = point - s;
         offset -= axis * offset.Dot(axis);
         // Snap to an axis direction perpendicular to the segment.
-        foreach (var a in new[] { Vec3.UnitX, Vec3.UnitY, Vec3.UnitZ })
+        foreach (var a in new[] { Red, Green, Blue })
         {
             if (Math.Abs(a.Dot(axis)) > 1e-6 || offset.IsZero(1e-9))
                 continue;

@@ -22,6 +22,12 @@ public sealed class Model
     public LengthUnit Units { get; set; } = LengthUnit.Millimeters;
     public int UnitPrecision { get; set; } = 1;
 
+    /// <summary>
+    /// SketchUp's drawing axes (Axes tool): origin and red/green/blue directions, orthonormal. Inference, arrow-key
+    /// locks and the ground plane follow them.
+    /// </summary>
+    public Geometry.Transform Axes { get; set; } = Geometry.Transform.Identity;
+
     /// <summary>Text of the document's source, for diagnostics (e.g. "SketchUp 21.1.332").</summary>
     public string SourceVersion { get; set; } = "";
 
