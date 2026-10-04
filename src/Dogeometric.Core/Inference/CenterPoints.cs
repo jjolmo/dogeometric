@@ -15,8 +15,10 @@ public static class CenterPoints
     public static List<CenterPoint> Of(Entities context, Transform toWorld, IReadOnlyCollection<object> selection)
     {
         var result = new List<CenterPoint>();
+        // Copies share their definition's box: measure each definition once.
+        var boxes = new Dictionary<ComponentDefinition, Bounds3>();
         foreach (var inst in context.Instances.Where(i => !i.Hidden))
-            if (InstanceCenter(inst) is { } c)
+            if (InstanceCenter(inst, boxes) is { } c)
                 result.Add(new CenterPoint(toWorld.ApplyPoint(c), inst.IsGroup ? "Center of Group" : "Center of Component"));
         foreach (var face in context.Faces.Where(f => !f.Hidden))
             result.Add(new CenterPoint(toWorld.ApplyPoint(FaceCenter(face)), "Center of Face"));
@@ -31,9 +33,13 @@ public static class CenterPoints
     }
 
     /// <summary>The middle of a group or component's box, in the coordinates of the collection holding it.</summary>
-    public static Vec3? InstanceCenter(ComponentInstance inst)
+    public static Vec3? InstanceCenter(ComponentInstance inst, Dictionary<ComponentDefinition, Bounds3>? boxes = null)
     {
-        var b = inst.Definition.Entities.Bounds();
+        Bounds3 b;
+        if (boxes == null)
+            b = inst.Definition.Entities.Bounds();
+        else if (!boxes.TryGetValue(inst.Definition, out b))
+            boxes[inst.Definition] = b = inst.Definition.Entities.Bounds();
         return b.IsEmpty ? null : inst.Transform.ApplyPoint(b.Center);
     }
 
