@@ -253,6 +253,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.TapeMeasure, () => new TapeMeasureTool());
         RegisterTool(CommandIds.Rotate, () => new RotateTool());
         RegisterTool(CommandIds.Scale, () => new ScaleTool());
+        RegisterTool(CommandIds.FollowMe, () => new FollowMeTool());
         RegisterTool(CommandIds.Offset, () => new OffsetTool());
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }
