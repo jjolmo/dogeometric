@@ -36,6 +36,7 @@ public static class SkpExporter
                     continue;
                 var cb = b.AddComponentDefinition(string.IsNullOrEmpty(def.Name) ? "Component" : def.Name);
                 cb.IsGroupDefinition = def.IsGroup;
+                cb.IsImageDefinition = def.IsImage;
                 cb.AlwaysFacesCamera = def.AlwaysFaceCamera;
                 cb.ShadowsFaceSun = def.ShadowsFaceSun;
                 using (cb)
@@ -165,11 +166,26 @@ public static class SkpExporter
             {
                 var outer = outerMm.Select(Inches).ToList();
                 var holes = holesMm.Select(h => (IReadOnlyList<(double, double, double)>)h.Select(Inches).ToList()).ToList();
+                var (frontPins, backPins) = (Pins(face, false, outerMm), Pins(face, true, outerMm));
                 try
                 {
                     target.AddFace(outer, ctx.Material(face.FrontMaterial), ctx.Layer(face.Tag), ctx.Material(face.BackMaterial),
-                        face.Hidden, soft, smooth, hiddenEdges, holes.Count > 0 ? holes : null,
-                        Pins(face, false, outerMm), Pins(face, true, outerMm));
+                        face.Hidden, soft, smooth, hiddenEdges, holes.Count > 0 ? holes : null, frontPins, backPins);
+                }
+                catch (Sk.SkpWriteException ex) when (frontPins != null || backPins != null)
+                {
+                    // A texture placement the pins can't express (a projected texture seen edge-on): keep the face
+                    // with the default projection rather than lose it.
+                    ctx.Warn($"texture placement not kept on a face: {ex.Message}");
+                    try
+                    {
+                        target.AddFace(outer, ctx.Material(face.FrontMaterial), ctx.Layer(face.Tag), ctx.Material(face.BackMaterial),
+                            face.Hidden, soft, smooth, hiddenEdges, holes.Count > 0 ? holes : null);
+                    }
+                    catch (Sk.SkpWriteException ex2)
+                    {
+                        ctx.Warn($"face skipped: {ex2.Message}");
+                    }
                 }
                 catch (Sk.SkpWriteException ex)
                 {

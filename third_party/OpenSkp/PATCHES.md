@@ -51,7 +51,9 @@ Every change is listed here and should be offered upstream.
 10. **Image entities inside definitions** (`Create.cs`, `ComponentDefinitionBuilder.AddImageInstance`,
     `SkpBuilder.AddImageInstance`). `AddImage` only placed Images at the top level, building a definition per call;
     SketchUp nests Images in groups and components and shares one definition between copies. The new methods place a
-    `CImage` that references an already-written image definition, at any level.
+    `CImage` that references an already-written image definition, at any level. An image definition is marked with
+    kind 2 in the definition tail's gap byte (patch 4's byte -4: 0 component, 1 group, 2 image), as SketchUp 2021
+    writes when it saves a model with Images in the 2017 format; without it SketchUp counts it as a component.
 
 ## Note on `_scaffold/blank_v17.skp`
 

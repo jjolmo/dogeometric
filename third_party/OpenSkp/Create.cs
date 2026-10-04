@@ -1270,7 +1270,7 @@ namespace OpenSkp
         /// <summary>Dogeometric patch 4: the 43-byte gap carries the definition's behaviour flags at byte -9
         /// (1 = always faces camera, 2 = shadows face sun) and its kind at byte -4 (1 = group), as SketchUp writes
         /// them. Reading back ground-truth files shows both; the original writer left them all zero.</summary>
-        internal void WriteDefinitionTail(string name, bool isGroup, bool facesCamera, bool shadowsFaceSun)
+        internal void WriteDefinitionTail(string name, bool isGroup, bool facesCamera, bool shadowsFaceSun, bool isImage = false)
         {
             AddU32(0); // nrel: CRelationship count - always 0, not supported
             AddU16(0);
@@ -1281,7 +1281,8 @@ namespace OpenSkp
             AddU32((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             var gap = new byte[43];
             gap[gap.Length - 9] = (byte)((facesCamera ? 1 : 0) | (shadowsFaceSun ? 2 : 0));
-            gap[gap.Length - 4] = (byte)(isGroup ? 1 : 0);
+            // Kind: 0 component, 1 group, 2 image (SketchUp 2021 saving a model with Images as 2017 writes 2).
+            gap[gap.Length - 4] = (byte)(isImage ? 2 : isGroup ? 1 : 0);
             AddRaw(gap);
             WriteThumbnail();
         }
@@ -1815,6 +1816,9 @@ namespace OpenSkp
         /// <summary>Dogeometric patch 4: write this definition as a group definition (placed with AddGroupInstance).</summary>
         public bool IsGroupDefinition { get; set; }
 
+        /// <summary>Dogeometric patch 4: an Image's definition (kind 2), so SketchUp treats it as one.</summary>
+        public bool IsImageDefinition { get; set; }
+
         /// <summary>Dogeometric patch 4: SketchUp's "Always face camera" behaviour.</summary>
         public bool AlwaysFacesCamera { get; set; }
 
@@ -2052,7 +2056,7 @@ namespace OpenSkp
             }
             var writer = Skp.DefinitionWriter!;
             writer.PatchU32(_countPatchPos, (uint)_newEntityCount);
-            writer.WriteDefinitionTail(Name, IsGroupDefinition || _groupPlacement.HasValue, AlwaysFacesCamera, ShadowsFaceSun);
+            writer.WriteDefinitionTail(Name, IsGroupDefinition || _groupPlacement.HasValue, AlwaysFacesCamera, ShadowsFaceSun, IsImageDefinition);
             _closed = true;
             Skp.ClearOpenDefinition(this);
             if (_groupPlacement.HasValue)
@@ -2684,6 +2688,7 @@ namespace OpenSkp
             ComponentDefinitionBuilder imageDef;
             using (imageDef = AddComponentDefinition($"Image{_definitionCount}"))
             {
+                imageDef.IsImageDefinition = true;
                 // Standard (0,0)-at-bottom-left, V increasing upward - no
                 // vertical flip. Every other UV-related fact in this file
                 // is calibrated against real SketchUp output; this one
