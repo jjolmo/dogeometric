@@ -43,6 +43,9 @@ public sealed class ModelRenderer
     /// <summary>View › Guides.</summary>
     public bool ShowGuides { get; set; } = true;
 
+    /// <summary>View › Hidden Objects: hidden groups and components show faded. Needs a rebuild.</summary>
+    public bool ShowHiddenObjects { get; set; }
+
     /// <summary>View › Hidden Geometry: hidden faces dotted, soft/smooth/hidden edges dashed. Needs a rebuild.</summary>
     public bool ShowHiddenGeometry
     {
@@ -113,7 +116,7 @@ public sealed class ModelRenderer
         var keys = path.Select(i => (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(i)).ToList();
         var edited = path.Count > 0 ? (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(path[^1].Definition) : 0UL;
         // inside: under the open instance; similar: under another copy of the edited component.
-        void Walk(Node node, int depth, bool inside, bool similar)
+        void Walk(Node node, int depth, bool inside, bool similar, bool hiddenObject = false)
         {
             foreach (var child in node.GetChildren())
             {
@@ -121,14 +124,14 @@ public sealed class ModelRenderer
                 {
                     case MeshInstance3D mi:
                         var outside = keys.Count > 0 && !inside;
-                        mi.SetInstanceShaderParameter("fade", outside ? 1f : 0f);
+                        mi.SetInstanceShaderParameter("fade", outside || hiddenObject ? 1f : 0f);
                         mi.Visible = !outside || (similar ? !hideSimilar : !hideRest);
                         break;
                     case Node3D n when n.HasMeta("instance"):
                         // Inside once the whole path matched; on the path while its prefix matches.
                         var onPath = !inside && depth < keys.Count && n.GetMeta("instance").AsUInt64() == keys[depth];
                         var isSimilar = similar || !onPath && !inside && keys.Count > 0 && n.GetMeta("definition").AsUInt64() == edited;
-                        Walk(n, onPath ? depth + 1 : depth, inside || onPath && depth + 1 == keys.Count, isSimilar);
+                        Walk(n, onPath ? depth + 1 : depth, inside || onPath && depth + 1 == keys.Count, isSimilar, hiddenObject || n.HasMeta("hidden"));
                         break;
                 }
             }
@@ -166,11 +169,13 @@ public sealed class ModelRenderer
 
         foreach (var inst in entities.Instances)
         {
-            if (inst.Hidden || inst.Tag is { Visible: false } || inst.Definition.IsImage && inst.Definition.Entities.IsEmpty)
+            if ((inst.Hidden && !ShowHiddenObjects) || inst.Tag is { Visible: false } || inst.Definition.IsImage && inst.Definition.Entities.IsEmpty)
                 continue;
             var node = new Node3D { Name = string.IsNullOrEmpty(inst.Name) ? inst.Definition.Name : inst.Name, Transform = ToGodot(inst.Transform) };
             node.SetMeta("instance", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst));
             node.SetMeta("definition", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst.Definition));
+            if (inst.Hidden)
+                node.SetMeta("hidden", true); // shown faded (View › Hidden Objects)
             parent.AddChild(node);
             AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
         }

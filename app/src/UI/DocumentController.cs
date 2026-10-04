@@ -36,6 +36,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>Re-applies the component-edit fading (after a View › Component Edit toggle).</summary>
     public void RefreshComponentEdit() => RebuildSelection();
 
+    /// <summary>View › Hidden Objects.</summary>
+    public bool ShowHiddenObjects
+    {
+        get => _renderer.ShowHiddenObjects;
+        set
+        {
+            _renderer.ShowHiddenObjects = value;
+            Rebuild();
+        }
+    }
+
     /// <summary>View › Hidden Geometry.</summary>
     public bool ShowHiddenGeometry
     {

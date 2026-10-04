@@ -102,6 +102,7 @@ public static class CommandIds
     public const int BackEdges = 10619;
     public const int HiddenGeometry = 21155;
     public const int Fog = 10618;
+    public const int HiddenObjects = 21153;
     public const int HideRestOfModel = 21586;
     public const int HideSimilarComponents = 21587;
     public const int Text3D = 21940;
