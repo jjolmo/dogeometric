@@ -288,13 +288,17 @@ public partial class MainWindow : Control
         {
             _commands.Register(id, () =>
             {
-                var doc = Doc();
-                var solids = doc.Selection.Items.OfType<ComponentInstance>().ToList();
+                var solids = Doc().Selection.Items.OfType<ComponentInstance>().ToList();
+                // Without two solids selected the command becomes a tool: click the first, then the second.
                 if (solids.Count < 2)
-                {
-                    _status.SetHint($"{name}: select at least two solid groups or components first.");
-                    return;
-                }
+                    _viewport.Tools.Activate(new SolidPickTool(id, name, pair => Run(pair)));
+                else
+                    Run(solids);
+            }, () => _viewport.Tools.Active.CommandId == id);
+
+            void Run(List<ComponentInstance> solids)
+            {
+                var doc = Doc();
                 try
                 {
                     List<ComponentInstance> results = [];
@@ -306,7 +310,7 @@ public partial class MainWindow : Control
                 {
                     _status.SetHint($"{name}: {ex.Message}");
                 }
-            });
+            }
         }
         Solid(CommandIds.OuterShell, "Outer Shell", (d, s) => [SolidTools.OuterShell(d.Model, d.Context.Entities, s)]);
         Solid(CommandIds.SolidUnion, "Union", (d, s) => [SolidTools.Union(d.Model, d.Context.Entities, s)]);
