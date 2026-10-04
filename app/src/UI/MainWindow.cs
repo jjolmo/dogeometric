@@ -72,6 +72,7 @@ public partial class MainWindow : Control
         _viewport.CameraChanged += RefreshToolbars;
 
         _viewport.Tools.Changed += UpdateToolStatus;
+        _viewport.VcbTextChanged += text => _status.Vcb.Text = text;
         UpdateToolStatus();
         _viewport.GrabFocus();
 
@@ -134,6 +135,8 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Pan, () => new PanTool());
         RegisterTool(CommandIds.Zoom, () => new ZoomTool());
         RegisterTool(CommandIds.Select, () => new SelectTool());
+        RegisterTool(CommandIds.Line, () => new LineTool());
+        RegisterTool(CommandIds.Rectangle, () => new RectangleTool());
     }
 
     private void RegisterTool(int id, Func<Tool> create)

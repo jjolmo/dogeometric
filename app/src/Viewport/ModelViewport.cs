@@ -48,6 +48,18 @@ public partial class ModelViewport : Control
     /// <summary>Bounds of the model contents, used by Zoom Extents.</summary>
     public Func<Bounds3> ModelBounds { get; set; } = () => Bounds3.Empty;
 
+    /// <summary>Text being typed into the Measurements box (empty when not typing).</summary>
+    public string VcbTyping { get; private set; } = "";
+
+    /// <summary>Raised when the Measurements box text should change (typing or tool feedback).</summary>
+    public event Action<string>? VcbTextChanged;
+
+    public void ShowVcbValue(string value)
+    {
+        if (VcbTyping.Length == 0)
+            VcbTextChanged?.Invoke(value);
+    }
+
     /// <summary>Raised after any camera change (menus show projection state).</summary>
     public event Action? CameraChanged;
 
@@ -399,6 +411,11 @@ public partial class ModelViewport : Control
 
     private void HandleKey(InputEventKey key)
     {
+        if (key.Pressed && HandleVcbKey(key))
+        {
+            AcceptEvent();
+            return;
+        }
         var consumed = key.Pressed ? Tools.Active.KeyDown(key) : Tools.Active.KeyUp(key);
         if (!consumed && key.Pressed && key.Keycode == Key.Escape && Tools.Active.IsNavigation)
         {
@@ -407,6 +424,45 @@ public partial class ModelViewport : Control
         }
         if (consumed)
             AcceptEvent();
+    }
+
+    /// <summary>
+    /// SketchUp's Measurements box takes typing without being clicked: a digit (or '-', '.', ',') starts it while a
+    /// tool that measures is active, and from then on letters belong to it too ("25cm"), so they don't fire tool
+    /// shortcuts. Enter applies, Backspace edits, Esc discards.
+    /// </summary>
+    private bool HandleVcbKey(InputEventKey key)
+    {
+        if (Tools.Active.VcbLabel.Length == 0 || key.CtrlPressed || key.AltPressed)
+            return false;
+        var ch = key.Unicode > 0 ? (char)key.Unicode : '\0';
+        var typing = VcbTyping.Length > 0;
+        if (!typing && !(char.IsDigit(ch) || ch is '-' or '.' or ','))
+            return false;
+
+        switch (key.Keycode)
+        {
+            case Key.Enter or Key.KpEnter:
+                var text = VcbTyping;
+                VcbTyping = "";
+                if (!Tools.Active.ApplyVcb(text))
+                    OS.Alert($"Invalid value: {text}", "Measurements");
+                VcbTextChanged?.Invoke(Tools.Active.VcbValue);
+                return true;
+            case Key.Backspace:
+                VcbTyping = VcbTyping.Length > 0 ? VcbTyping[..^1] : "";
+                VcbTextChanged?.Invoke(VcbTyping);
+                return true;
+            case Key.Escape:
+                VcbTyping = "";
+                VcbTextChanged?.Invoke(Tools.Active.VcbValue);
+                return true;
+        }
+        if (ch == '\0' || char.IsControl(ch))
+            return typing;
+        VcbTyping += ch;
+        VcbTextChanged?.Invoke(VcbTyping);
+        return true;
     }
 
     /// <summary>Middle double-click: pan so the clicked point becomes the view centre and orbit target.</summary>

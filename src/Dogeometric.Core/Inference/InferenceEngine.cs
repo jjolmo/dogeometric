@@ -1,0 +1,205 @@
+using Dogeometric.Core.Geometry;
+using Dogeometric.Core.Modeling;
+using Dogeometric.Core.Picking;
+
+namespace Dogeometric.Core.Inference;
+
+public enum InferenceKind
+{
+    None,
+    Endpoint,
+    Midpoint,
+    OnEdge,
+    OnFace,
+    OnAxis,
+    Origin,
+    InPlane,
+}
+
+/// <summary>The snapped point and what it snapped to (drives the cursor marker colour and tooltip).</summary>
+public sealed record InferenceResult(Vec3 Point, InferenceKind Kind, string Label, Vec3? AxisFrom = null, Vec3? AxisDirection = null)
+{
+    public Face? Face { get; init; }
+    public Edge? Edge { get; init; }
+
+    /// <summary>World transform of the entity hit (faces/edges inside groups).</summary>
+    public Transform EntityToWorld { get; init; } = Transform.Identity;
+}
+
+/// <summary>The view, as the inference engine needs it: rays through pixels and pixels of model points.</summary>
+public interface IViewProjection
+{
+    Ray RayAt(double x, double y);
+    (double X, double Y)? ToScreen(Vec3 world);
+    PickHit? Pick(double x, double y);
+
+    /// <summary>Direction of view (from the eye into the scene).</summary>
+    Vec3 ViewDirection { get; }
+}
+
+/// <summary>
+/// SketchUp's inference engine: snaps the cursor to endpoints, midpoints, edges, faces and the drawing axes from
+/// the previous point. Arrow keys lock an axis (→ red, ← green, ↑ blue).
+/// </summary>
+public sealed class InferenceEngine
+{
+    public const double SnapPixels = 8;
+
+    private static readonly (Vec3 Dir, string Name)[] Axes = [(Vec3.UnitX, "Red"), (Vec3.UnitY, "Green"), (Vec3.UnitZ, "Blue")];
+
+    /// <summary>Locked axis (arrow keys), or null.</summary>
+    public Vec3? LockedAxis { get; set; }
+
+    /// <summary>Locked inference (Shift): the line the point must stay on.</summary>
+    public (Vec3 From, Vec3 Dir, string Label)? LockedLine { get; set; }
+
+    public InferenceResult Infer(IViewProjection view, double x, double y, Vec3? from, Entities context, Transform contextToWorld)
+    {
+        var ray = view.RayAt(x, y);
+
+        // A locked axis or Shift-locked inference constrains the point to a line from the previous point.
+        if (from is { } f0 && (LockedAxis is { } || LockedLine is { }))
+        {
+            var (origin, dir, label) = LockedLine is { } l ? l : (f0, LockedAxis!.Value, AxisName(LockedAxis!.Value));
+            var p = ClosestOnLine(ray, origin, dir);
+            return new InferenceResult(p, InferenceKind.OnAxis, label, origin, dir);
+        }
+
+        var hit = view.Pick(x, y);
+        var snap = SnapToPoints(view, x, y, hit, context, contextToWorld);
+        if (snap != null)
+            return snap;
+
+        if (from is { } start && AxisInference(view, ray, x, y, start) is { } axis)
+            return axis;
+
+        if (hit != null)
+        {
+            var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+            return hit.Entity switch
+            {
+                Edge e => new InferenceResult(hit.Point, InferenceKind.OnEdge, "On Edge") { Edge = e, EntityToWorld = toWorld },
+                Face f => new InferenceResult(hit.Point, InferenceKind.OnFace, "On Face") { Face = f, EntityToWorld = toWorld },
+                _ => new InferenceResult(hit.Point, InferenceKind.None, ""),
+            };
+        }
+
+        // Nothing under the cursor: from a previous point, stay in the axis plane most facing the viewer;
+        // otherwise land on the ground.
+        if (from is { } s)
+        {
+            var normal = MostFacing(view.ViewDirection);
+            if (IntersectPlane(ray, normal, s) is { } q)
+                return new InferenceResult(q, InferenceKind.InPlane, "");
+        }
+        if (IntersectPlane(ray, Vec3.UnitZ, Vec3.Zero) is { } g)
+            return new InferenceResult(g, InferenceKind.InPlane, "");
+        return new InferenceResult(ray.At(1000), InferenceKind.None, "");
+    }
+
+    /// <summary>Endpoints, midpoints and the origin within <see cref="SnapPixels"/> of the cursor.</summary>
+    private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld)
+    {
+        InferenceResult? best = null;
+        var bestDist = SnapPixels;
+
+        void Consider(Vec3 world, InferenceKind kind, string label, Edge? edge = null)
+        {
+            if (view.ToScreen(world) is not { } s)
+                return;
+            var d = Math.Sqrt((s.X - x) * (s.X - x) + (s.Y - y) * (s.Y - y));
+            // Endpoints beat midpoints at equal distance.
+            if (d < bestDist || (d <= bestDist + 0.5 && kind == InferenceKind.Endpoint && best?.Kind == InferenceKind.Midpoint))
+            {
+                bestDist = d;
+                best = new InferenceResult(world, kind, label) { Edge = edge };
+            }
+        }
+
+        Consider(Vec3.Zero, InferenceKind.Origin, "Origin");
+
+        void FromEdge(Edge e, Transform xf)
+        {
+            Consider(xf.ApplyPoint(e.Start.Position), InferenceKind.Endpoint, "Endpoint", e);
+            Consider(xf.ApplyPoint(e.End.Position), InferenceKind.Endpoint, "Endpoint", e);
+            Consider(xf.ApplyPoint((e.Start.Position + e.End.Position) * 0.5), InferenceKind.Midpoint, "Midpoint", e);
+        }
+
+        foreach (var e in context.Edges)
+        {
+            if ((e.Flags & EdgeFlags.Hidden) != 0)
+                continue;
+            FromEdge(e, contextToWorld);
+        }
+
+        // Geometry under the cursor in other contexts (inside groups) snaps too.
+        if (hit != null)
+        {
+            var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+            if (hit.Edge is { } he)
+                FromEdge(he, toWorld);
+            if (hit.Face is { } hf)
+                foreach (var e in Topology.EdgesOf(hf))
+                    FromEdge(e, toWorld);
+        }
+        return best;
+    }
+
+    /// <summary>The red/green/blue axis through <paramref name="from"/> whose screen direction the cursor follows.</summary>
+    private static InferenceResult? AxisInference(IViewProjection view, Ray ray, double x, double y, Vec3 from)
+    {
+        if (view.ToScreen(from) is null)
+            return null;
+        InferenceResult? best = null;
+        var bestDist = SnapPixels;
+        foreach (var (dir, name) in Axes)
+        {
+            var p = ClosestOnLine(ray, from, dir);
+            if (view.ToScreen(p) is not { } s || p.DistanceTo(from) < Tolerance.Length)
+                continue;
+            // Distance from the cursor to the axis line on screen.
+            var d = Math.Sqrt((s.X - x) * (s.X - x) + (s.Y - y) * (s.Y - y));
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = new InferenceResult(p, InferenceKind.OnAxis, $"On {name} Axis", from, dir);
+            }
+        }
+        return best;
+    }
+
+    public static string AxisName(Vec3 dir) =>
+        Math.Abs(dir.X) > 0.99 ? "On Red Axis" : Math.Abs(dir.Y) > 0.99 ? "On Green Axis" : Math.Abs(dir.Z) > 0.99 ? "On Blue Axis" : "Parallel to Edge";
+
+    /// <summary>Point on the line (origin, dir) closest to the ray.</summary>
+    public static Vec3 ClosestOnLine(Ray ray, Vec3 origin, Vec3 dir)
+    {
+        var d1 = ray.Direction;
+        var d2 = dir.Normalized();
+        var r = ray.Origin - origin;
+        double a = d1.Dot(d1), b = d1.Dot(d2), c = d1.Dot(r), f = d2.Dot(r);
+        var denom = a - b * b;
+        if (Math.Abs(denom) < 1e-12)
+            return origin;
+        var s = (a * f - b * c) / denom;
+        return origin + d2 * s;
+    }
+
+    public static Vec3? IntersectPlane(Ray ray, Vec3 normal, Vec3 point)
+    {
+        var denom = ray.Direction.Dot(normal);
+        if (Math.Abs(denom) < 1e-9)
+            return null;
+        var t = (point - ray.Origin).Dot(normal) / denom;
+        return t > 0 ? ray.At(t) : null;
+    }
+
+    /// <summary>The red/green/blue plane normal most aligned with the view direction.</summary>
+    public static Vec3 MostFacing(Vec3 viewDir)
+    {
+        var ax = Math.Abs(viewDir.X);
+        var ay = Math.Abs(viewDir.Y);
+        var az = Math.Abs(viewDir.Z);
+        return az >= ax && az >= ay ? Vec3.UnitZ : ax >= ay ? Vec3.UnitX : Vec3.UnitY;
+    }
+}

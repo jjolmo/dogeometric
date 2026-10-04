@@ -47,4 +47,8 @@ public static class CommandIds
 
     // Tools
     public const int Select = 21022;
+
+    // Draw
+    public const int Line = 21020;
+    public const int Rectangle = 21094;
 }
