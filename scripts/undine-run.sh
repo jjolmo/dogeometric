@@ -20,7 +20,8 @@ export DISPLAY=:0 XAUTHORITY=$HOME/.Xauthority
 mkdir -p logs
 if ! dotnet build app/Dogeometric.csproj -nologo -v q 2>&1 | grep -E "error|Build succeeded" | sort -u; then exit 1; fi
 dotnet build app/Dogeometric.csproj -nologo -v q 2>&1 | grep -q "error" && exit 1
-pkill -f "godot.x86_64 --path app" || true
+pkill -f "[g]odot.x86_64 --path app" || true
+~/Godot/godot.x86_64 --headless --path app --import >/dev/null 2>&1 || true
 sleep 0.5
 nohup ~/Godot/godot.x86_64 --path app -- ${2:+"$2"} > logs/app-run.log 2>&1 &
 sleep "$1"

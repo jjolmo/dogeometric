@@ -13,6 +13,8 @@ public partial class MainWindow : Control
     private ModelViewport _viewport = null!;
     private StatusBar _status = null!;
     private DocumentController _document = null!;
+    private PanelContainer _leftTools = null!;
+    private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
     {
@@ -28,7 +30,14 @@ public partial class MainWindow : Control
         _viewport = new ModelViewport { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _status = new StatusBar();
 
-        layout.AddChild(_viewport);
+        // Drawing area with the Large Tool Set docked on its left, as in SketchUp's default layout.
+        var middle = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
+        middle.AddThemeConstantOverride("separation", 0);
+        layout.AddChild(middle);
+        _leftTools = new PanelContainer();
+        _leftTools.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
+        middle.AddChild(_leftTools);
+        middle.AddChild(_viewport);
         layout.AddChild(_status);
 
         _document = new DocumentController(this, _viewport, _status);
@@ -42,6 +51,23 @@ public partial class MainWindow : Control
         menuPanel.AddChild(MenuBuilder.Build(_commands, text => _status.SetHint(text), UpdateToolStatus));
         layout.AddChild(menuPanel);
         layout.MoveChild(menuPanel, 0);
+
+        var topBars = new HFlowContainer();
+        topBars.AddThemeConstantOverride("h_separation", 6);
+        var topPanel = new PanelContainer();
+        topPanel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
+        topPanel.AddChild(topBars);
+        layout.AddChild(topPanel);
+        layout.MoveChild(topPanel, 1);
+        _toolbars.Add(Toolbar.Create("Standard", _commands, Toolbars.Icons, Toolbars.Standard));
+        _toolbars.Add(Toolbar.Create("Views", _commands, Toolbars.Icons, Toolbars.Views));
+        _toolbars.Add(Toolbar.Create("Styles", _commands, Toolbars.Icons, Toolbars.Styles));
+        foreach (var bar in _toolbars)
+            topBars.AddChild(bar);
+        var largeToolSet = Toolbar.Create("Large Tool Set", _commands, Toolbars.Icons, Toolbars.LargeToolSet, columns: 2);
+        _toolbars.Add(largeToolSet);
+        _leftTools.AddChild(largeToolSet);
+        _viewport.CameraChanged += RefreshToolbars;
 
         _viewport.Tools.Changed += UpdateToolStatus;
         UpdateToolStatus();
@@ -109,8 +135,15 @@ public partial class MainWindow : Control
 
     private void OpenFromCommandLine(string path) => _document.Open(path);
 
+    private void RefreshToolbars()
+    {
+        foreach (var bar in _toolbars)
+            bar.Refresh();
+    }
+
     private void UpdateToolStatus()
     {
+        RefreshToolbars();
         _status.SetHint(_viewport.Tools.Active.StatusText);
         var label = _viewport.Tools.Active.VcbLabel;
         _status.SetVcbLabel(label.Length > 0 ? label : "Measurements", editable: label.Length > 0);

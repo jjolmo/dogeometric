@@ -7,6 +7,10 @@ namespace Dogeometric.App.Commands;
 public sealed class Command(int id)
 {
     public int Id { get; } = id;
+
+    /// <summary>Menu label (without the ampersand mnemonic), used for toolbar tooltips.</summary>
+    public string Label { get; set; } = "";
+
     public string Description { get; set; } = "";
     public Action? Execute { get; set; }
     public Func<bool>? IsChecked { get; set; }
@@ -78,7 +82,7 @@ public sealed class CommandRegistry
         return true;
     }
 
-    private static List<MenuNode> ParseMenus(JsonElement items)
+    private List<MenuNode> ParseMenus(JsonElement items)
     {
         var list = new List<MenuNode>();
         foreach (var it in items.EnumerateArray())
@@ -92,10 +96,19 @@ public sealed class CommandRegistry
             if (it.TryGetProperty("children", out var children))
                 list.Add(new MenuNode(label, null, ParseMenus(children), false));
             else
-                list.Add(new MenuNode(label, it.GetProperty("id").GetInt32(), null, false));
+            {
+                var id = it.GetProperty("id").GetInt32();
+                list.Add(new MenuNode(label, id, null, false));
+                var cmd = Get(id);
+                if (cmd.Label.Length == 0)
+                    cmd.Label = label;
+            }
         }
         return list;
     }
+
+    /// <summary>Human-readable shortcut, e.g. "Ctrl+Shift+E".</summary>
+    public static string ShortcutText(Key keys) => keys == Key.None ? "" : OS.GetKeycodeString(keys);
 
     /// <summary>Parses accelerator text such as "Ctrl+Shift+E", "PgDn", "Space" or "F1".</summary>
     public static Key ParseKeys(string text)
