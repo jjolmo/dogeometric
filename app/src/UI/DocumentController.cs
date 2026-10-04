@@ -246,6 +246,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private void RebuildSelection()
     {
         _selectionRenderer.Build(Document, viewport.SelectionRoot);
+        ModelRenderer.FadeOutside(viewport.ModelRoot, Document.Context.Path);
         viewport.QueueOverlayRedraw(); // dimensions and texts show selection and edits on the overlay
     }
 

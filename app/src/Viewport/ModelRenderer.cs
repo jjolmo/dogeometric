@@ -104,6 +104,33 @@ public sealed class ModelRenderer
         AddEntities(model.Entities, root, inherited: null, mirrored: false);
     }
 
+    /// <summary>
+    /// Fades everything outside the group or component being edited (<paramref name="path"/>, empty at the top
+    /// level), as SketchUp does while you edit one.
+    /// </summary>
+    public static void FadeOutside(Node3D root, IReadOnlyList<ComponentInstance> path)
+    {
+        var keys = path.Select(i => (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(i)).ToList();
+        void Walk(Node node, int depth, bool inside)
+        {
+            foreach (var child in node.GetChildren())
+            {
+                switch (child)
+                {
+                    case MeshInstance3D mi:
+                        mi.SetInstanceShaderParameter("fade", inside || keys.Count == 0 ? 0f : 1f);
+                        break;
+                    case Node3D n when n.HasMeta("instance"):
+                        // Inside once the whole path matched; on the path while its prefix matches.
+                        var onPath = !inside && depth < keys.Count && n.GetMeta("instance").AsUInt64() == keys[depth];
+                        Walk(n, onPath ? depth + 1 : depth, inside || onPath && depth + 1 == keys.Count);
+                        break;
+                }
+            }
+        }
+        Walk(root, 0, false);
+    }
+
     private void AddEntities(Entities entities, Node3D parent, Material? inherited, bool mirrored)
     {
         var mesh = MeshFor(entities);
@@ -137,6 +164,7 @@ public sealed class ModelRenderer
             if (inst.Hidden || inst.Tag is { Visible: false } || inst.Definition.IsImage && inst.Definition.Entities.IsEmpty)
                 continue;
             var node = new Node3D { Name = string.IsNullOrEmpty(inst.Name) ? inst.Definition.Name : inst.Name, Transform = ToGodot(inst.Transform) };
+            node.SetMeta("instance", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst));
             parent.AddChild(node);
             AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
         }
