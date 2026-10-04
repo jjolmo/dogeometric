@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Isometric cube on the red/green/blue axes, Dogeometric's mark. -->
+  <rect width="128" height="128" rx="24" fill="#2facE0"/>
+  <path d="M64 18 L106 42 L64 66 L22 42 Z" fill="#ffffff"/>
+  <path d="M22 42 L64 66 L64 112 L22 88 Z" fill="#d6dde3"/>
+  <path d="M106 42 L64 66 L64 112 L106 88 Z" fill="#a4b2bb"/>
+  <path d="M64 66 L64 112" stroke="#0000b2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64 66 L106 42" stroke="#00b200" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64 66 L22 42" stroke="#b20000" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="66" r="5" fill="#2b2b2b"/>
+</svg>

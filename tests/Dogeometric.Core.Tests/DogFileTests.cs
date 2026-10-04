@@ -1,0 +1,96 @@
+using System.IO.Compression;
+using Dogeometric.Core.Geometry;
+using Dogeometric.Core.IO;
+using Dogeometric.Core.Modeling;
+using Dogeometric.Core.View;
+
+namespace Dogeometric.Core.Tests;
+
+public class DogFileTests
+{
+    private static Model RoundTrip(Model m)
+    {
+        using var ms = new MemoryStream();
+        DogFile.Save(m, ms);
+        ms.Position = 0;
+        return DogFile.Load(ms);
+    }
+
+    [Fact]
+    public void Round_trip_keeps_geometry_hierarchy_and_attributes()
+    {
+        var (model, a, b) = TestModels.TwoBoxGroups();
+        var red = new Material { Name = "Red", Color = new Rgba(255, 0, 0), Opacity = 0.5 };
+        var tex = new Material { Name = "Wood", Texture = new TextureImage { FileName = "wood.png", Data = [1, 2, 3, 4], WidthMm = 100, HeightMm = 50 } };
+        model.Materials.AddRange([red, tex]);
+        var pcb = model.GetOrAddTag("PCB");
+        pcb.Visible = false;
+        a.Material = red;
+        b.Tag = pcb;
+        b.Hidden = true;
+        b.Name = "Lid";
+        b.Transform = Transform.Rotation(Vec3.UnitZ, 0.25, new Vec3(1, 2, 3)).Then(Transform.Translation(new Vec3(100, 0, 0)));
+        var face = model.Definitions[0].Entities.Faces[0];
+        face.FrontMaterial = tex;
+        face.BackMaterial = red;
+        model.Definitions[0].Entities.Edges[0].Flags = EdgeFlags.Soft | EdgeFlags.Smooth;
+        model.Entities.AddFace(
+            [new(0, 0, -1), new(50, 0, -1), new(50, 50, -1), new(0, 50, -1)],
+            [[new(10, 10, -1), new(20, 10, -1), new(20, 20, -1), new(10, 20, -1)]]);
+        model.Scenes.Add(new Scene { Name = "Top", Camera = new CameraState(new Vec3(0, 0, 500), Vec3.Zero, Vec3.UnitY, false, 35, 300) });
+        model.Scenes[0].HiddenTags.Add("PCB");
+
+        var back = RoundTrip(model);
+
+        Assert.Equal(2, back.Definitions.Count);
+        Assert.True(back.Definitions.All(d => d.IsGroup));
+        Assert.Equal(6, back.Definitions[0].Entities.Faces.Count);
+        Assert.Equal(12, back.Definitions[0].Entities.Edges.Count);
+        Assert.Equal(EdgeFlags.Soft | EdgeFlags.Smooth, back.Definitions[0].Entities.Edges[0].Flags);
+
+        var backFace = back.Definitions[0].Entities.Faces[0];
+        Assert.Equal("Wood", backFace.FrontMaterial?.Name);
+        Assert.Equal("Red", backFace.BackMaterial?.Name);
+        Assert.Equal(new byte[] { 1, 2, 3, 4 }, back.Materials[1].Texture!.Data);
+        Assert.Equal(0.5, back.Materials[0].Opacity);
+
+        var lid = back.Entities.Instances[1];
+        Assert.Equal("Lid", lid.Name);
+        Assert.True(lid.Hidden);
+        Assert.Equal("PCB", lid.Tag?.Name);
+        Assert.False(lid.Tag!.Visible);
+        Assert.True(lid.Transform.ApplyPoint(new Vec3(3, 4, 5)).DistanceTo(b.Transform.ApplyPoint(new Vec3(3, 4, 5))) < 1e-9);
+        Assert.Same(back.Definitions[1], lid.Definition);
+
+        var holed = back.Entities.Faces.Single();
+        Assert.Equal(2, holed.Loops.Count);
+        Assert.Equal(2500 - 100, holed.Area, 9);
+
+        Assert.Equal("Top", back.Scenes[0].Name);
+        Assert.False(back.Scenes[0].Camera!.Value.Perspective);
+        Assert.Contains("PCB", back.Scenes[0].HiddenTags);
+    }
+
+    [Fact]
+    public void Faces_keep_their_orientation()
+    {
+        var (model, _, _) = TestModels.TwoBoxGroups();
+        var back = RoundTrip(model);
+        var before = model.Definitions[0].Entities.Faces.Select(f => f.Normal).ToList();
+        var after = back.Definitions[0].Entities.Faces.Select(f => f.Normal).ToList();
+        Assert.Equal(before, after);
+    }
+
+    [Fact]
+    public void Rejects_files_from_a_newer_format_version()
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using var w = new StreamWriter(zip.CreateEntry("manifest.json").Open());
+            w.Write("""{"format":"dogeometric","version":999}""");
+        }
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => DogFile.Load(ms));
+    }
+}
