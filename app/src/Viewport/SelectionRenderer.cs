@@ -20,7 +20,7 @@ public sealed class SelectionRenderer
     {
         var m = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/edge.gdshader") };
         m.SetShaderParameter("color", c);
-        m.SetShaderParameter("depth_bias", 0.00008f);
+        m.SetShaderParameter("depth_bias", 0.0012f);
         return m;
     }
 

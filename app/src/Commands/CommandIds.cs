@@ -52,4 +52,6 @@ public static class CommandIds
     public const int Line = 21020;
     public const int Rectangle = 21094;
     public const int PushPull = 21041;
+    public const int Move = 21048;
+    public const int Eraser = 21019;
 }

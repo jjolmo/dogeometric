@@ -138,6 +138,8 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Line, () => new LineTool());
         RegisterTool(CommandIds.Rectangle, () => new RectangleTool());
         RegisterTool(CommandIds.PushPull, () => new PushPullTool());
+        RegisterTool(CommandIds.Move, () => new MoveTool());
+        RegisterTool(CommandIds.Eraser, () => new EraserTool());
     }
 
     private void RegisterTool(int id, Func<Tool> create)

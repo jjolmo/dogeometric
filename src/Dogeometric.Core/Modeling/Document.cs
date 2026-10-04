@@ -94,3 +94,82 @@ public static class Editing
         e.Vertices.RemoveAll(v => !used.Contains(v));
     }
 }
+
+/// <summary>Move/copy of entities within one collection (Move tool).</summary>
+public static class Transforming
+{
+    /// <summary>
+    /// Moves the given faces, edges and instances by <paramref name="offset"/>. Faces and edges move their
+    /// vertices, so connected geometry stretches, as SketchUp's Move does.
+    /// </summary>
+    public static void Move(Entities e, IEnumerable<object> items, Geometry.Vec3 offset) =>
+        Apply(e, items, Geometry.Transform.Translation(offset));
+
+    public static void Apply(Entities e, IEnumerable<object> items, Geometry.Transform t)
+    {
+        var vertices = new HashSet<Vertex>();
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case Face f:
+                    foreach (var v in f.Loops.SelectMany(l => l.Vertices))
+                        vertices.Add(v);
+                    break;
+                case Edge edge:
+                    vertices.Add(edge.Start);
+                    vertices.Add(edge.End);
+                    break;
+                case ComponentInstance inst:
+                    inst.Transform = inst.Transform.Then(t);
+                    break;
+            }
+        }
+        foreach (var v in vertices)
+            v.Position = t.ApplyPoint(v.Position);
+    }
+
+    /// <summary>
+    /// Copies the given entities transformed by <paramref name="t"/> into the same collection; copied loose
+    /// geometry sticks to what it lands on. Returns the copies (for selection).
+    /// </summary>
+    public static List<object> Copy(Entities e, IEnumerable<object> items, Geometry.Transform t)
+    {
+        var list = items.ToList();
+        var copies = new List<object>();
+        foreach (var inst in list.OfType<ComponentInstance>())
+        {
+            var c = e.AddInstance(inst.Definition, inst.Transform.Then(t));
+            c.Name = inst.Name;
+            c.Tag = inst.Tag;
+            c.Material = inst.Material;
+            copies.Add(c);
+        }
+
+        var faces = list.OfType<Face>().ToList();
+        var edges = list.OfType<Edge>().Concat(faces.SelectMany(Topology.EdgesOf)).Distinct().ToList();
+        var before = e.Faces.ToHashSet();
+        var newEdges = new List<Edge>();
+        foreach (var edge in edges)
+            newEdges.AddRange(StickyGeometry.AddSegment(e, t.ApplyPoint(edge.Start.Position), t.ApplyPoint(edge.End.Position)));
+        // Faces come back where the copied faces were: their loops close, and FaceFinder fills them.
+        FaceFinder.Update(e, newEdges);
+        foreach (var f in e.Faces.Where(f => !before.Contains(f)))
+        {
+            // Copy materials from the face it came from (same shape, moved).
+            var centre = f.OuterLoop.Points.Aggregate(Geometry.Vec3.Zero, (a, p) => a + p) / f.OuterLoop.Edges.Count;
+            var source = faces.FirstOrDefault(s => t.ApplyPoint(s.OuterLoop.Points.Aggregate(Geometry.Vec3.Zero, (a, p) => a + p) / s.OuterLoop.Edges.Count).DistanceTo(centre) < 1e-3);
+            if (source != null)
+            {
+                if (f.Normal.Dot(t.ApplyNormal(source.Normal)) < 0)
+                    FaceFinder.Reverse(f);
+                f.FrontMaterial = source.FrontMaterial;
+                f.BackMaterial = source.BackMaterial;
+                f.Tag = source.Tag;
+            }
+            copies.Add(f);
+        }
+        copies.AddRange(newEdges);
+        return copies;
+    }
+}

@@ -1,0 +1,166 @@
+using Dogeometric.Core.Geometry;
+using Dogeometric.Core.Inference;
+using Dogeometric.Core.Modeling;
+using Dogeometric.Core.Units;
+using Godot;
+
+namespace Dogeometric.App.Tools;
+
+/// <summary>
+/// SketchUp's Move: pick up a point, drop it on another; moves the selection, or what is under the cursor when
+/// nothing is selected. Ctrl copies; after a copy, typing "5x" makes an array of 5, "/5" divides the distance.
+/// Typed lengths move along the current direction.
+/// </summary>
+public sealed class MoveTool : DrawingTool
+{
+    private Vec3? _from;
+    private List<object> _items = [];
+    private bool _copy;
+
+    // Last copy, for "Nx" and "/N" arrays typed right after it.
+    private (List<object> Source, Vec3 Offset)? _lastCopy;
+
+    public override int CommandId => CommandIds.Move;
+    protected override Vec3? From => _from;
+    public override string VcbLabel => "Distance";
+    public override Input.CursorShape Cursor => Input.CursorShape.Move;
+
+    public override string StatusText => (_from, _copy) switch
+    {
+        (null, false) => "Click something to begin moving it.",
+        (null, true) => "Click something to begin copying it.",
+        (_, false) => "Click to place the items you're moving or enter a distance.",
+        _ => "Click to place the items you're copying or enter a distance.",
+    };
+
+    public override string VcbValue => _from is { } f && Current is { } c ? Length.Format(f.DistanceTo(c.Point), LengthUnit.Millimeters, 1) : "";
+
+    protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
+
+    public override void MouseDown(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || Current is not { } inf || View.Document is not { } doc)
+            return;
+        if (_from == null)
+        {
+            _items = doc.Selection.IsEmpty ? ItemUnderCursor(doc, position) : doc.Selection.Items.ToList();
+            if (_items.Count == 0)
+                return;
+            _from = inf.Point;
+            _lastCopy = null;
+            RefreshStatus();
+            return;
+        }
+        Finish(doc, inf.Point - _from.Value);
+    }
+
+    private List<object> ItemUnderCursor(Document doc, Vector2 position)
+    {
+        if (View.Pick(position) is not { } hit)
+            return [];
+        var context = doc.Context.Path;
+        if (hit.Path.Count < context.Count || !hit.Path.Take(context.Count).SequenceEqual(context))
+            return [];
+        return [hit.Path.Count > context.Count ? hit.Path[context.Count] : hit.Entity];
+    }
+
+    private void Finish(Document doc, Vec3 worldOffset)
+    {
+        var offset = doc.Context.ToWorld.Inverse().ApplyVector(worldOffset);
+        if (offset.IsZero())
+        {
+            Cancel();
+            return;
+        }
+        var items = _items;
+        if (_copy)
+        {
+            List<object> copies = [];
+            doc.Operation("Copy", e => copies = Transforming.Copy(e, items, Transform.Translation(offset)));
+            doc.Selection.Set(copies.Where(c => c is not Edge || doc.Context.Entities.Edges.Contains(c)));
+            _lastCopy = (items, offset);
+        }
+        else
+        {
+            doc.Operation("Move", e => Transforming.Move(e, items, offset));
+        }
+        _from = null;
+        ResetLocks();
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+    }
+
+    public override bool ApplyVcb(string text)
+    {
+        if (View.Document is not { } doc)
+            return false;
+        var t = text.Trim().ToLowerInvariant();
+        // Arrays after a copy: "5x" or "x5" repeats it, "/5" or "5/" divides it.
+        if (_lastCopy is { } last && _from == null && (t.EndsWith('x') || t.StartsWith('x') || t.StartsWith('/') || t.EndsWith('/')))
+        {
+            if (!int.TryParse(t.Trim('x', '/', '*'), out var n) || n < 2)
+                return false;
+            var divide = t.Contains('/');
+            doc.Undo.Undo(); // replace the single copy by the array, as SketchUp does
+            doc.Operation("Copy", e =>
+            {
+                var step = divide ? last.Offset / n : last.Offset;
+                for (var i = 1; i <= n; i++)
+                    Transforming.Copy(e, last.Source, Transform.Translation(step * i));
+            });
+            return true;
+        }
+        if (_from is not { } from || Current is not { } c || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+            return false;
+        var dir = (c.Point - from).Normalized();
+        if (dir.IsZero(1e-12))
+            return false;
+        Finish(doc, dir * mm);
+        return true;
+    }
+
+    public override bool KeyDown(InputEventKey key)
+    {
+        if (key.Keycode == Key.Ctrl && !key.Echo)
+        {
+            _copy = !_copy;
+            RefreshStatus();
+            return true;
+        }
+        if (key.Keycode == Key.Escape && _from != null)
+        {
+            Cancel();
+            return true;
+        }
+        return base.KeyDown(key);
+    }
+
+    private void Cancel()
+    {
+        _from = null;
+        ResetLocks();
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+    }
+
+    public override void Draw(Control overlay)
+    {
+        if (_from is { } f && Current is { } c && View.Document is { } doc)
+        {
+            DrawWorldLine(overlay, f, c.Point, AxisColor(c.Kind == InferenceKind.OnAxis ? c.AxisDirection : null), 1.5f, dashed: true);
+            // Ghost of what moves: its edges at the new position.
+            var xf = doc.Context.ToWorld;
+            var offset = c.Point - f;
+            foreach (var edge in _items.SelectMany(EdgesOf).Distinct())
+                DrawWorldLine(overlay, xf.ApplyPoint(edge.Start.Position) + offset, xf.ApplyPoint(edge.End.Position) + offset, new Color(0, 0, 1), 1);
+        }
+        DrawInference(overlay);
+    }
+
+    private static IEnumerable<Edge> EdgesOf(object item) => item switch
+    {
+        Edge e => [e],
+        Face f => Topology.EdgesOf(f),
+        _ => [],
+    };
+}
