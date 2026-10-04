@@ -121,30 +121,52 @@ public abstract class DrawingTool : Tool
         if (inf is { Kind: InferenceKind.OnAxis, AxisFrom: { } from, AxisDirection: { } dir })
             DrawWorldLine(overlay, from, inf.Point, AxisColor(dir), 1, dashed: true);
 
+        // SketchUp 2021's markers: a filled shape with a white rim; purple for points inside other groups.
+        var group = new Color("#745aa6");
         var (fill, shape) = inf.Kind switch
         {
-            InferenceKind.Endpoint => (new Color(0, 0.75f, 0), "circle"),
-            InferenceKind.Midpoint => (new Color(0, 0.75f, 0.85f), "circle"),
-            InferenceKind.Origin => (new Color(0.9f, 0.85f, 0), "circle"),
-            InferenceKind.OnEdge => (new Color(0.9f, 0, 0), "square"),
-            InferenceKind.OnFace => (new Color(0, 0, 0.9f), "diamond"),
+            InferenceKind.Endpoint => (new Color("#5e9440"), "circle"),
+            InferenceKind.Midpoint => (new Color("#36c0c8"), "circle"),
+            InferenceKind.Origin => (new Color("#363545"), "origin"),
+            InferenceKind.OnEdge => (new Color("#bb2025"), "square"),
+            InferenceKind.OnFace => (new Color("#005f9f"), "diamond"),
             InferenceKind.OnAxis => (AxisColor(inf.AxisDirection), "circle"),
-            InferenceKind.OnGuide => (new Color(0.25f, 0.25f, 0.25f), "square"),
-            InferenceKind.GuidePoint => (new Color(0, 0.75f, 0), "circle"),
+            InferenceKind.OnGuide => (new Color("#bb2025"), "square"),
+            InferenceKind.GuidePoint => (new Color("#5e9440"), "circle"),
             _ => (Colors.Black, "dot"),
         };
+        if (inf.InGroup)
+            fill = group;
+        var rim = new Color("#f8f9fc");
+        const float r = 5.5f, edge = 1.5f;
         switch (shape)
         {
             case "circle":
-                overlay.DrawCircle(p, 6, fill);
-                overlay.DrawArc(p, 6, 0, Mathf.Tau, 24, Colors.Black, 1, true);
+            case "origin":
+                overlay.DrawCircle(p, r + edge, rim);
+                overlay.DrawCircle(p, r, fill);
+                if (shape == "origin")
+                {
+                    overlay.DrawArc(p, r * 0.55f, 0, Mathf.Tau, 16, rim, 1.2f, true);
+                    overlay.DrawLine(p - new Vector2(r * 0.8f, 0), p + new Vector2(r * 0.8f, 0), rim, 1.2f);
+                    overlay.DrawLine(p - new Vector2(0, r * 0.8f), p + new Vector2(0, r * 0.8f), rim, 1.2f);
+                }
                 break;
             case "square":
-                overlay.DrawRect(new Rect2(p - new Vector2(5, 5), new Vector2(10, 10)), fill);
+            {
+                var h = r * 0.88f;
+                overlay.DrawRect(new Rect2(p - new Vector2(h + edge, h + edge), new Vector2(2 * (h + edge), 2 * (h + edge))), rim);
+                overlay.DrawRect(new Rect2(p - new Vector2(h, h), new Vector2(2 * h, 2 * h)), fill);
                 break;
+            }
             case "diamond":
-                overlay.DrawColoredPolygon([p + new Vector2(0, -6), p + new Vector2(6, 0), p + new Vector2(0, 6), p + new Vector2(-6, 0)], fill);
+            {
+                var h = r * 1.25f;
+                var o = h + edge * 1.41f;
+                overlay.DrawColoredPolygon([p + new Vector2(0, -o), p + new Vector2(o, 0), p + new Vector2(0, o), p + new Vector2(-o, 0)], rim);
+                overlay.DrawColoredPolygon([p + new Vector2(0, -h), p + new Vector2(h, 0), p + new Vector2(0, h), p + new Vector2(-h, 0)], fill);
                 break;
+            }
             default:
                 overlay.DrawCircle(p, 2, fill);
                 break;

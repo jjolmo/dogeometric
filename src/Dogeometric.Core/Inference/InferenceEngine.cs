@@ -26,6 +26,9 @@ public sealed record InferenceResult(Vec3 Point, InferenceKind Kind, string Labe
 
     /// <summary>World transform of the entity hit (faces/edges inside groups).</summary>
     public Transform EntityToWorld { get; init; } = Transform.Identity;
+
+    /// <summary>The point is on geometry inside a group or component other than the one being edited.</summary>
+    public bool InGroup { get; init; }
 }
 
 /// <summary>The view, as the inference engine needs it: rays through pixels and pixels of model points.</summary>
@@ -81,10 +84,11 @@ public sealed class InferenceEngine
         if (hit != null)
         {
             var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+            var inside = InsideSuffix(hit, context);
             return hit.Entity switch
             {
-                Edge e => new InferenceResult(hit.Point, InferenceKind.OnEdge, "On Edge") { Edge = e, EntityToWorld = toWorld },
-                Face f => new InferenceResult(hit.Point, InferenceKind.OnFace, "On Face") { Face = f, EntityToWorld = toWorld },
+                Edge e => new InferenceResult(hit.Point, InferenceKind.OnEdge, "On Edge" + inside) { Edge = e, EntityToWorld = toWorld, InGroup = inside != "" },
+                Face f => new InferenceResult(hit.Point, InferenceKind.OnFace, "On Face" + inside) { Face = f, EntityToWorld = toWorld, InGroup = inside != "" },
                 _ => new InferenceResult(hit.Point, InferenceKind.None, ""),
             };
         }
@@ -102,13 +106,27 @@ public sealed class InferenceEngine
         return new InferenceResult(ray.At(1000), InferenceKind.None, "");
     }
 
+    /// <summary>SketchUp's tooltip suffix for geometry inside another group or component ("Endpoint in Group").</summary>
+    private static string InsideSuffix(PickHit hit, Entities context)
+    {
+        var mine = hit.Entity switch
+        {
+            Edge e => context.Edges.Contains(e),
+            Face f => context.Faces.Contains(f),
+            _ => true,
+        };
+        if (mine || hit.Path.Count == 0)
+            return "";
+        return hit.Path[^1].IsGroup ? " in Group" : " in Component";
+    }
+
     /// <summary>Endpoints, midpoints and the origin within <see cref="SnapPixels"/> of the cursor.</summary>
     private static InferenceResult? SnapToPoints(IViewProjection view, double x, double y, PickHit? hit, Entities context, Transform contextToWorld)
     {
         InferenceResult? best = null;
         var bestDist = SnapPixels;
 
-        void Consider(Vec3 world, InferenceKind kind, string label, Edge? edge = null)
+        void Consider(Vec3 world, InferenceKind kind, string label, Edge? edge = null, string inside = "")
         {
             if (view.ToScreen(world) is not { } s)
                 return;
@@ -117,17 +135,17 @@ public sealed class InferenceEngine
             if (d < bestDist || (d <= bestDist + 0.5 && kind == InferenceKind.Endpoint && best?.Kind == InferenceKind.Midpoint))
             {
                 bestDist = d;
-                best = new InferenceResult(world, kind, label) { Edge = edge };
+                best = new InferenceResult(world, kind, label + inside) { Edge = edge, InGroup = inside != "" };
             }
         }
 
         Consider(Vec3.Zero, InferenceKind.Origin, "Origin");
 
-        void FromEdge(Edge e, Transform xf)
+        void FromEdge(Edge e, Transform xf, string inside = "")
         {
-            Consider(xf.ApplyPoint(e.Start.Position), InferenceKind.Endpoint, "Endpoint", e);
-            Consider(xf.ApplyPoint(e.End.Position), InferenceKind.Endpoint, "Endpoint", e);
-            Consider(xf.ApplyPoint((e.Start.Position + e.End.Position) * 0.5), InferenceKind.Midpoint, "Midpoint", e);
+            Consider(xf.ApplyPoint(e.Start.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
+            Consider(xf.ApplyPoint(e.End.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
+            Consider(xf.ApplyPoint((e.Start.Position + e.End.Position) * 0.5), InferenceKind.Midpoint, "Midpoint", e, inside);
         }
 
         foreach (var e in context.Edges)
@@ -148,11 +166,12 @@ public sealed class InferenceEngine
         if (hit != null)
         {
             var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+            var inside = InsideSuffix(hit, context);
             if (hit.Edge is { } he)
-                FromEdge(he, toWorld);
+                FromEdge(he, toWorld, inside);
             if (hit.Face is { } hf)
                 foreach (var e in Topology.EdgesOf(hf))
-                    FromEdge(e, toWorld);
+                    FromEdge(e, toWorld, inside);
         }
         return best;
     }
