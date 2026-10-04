@@ -10,6 +10,7 @@ uniform vec3 light_dir = vec3(-0.35, 0.45, 0.82);
 
 void fragment() {
 	vec4 c = FRONT_FACING ? front_color : back_color;
-	float diffuse = abs(dot(normalize(NORMAL), normalize(light_dir)));
-	ALBEDO = c.rgb * (0.58 + 0.42 * diffuse);
+	// A zero light direction means "unlit" (Hidden Line style).
+	float diffuse = length(light_dir) > 0.0 ? abs(dot(normalize(NORMAL), normalize(light_dir))) : 1.0;
+	ALBEDO = c.rgb * (length(light_dir) > 0.0 ? 0.58 + 0.42 * diffuse : 1.0);
 }

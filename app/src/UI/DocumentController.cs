@@ -18,6 +18,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     public Document Document { get; private set; } = new(new Model());
 
+    /// <summary>View › Face Style.</summary>
+    public FaceStyle FaceStyle
+    {
+        get => _renderer.FaceStyle;
+        set
+        {
+            _renderer.FaceStyle = value;
+            Rebuild();
+        }
+    }
+
     /// <summary>View › Guides.</summary>
     public bool ShowGuides
     {

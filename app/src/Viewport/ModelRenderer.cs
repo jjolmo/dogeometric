@@ -7,6 +7,17 @@ using Model = Dogeometric.Core.Modeling.Model;
 
 namespace Dogeometric.App.Viewport;
 
+/// <summary>View › Face Style.</summary>
+public enum FaceStyle
+{
+    XRay,
+    Wireframe,
+    HiddenLine,
+    Shaded,
+    ShadedWithTextures,
+    Monochrome,
+}
+
 /// <summary>
 /// Turns a <see cref="Model"/> into Godot nodes. Each definition becomes one face mesh and one edge mesh, shared by
 /// all its instances (the way SketchUp stores components), so big models stay light.
@@ -23,6 +34,20 @@ public sealed class ModelRenderer
 
     /// <summary>View › Guides.</summary>
     public bool ShowGuides { get; set; } = true;
+
+    /// <summary>View › Face Style. Changing it needs a rebuild (materials are cached per style).</summary>
+    public FaceStyle FaceStyle
+    {
+        get => _faceStyle;
+        set
+        {
+            _faceStyle = value;
+            _faceMaterials.Clear();
+            _meshes.Clear();
+        }
+    }
+
+    private FaceStyle _faceStyle = FaceStyle.Shaded;
 
     private readonly Dictionary<(Material?, Material?), ShaderMaterial> _faceMaterials = [];
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
@@ -52,7 +77,7 @@ public sealed class ModelRenderer
     private void AddEntities(Entities entities, Node3D parent, Material? inherited)
     {
         var mesh = MeshFor(entities);
-        if (mesh.Faces != null)
+        if (mesh.Faces != null && FaceStyle != FaceStyle.Wireframe)
         {
             var faces = new MeshInstance3D { Mesh = mesh.Faces, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             // Default-material faces take the material of the group/component they are in.
@@ -183,10 +208,26 @@ public sealed class ModelRenderer
     {
         if (_faceMaterials.TryGetValue((front, back), out var m))
             return m;
-        var transparent = (front?.Opacity ?? 1) < 1 || (back?.Opacity ?? 1) < 1;
+        // Monochrome and Hidden Line ignore materials; X-ray makes every face see-through.
+        if (FaceStyle is FaceStyle.Monochrome or FaceStyle.HiddenLine)
+            (front, back) = (null, null);
+        var xray = FaceStyle == FaceStyle.XRay;
+        var transparent = xray || (front?.Opacity ?? 1) < 1 || (back?.Opacity ?? 1) < 1;
         m = new ShaderMaterial { Shader = transparent ? _faceTransparentShader : _faceShader };
-        m.SetShaderParameter("front_color", ToColor(front, DefaultFront));
-        m.SetShaderParameter("back_color", ToColor(back, DefaultBack));
+        var frontColor = ToColor(front, DefaultFront);
+        var backColor = ToColor(back, DefaultBack);
+        if (FaceStyle == FaceStyle.HiddenLine)
+            backColor = frontColor = Colors.White;
+        if (xray)
+        {
+            frontColor.A *= 0.5f;
+            backColor.A *= 0.5f;
+        }
+        m.SetShaderParameter("front_color", frontColor);
+        m.SetShaderParameter("back_color", backColor);
+        // Hidden Line draws faces flat white, without shading.
+        if (FaceStyle == FaceStyle.HiddenLine)
+            m.SetShaderParameter("light_dir", Vector3.Zero);
         _faceMaterials[(front, back)] = m;
         return m;
     }

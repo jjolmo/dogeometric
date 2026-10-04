@@ -60,6 +60,11 @@ public partial class ModelViewport : Control
             VcbTextChanged?.Invoke(value);
     }
 
+    /// <summary>Right-click with the Select tool: the window shows SketchUp's context menu here.</summary>
+    public event Action<Vector2>? ContextMenuRequested;
+
+    public void RequestContextMenu(Vector2 position) => ContextMenuRequested?.Invoke(position);
+
     /// <summary>Raised after any camera change (menus show projection state).</summary>
     public event Action? CameraChanged;
 
@@ -172,6 +177,13 @@ public partial class ModelViewport : Control
         // An empty model frames a person-sized box at the origin, like a new SketchUp model.
         if (bounds.IsEmpty)
             bounds = new Bounds3(new Vec3(-500, -500, 0), new Vec3(500, 500, 1800));
+        Camera.ZoomExtents(bounds, Size.X / Math.Max(Size.Y, 1));
+        SyncCamera();
+    }
+
+    /// <summary>Frames <paramref name="bounds"/> keeping the view direction (Zoom Selection, Align View).</summary>
+    public void ZoomToBounds(Bounds3 bounds)
+    {
         Camera.ZoomExtents(bounds, Size.X / Math.Max(Size.Y, 1));
         SyncCamera();
     }

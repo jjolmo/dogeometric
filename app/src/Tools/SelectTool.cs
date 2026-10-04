@@ -31,6 +31,14 @@ public sealed class SelectTool : Tool
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
+        if (button == MouseButton.Right && View.Document is { } d)
+        {
+            // Right-click selects what is under the cursor (unless it is already selected) and opens the menu.
+            if (View.Pick(position) is { } hit && InContext(d, hit) is { } item && !d.Selection.Contains(item))
+                d.Selection.Set([item]);
+            View.RequestContextMenu(position);
+            return;
+        }
         if (button != MouseButton.Left)
             return;
         _pressed = true;

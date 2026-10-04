@@ -83,6 +83,7 @@ public partial class MainWindow : Control
 
         _viewport.Tools.Changed += UpdateToolStatus;
         _viewport.VcbTextChanged += text => _status.Vcb.Text = text;
+        _viewport.ContextMenuRequested += pos => ContextMenu.Show(_viewport, pos, _document.Document, _viewport, id => _commands.Execute(id));
         UpdateToolStatus();
         _viewport.GrabFocus();
 
@@ -138,6 +139,47 @@ public partial class MainWindow : Control
         }
         _commands.Register(CommandIds.MakeGroup, () => MakeGroup(true));
         _commands.Register(CommandIds.MakeComponent, () => MakeGroup(false));
+        // View › Face Style (radio items, mirrored by the Styles toolbar).
+        void Style(int id, FaceStyle style) =>
+            _commands.Register(id, () => { _document.FaceStyle = style; RefreshToolbars(); }, () => _document.FaceStyle == style, radio: true);
+        Style(CommandIds.StyleXRay, FaceStyle.XRay);
+        Style(CommandIds.StyleWireframe, FaceStyle.Wireframe);
+        Style(CommandIds.StyleHiddenLine, FaceStyle.HiddenLine);
+        Style(CommandIds.StyleShaded, FaceStyle.Shaded);
+        Style(CommandIds.StyleShadedTextures, FaceStyle.ShadedWithTextures);
+        Style(CommandIds.StyleMonochrome, FaceStyle.Monochrome);
+
+        // Edit › Hide / Unhide / Lock.
+        List<object> lastHidden = [];
+        _commands.Register(CommandIds.Hide, () =>
+        {
+            var items = Doc().Selection.Items.ToList();
+            if (items.Count == 0)
+                return;
+            Doc().Operation("Hide", _ => SetHidden(items, true));
+            lastHidden = items;
+            Doc().Selection.Clear();
+        });
+        _commands.Register(CommandIds.UnhideSelected, () => Doc().Operation("Unhide", _ => SetHidden(Doc().Selection.Items, false)));
+        _commands.Register(CommandIds.UnhideLast, () => Doc().Operation("Unhide", _ => SetHidden(lastHidden, false)));
+        _commands.Register(CommandIds.UnhideAll, () => Doc().Operation("Unhide All", e =>
+            SetHidden(e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances).ToList(), false)));
+        _commands.Register(CommandIds.Lock, () => Doc().Operation("Lock", _ =>
+        {
+            foreach (var i in Doc().Selection.Items.OfType<ComponentInstance>())
+                i.Locked = true;
+        }));
+        _commands.Register(CommandIds.UnlockSelected, () => Doc().Operation("Unlock", _ =>
+        {
+            foreach (var i in Doc().Selection.Items.OfType<ComponentInstance>())
+                i.Locked = false;
+        }));
+        _commands.Register(CommandIds.UnlockAll, () => Doc().Operation("Unlock", e =>
+        {
+            foreach (var i in e.Instances)
+                i.Locked = false;
+        }));
+
         _commands.Register(CommandIds.CloseGroup, () =>
         {
             Doc().Selection.Clear();
@@ -232,6 +274,25 @@ public partial class MainWindow : Control
     }
 
     private void OpenFromCommandLine(string path) => _document.Open(path);
+
+    private static void SetHidden(IEnumerable<object> items, bool hidden)
+    {
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case Face f:
+                    f.Hidden = hidden;
+                    break;
+                case Edge e:
+                    e.Flags = hidden ? e.Flags | EdgeFlags.Hidden : e.Flags & ~EdgeFlags.Hidden;
+                    break;
+                case ComponentInstance i:
+                    i.Hidden = hidden;
+                    break;
+            }
+        }
+    }
 
     private void RefreshToolbars()
     {

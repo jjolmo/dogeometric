@@ -24,6 +24,23 @@ public static class CommandIds
     public const int MakeGroup = 21182;
     public const int MakeComponent = 21083;
 
+    // View › Face Style
+    public const int StyleXRay = 10596;
+    public const int StyleWireframe = 10597;
+    public const int StyleHiddenLine = 10598;
+    public const int StyleShaded = 10599;
+    public const int StyleShadedTextures = 10600;
+    public const int StyleMonochrome = 10601;
+
+    // Edit › Hide / Lock
+    public const int Hide = 21052;
+    public const int UnhideSelected = 21152;
+    public const int UnhideLast = 21099;
+    public const int UnhideAll = 21053;
+    public const int Lock = 21906;
+    public const int UnlockSelected = 21915;
+    public const int UnlockAll = 21914;
+
     // Help
     public const int About = 57664;
 
