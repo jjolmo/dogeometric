@@ -7,7 +7,8 @@ public static class MenuBuilder
 {
     public static MenuBar Build(CommandRegistry registry, Action<string> showHint, Action restoreHint)
     {
-        var bar = new MenuBar { Flat = true };
+        // Not flat: a flat MenuBar draws no hover or open-menu highlight; the theme keeps the idle title transparent.
+        var bar = new MenuBar { Flat = false };
         foreach (var top in registry.Menus)
         {
             var popup = BuildPopup(top, registry, showHint, restoreHint);

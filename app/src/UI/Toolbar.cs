@@ -21,6 +21,9 @@ public partial class Toolbar : PanelContainer
     private Control _grip = null!;
 
     public string Title { get; private set; } = "";
+
+    /// <summary>In a top or bottom dock, this toolbar begins a new row.</summary>
+    public bool RowStart { get; set; }
     public bool Vertical { get; private set; }
 
     /// <summary>The grip was pressed: the dock manager takes over the drag.</summary>

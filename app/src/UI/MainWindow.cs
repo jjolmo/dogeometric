@@ -136,35 +136,36 @@ public partial class MainWindow : Control
         // SketchUp's toolbars, docked as in its default layout; the others start hidden (View › Toolbars).
         _docks = ToolbarDocks.Create(topBars, _bottomDock, _leftDock, _rightDock, _drawingArea);
         AddChild(_docks);
-        void Bar(string name, int[] ids, ToolbarDocks.Dock dock, bool visible = true, int lines = 0)
+        void Bar(string name, int[] ids, ToolbarDocks.Dock dock, bool visible = true, int lines = 0, bool rowStart = false)
         {
             var bar = Toolbar.Create(name, _commands, Toolbars.Icons, ids, lines);
+            bar.RowStart = rowStart;
             _toolbars.Add(bar);
             _docks.Add(bar, dock, visible);
         }
-        Bar("Standard", Toolbars.Standard, ToolbarDocks.Dock.Top);
-        Bar("Views", Toolbars.Views, ToolbarDocks.Dock.Top);
-        Bar("Styles", Toolbars.Styles, ToolbarDocks.Dock.Top);
+        // In the order and rows of the reference SketchUp 2021 install; the rest start hidden (View › Toolbars).
         Bar("Solid Tools", Toolbars.SolidTools, ToolbarDocks.Dock.Top);
+        Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
+        Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
+        Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
+        Bar("Fredo6_FredoScale", Toolbars.FredoScale, ToolbarDocks.Dock.Top);
+        Bar("Curviloft", Toolbars.Curviloft, ToolbarDocks.Dock.Top);
+        Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top, rowStart: true);
+        Bar("Tools on Surface", Toolbars.ToolsOnSurface, ToolbarDocks.Dock.Top);
+        Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
+        Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
+        Bar("Select Curve", Toolbars.SelectCurve, ToolbarDocks.Dock.Top);
+        Bar("Large Tool Set", Toolbars.LargeToolSet, ToolbarDocks.Dock.Left, lines: 2);
+        Bar("Standard", Toolbars.Standard, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Views", Toolbars.Views, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Styles", Toolbars.Styles, ToolbarDocks.Dock.Top, visible: false);
         Bar("Getting Started", Toolbars.GettingStarted, ToolbarDocks.Dock.Top, visible: false);
         Bar("Principal", Toolbars.Principal, ToolbarDocks.Dock.Top, visible: false);
         Bar("Drawing", Toolbars.Drawing, ToolbarDocks.Dock.Top, visible: false);
         Bar("Edit", Toolbars.Edit, ToolbarDocks.Dock.Top, visible: false);
         Bar("Construction", Toolbars.Construction, ToolbarDocks.Dock.Top, visible: false);
         Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
-        Bar("Large Tool Set", Toolbars.LargeToolSet, ToolbarDocks.Dock.Left, lines: 2);
-        // Extension toolbars, as each extension adds its own.
-        Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
-        Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
-        Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
-        Bar("Tools on Surface", Toolbars.ToolsOnSurface, ToolbarDocks.Dock.Top);
-        Bar("Curviloft", Toolbars.Curviloft, ToolbarDocks.Dock.Top);
-        Bar("Fredo6_FredoScale", Toolbars.FredoScale, ToolbarDocks.Dock.Top);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
-        Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
-        Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
-        Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
-        Bar("Select Curve", Toolbars.SelectCurve, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -1006,7 +1007,7 @@ public partial class MainWindow : Control
     {
         var panel = new PanelContainer { Visible = false };
         panel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
-        Container dock = vertical ? new HBoxContainer() : new HFlowContainer();
+        Container dock = vertical ? new HBoxContainer() : new ToolbarRows();
         dock.AddThemeConstantOverride("separation", 2);
         dock.AddThemeConstantOverride("h_separation", 6);
         panel.AddChild(dock);

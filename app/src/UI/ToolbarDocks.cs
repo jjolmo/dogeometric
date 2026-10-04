@@ -14,7 +14,8 @@ public sealed partial class ToolbarDocks : Control
 {
     public enum Dock { Top, Bottom, Left, Right, Float }
 
-    private const string LayoutPath = "user://toolbars.json";
+    // Renamed when the default layout changes, so it shows once instead of an older saved one.
+    private const string LayoutPath = "user://toolbars-2.json";
     private const float EdgeZone = 28;
 
     private sealed class State

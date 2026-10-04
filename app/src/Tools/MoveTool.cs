@@ -2,6 +2,7 @@ using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Inference;
 using Dogeometric.Core.Modeling;
 using Dogeometric.Core.Units;
+using Dogeometric.App.Viewport;
 using Godot;
 
 namespace Dogeometric.App.Tools;
@@ -16,6 +17,9 @@ public sealed class MoveTool : DrawingTool
     private Vec3? _from;
     private List<object> _items = [];
     private bool _copy;
+
+    // Groups and components follow the cursor: their drawn nodes (or copies of them) and where those started.
+    private readonly List<(Node3D Node, Transform3D Start, bool Ghost)> _following = [];
 
     // Last copy, for "Nx" and "/N" arrays typed right after it.
     private (List<object> Source, Vec3 Offset)? _lastCopy;
@@ -36,7 +40,66 @@ public sealed class MoveTool : DrawingTool
 
     public override string VcbValue => _from is { } f && Current is { } c ? Length.Format(f.DistanceTo(c.Point), LengthUnit.Millimeters, 1) : "";
 
-    protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
+    protected override void OnInferenceChanged()
+    {
+        View.ShowVcbValue(VcbValue);
+        if (_from is { } f && Current is { } c)
+            foreach (var (node, start, _) in _following)
+                node.GlobalTransform = start with { Origin = start.Origin + Space.ToGodot(c.Point - f) };
+    }
+
+    /// <summary>Picks up the drawn groups and components being moved, or copies of them when copying.</summary>
+    private void Follow()
+    {
+        Unfollow();
+        var keys = _items.OfType<ComponentInstance>().Select(i => (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(i)).ToHashSet();
+        if (keys.Count == 0)
+            return;
+        // The selection's highlight goes along with what it marks.
+        if (!_copy)
+            _following.Add((View.SelectionRoot, View.SelectionRoot.GlobalTransform, false));
+        var found = new List<Node3D>();
+        void Walk(Node node)
+        {
+            foreach (var child in node.GetChildren())
+                if (child is Node3D n && n.HasMeta("instance"))
+                {
+                    if (keys.Contains(n.GetMeta("instance").AsUInt64()))
+                        found.Add(n);
+                    else
+                        Walk(n);
+                }
+        }
+        Walk(View.ModelRoot);
+        foreach (var n in found)
+        {
+            var node = n;
+            if (_copy)
+            {
+                node = (Node3D)n.Duplicate();
+                n.GetParent().AddChild(node);
+            }
+            _following.Add((node, n.GlobalTransform, _copy));
+        }
+        OnInferenceChanged();
+    }
+
+    /// <summary>Puts the drawn nodes back (the model is redrawn after a move anyway).</summary>
+    private void Unfollow()
+    {
+        foreach (var (node, start, ghost) in _following)
+        {
+            if (!GodotObject.IsInstanceValid(node))
+                continue;
+            if (ghost)
+                node.QueueFree();
+            else
+                node.GlobalTransform = start;
+        }
+        _following.Clear();
+    }
+
+    public override void Deactivate() => Unfollow();
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
@@ -49,6 +112,7 @@ public sealed class MoveTool : DrawingTool
                 return;
             _from = inf.Point;
             _lastCopy = null;
+            Follow();
             RefreshStatus();
             return;
         }
@@ -73,6 +137,7 @@ public sealed class MoveTool : DrawingTool
             Cancel();
             return;
         }
+        Unfollow();
         var items = _items;
         if (_copy)
         {
@@ -125,6 +190,8 @@ public sealed class MoveTool : DrawingTool
         if (key.Keycode == Key.Ctrl && !key.Echo)
         {
             _copy = !_copy;
+            if (_from != null)
+                Follow();
             RefreshStatus();
             return true;
         }
@@ -138,6 +205,7 @@ public sealed class MoveTool : DrawingTool
 
     private void Cancel()
     {
+        Unfollow();
         _from = null;
         ResetLocks();
         RefreshStatus();
