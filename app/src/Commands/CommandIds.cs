@@ -86,6 +86,7 @@ public static class CommandIds
     public const int Eraser = 21019;
     public const int TapeMeasure = 21024;
     public const int Rotate = 21129;
+    public const int Scale = 21236;
     public const int Offset = 21100;
     public const int PaintBucket = 21074;
     public const int DeleteGuides = 21044;

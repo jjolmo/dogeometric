@@ -1,3 +1,4 @@
+using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Modeling;
 using Dogeometric.Core.Units;
 using Godot;
@@ -60,7 +61,9 @@ public partial class EntityInfoPanel : VBoxContainer
                 var b = i.Definition.Entities.Bounds();
                 if (!b.IsEmpty)
                 {
-                    var s = b.Size;
+                    // Along the instance's own axes, including its scale.
+                    var t = i.Transform;
+                    var s = new Vec3(b.Size.X * t.X.Length, b.Size.Y * t.Y.Length, b.Size.Z * t.Z.Length);
                     Row("Size", $"{Length.Format(s.X, LengthUnit.Millimeters, 1)} × {Length.Format(s.Y, LengthUnit.Millimeters, 1)} × {Length.Format(s.Z, LengthUnit.Millimeters, 1)}");
                 }
                 Row("Material", i.Material?.Name ?? "Default");

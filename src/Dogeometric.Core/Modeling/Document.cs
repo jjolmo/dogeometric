@@ -105,6 +105,18 @@ public static class Transforming
     public static void Move(Entities e, IEnumerable<object> items, Geometry.Vec3 offset) =>
         Apply(e, items, Geometry.Transform.Translation(offset));
 
+    /// <summary>
+    /// Scales by (<paramref name="sx"/>, <paramref name="sy"/>, <paramref name="sz"/>) along the axes of
+    /// <paramref name="frame"/> about <paramref name="anchor"/> (a point in frame coordinates). The result works in
+    /// the coordinates <paramref name="frame"/> maps to, as the Scale tool's box is aligned with a group's axes.
+    /// </summary>
+    public static Geometry.Transform Scale(Geometry.Transform frame, Geometry.Vec3 anchor, double sx, double sy, double sz) =>
+        frame.Inverse()
+            .Then(Geometry.Transform.Translation(-anchor))
+            .Then(Geometry.Transform.Scaling(sx, sy, sz))
+            .Then(Geometry.Transform.Translation(anchor))
+            .Then(frame);
+
     public static void Apply(Entities e, IEnumerable<object> items, Geometry.Transform t)
     {
         var vertices = new HashSet<Vertex>();
@@ -115,6 +127,13 @@ public static class Transforming
                 case Face f:
                     foreach (var v in f.Loops.SelectMany(l => l.Vertices))
                         vertices.Add(v);
+                    // A mirroring transform turns loose faces inside out; flip them back, as SketchUp does.
+                    // The outside stays the outside, so the materials keep their sides.
+                    if (t.Determinant < 0)
+                    {
+                        FaceFinder.Reverse(f);
+                        (f.FrontMaterial, f.BackMaterial) = (f.BackMaterial, f.FrontMaterial);
+                    }
                     break;
                 case Edge edge:
                     vertices.Add(edge.Start);
