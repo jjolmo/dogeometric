@@ -155,6 +155,7 @@ public partial class MainWindow : Control
         // Extension toolbars, as each extension adds its own.
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
+        Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -195,6 +196,15 @@ public partial class MainWindow : Control
             _commands.AddToMenu("Tools", id, label, tip + ".", submenu: "Fredo6 Collection");
             _commands.Register(id, () => _viewport.Tools.Activate(new RoundCornerTool(m)), () => _viewport.Tools.Active.CommandId == id);
         }
+        _commands.AddToMenu("Extensions", ExtensionIds.MakeFaces, "Make Faces",
+            "Create faces from edges: every closed flat loop in the selection (or the whole model) gets its face.");
+        _commands.Register(ExtensionIds.MakeFaces, () =>
+        {
+            var doc = _document.Document;
+            var created = 0;
+            doc.Operation("Make Faces", e => created = MakeFaces.RunOnSelection(e, doc.Selection.Items.ToList(), doc.Undo.Touch));
+            _status.SetHint(created == 0 ? "Make Faces: no new faces." : $"Make Faces: {created} face(s) created.");
+        });
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
