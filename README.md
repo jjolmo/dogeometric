@@ -1,4 +1,8 @@
-# Dogeometric
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/branding/logo-horizontal-dark.png">
+  <img alt="Dogeometric" src="docs/branding/logo-horizontal-light.png" width="480">
+</picture>
+
 
 A private, behaviour-for-behaviour copy of SketchUp 2021, built with Godot 4.7 (C#/.NET 8).
 Main use: precise 3D modelling of electronic enclosures and similar parts for 3D printing.

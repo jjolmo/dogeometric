@@ -193,6 +193,12 @@ public sealed class ComponentDefinition
     /// <summary>Groups are definitions with a single instance, shown without a name in the Components panel.</summary>
     public bool IsGroup { get; set; }
 
+    /// <summary>
+    /// The definition behind an Image entity (a picture placed in the model): one textured rectangle. SketchUp
+    /// lists images apart from components.
+    /// </summary>
+    public bool IsImage { get; set; }
+
     /// <summary>SketchUp's "Always face camera" behaviour (2D figures, billboards).</summary>
     public bool AlwaysFaceCamera { get; set; }
 

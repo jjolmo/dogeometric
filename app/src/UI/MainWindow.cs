@@ -12,6 +12,7 @@ public partial class MainWindow : Control
     private CommandRegistry _commands = null!;
     private ModelViewport _viewport = null!;
     private StatusBar _status = null!;
+    private DocumentController _document = null!;
 
     public override void _Ready()
     {
@@ -30,6 +31,9 @@ public partial class MainWindow : Control
         layout.AddChild(_viewport);
         layout.AddChild(_status);
 
+        _document = new DocumentController(this, _viewport, _status);
+        _document.Changed += () => GetWindow().Title = _document.Title;
+
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
 
@@ -42,11 +46,22 @@ public partial class MainWindow : Control
         _viewport.Tools.Changed += UpdateToolStatus;
         UpdateToolStatus();
         _viewport.GrabFocus();
+
+        // `dogeometric model.skp`: open files given on the command line (after Godot's own "--").
+        if (OS.GetCmdlineUserArgs().FirstOrDefault(a => File.Exists(a)) is { } file)
+            CallDeferred(MethodName.OpenFromCommandLine, file);
     }
 
     private void RegisterCommands()
     {
         var v = _viewport;
+        _commands.Register(CommandIds.New, _document.New);
+        _commands.Register(CommandIds.Open, _document.ShowOpen);
+        _commands.Register(CommandIds.Save, _document.Save);
+        _commands.Register(CommandIds.SaveAs, _document.ShowSaveAs);
+        _commands.Register(CommandIds.SaveCopyAs, _document.ShowSaveCopyAs);
+        _commands.Register(CommandIds.Import, _document.ShowImport);
+        _commands.Register(CommandIds.Export3DModel, _document.ShowExport3D);
         _commands.Register(CommandIds.Exit, () => GetTree().Quit());
         _commands.Register(CommandIds.About, ShowAbout);
 
@@ -91,6 +106,8 @@ public partial class MainWindow : Control
             }
         }
     }
+
+    private void OpenFromCommandLine(string path) => _document.Open(path);
 
     private void UpdateToolStatus()
     {

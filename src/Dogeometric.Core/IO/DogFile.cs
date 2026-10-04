@@ -88,6 +88,8 @@ public static class DogFile
                 if (d.Description.Length > 0)
                     w.WriteString("description", d.Description);
                 w.WriteBoolean("group", d.IsGroup);
+                if (d.IsImage)
+                    w.WriteBoolean("image", true);
                 if (d.AlwaysFaceCamera)
                     w.WriteBoolean("alwaysFaceCamera", true);
                 if (d.ShadowsFaceSun)
@@ -291,6 +293,7 @@ public static class DogFile
                 Name = d.GetProperty("name").GetString() ?? "",
                 Description = d.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
                 IsGroup = d.GetProperty("group").GetBoolean(),
+                IsImage = d.TryGetProperty("image", out var img) && img.GetBoolean(),
                 AlwaysFaceCamera = d.TryGetProperty("alwaysFaceCamera", out var fc) && fc.GetBoolean(),
                 ShadowsFaceSun = d.TryGetProperty("shadowsFaceSun", out var sfs) && sfs.GetBoolean(),
             });

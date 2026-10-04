@@ -37,6 +37,22 @@ public readonly record struct Transform(Vec3 X, Vec3 Y, Vec3 Z, Vec3 Origin)
             new Vec3(m[12], m[13], m[14]) / w);
     }
 
+    /// <summary>
+    /// Builds from SketchUp's 13-element layout (as OpenSKP reads it): row-major 3×3 rotation/scale, translation,
+    /// then a homogeneous scale w that divides the whole transform.
+    /// </summary>
+    public static Transform FromSketchUp13(IReadOnlyList<double> m)
+    {
+        if (m.Count < 12)
+            return Identity;
+        var w = m.Count > 12 && m[12] != 0 ? m[12] : 1;
+        return new Transform(
+            new Vec3(m[0], m[3], m[6]) / w,
+            new Vec3(m[1], m[4], m[7]) / w,
+            new Vec3(m[2], m[5], m[8]) / w,
+            new Vec3(m[9], m[10], m[11]) / w);
+    }
+
     public double[] ToColumnMajor() =>
     [
         X.X, X.Y, X.Z, 0,

@@ -4,6 +4,13 @@ namespace Dogeometric.App;
 public static class CommandIds
 {
     // File
+    public const int New = 57600;
+    public const int Open = 57601;
+    public const int Save = 57603;
+    public const int SaveAs = 57604;
+    public const int SaveCopyAs = 21136;
+    public const int Import = 21933;
+    public const int Export3DModel = 21149;
     public const int Exit = 57665;
 
     // Help

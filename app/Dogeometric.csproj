@@ -11,5 +11,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../src/Dogeometric.Core/Dogeometric.Core.csproj" />
+    <ProjectReference Include="../src/Dogeometric.Formats/Dogeometric.Formats.csproj" />
   </ItemGroup>
 </Project>

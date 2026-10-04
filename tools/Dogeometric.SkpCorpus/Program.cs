@@ -18,10 +18,24 @@ var reportPath = args.Length > 1 ? args[1] : null;
 var outDir = args.Length > 2 ? args[2] : Path.Combine(Path.GetTempPath(), "dogeometric-roundtrip");
 Directory.CreateDirectory(outDir);
 
+// oracle.json (one object keyed by relative path) or oracle.jsonl (one object per line with "file").
+var oracle = new Dictionary<string, Dictionary<string, JsonElement>>();
 var oraclePath = Path.Combine(root, "oracle.json");
-var oracle = File.Exists(oraclePath)
-    ? JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, JsonElement>>>(File.ReadAllText(oraclePath))!
-    : [];
+if (File.Exists(oraclePath))
+    oracle = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, JsonElement>>>(File.ReadAllText(oraclePath))!;
+var oracleLines = Path.Combine(root, "oracle.jsonl");
+if (File.Exists(oracleLines))
+{
+    foreach (var line in File.ReadLines(oracleLines).Where(l => l.Trim().Length > 0))
+    {
+        var entry = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(line)!;
+        var winPath = entry["file"].GetString()!.Replace('\\', '/');
+        var key = Directory.EnumerateFiles(root, "*.skp", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(root, f)).FirstOrDefault(r => winPath.EndsWith(r.Replace('\\', '/'), StringComparison.Ordinal));
+        if (key != null)
+            oracle[key] = entry;
+    }
+}
 
 string[] fields = ["definitions", "group_definitions", "instances", "vertices", "edges", "faces", "materials", "layers", "pages"];
 var rows = new List<string> { "file\tversion\tstage\tms\t" + string.Join('\t', fields) + "\toracle_diff\tdog_diff\tskp_diff\terror" };
@@ -38,9 +52,21 @@ foreach (var file in Directory.EnumerateFiles(root, "*.skp", SearchOption.AllDir
         var counts = Count(model);
         var importMs = sw.ElapsedMilliseconds;
 
-        var oracleDiff = oracle.TryGetValue(rel, out var o) && !o.ContainsKey("error")
-            ? Diff(fields.Where(f => o.ContainsKey(f)).ToDictionary(f => f, f => o[f].GetInt64()), counts, skip: ["layers"])
-            : "no-oracle";
+        var oracleDiff = "no-oracle";
+        if (oracle.TryGetValue(rel, out var o) && !o.ContainsKey("error"))
+        {
+            // Absent keys are zero: the oracle only writes counts it saw.
+            oracleDiff = Diff(fields.ToDictionary(f => f, f => o.TryGetValue(f, out var v) ? v.GetInt64() : 0), counts, skip: ["layers"]);
+            if (o.TryGetValue("bounds_mm", out var bj) && bj.GetArrayLength() == 6)
+            {
+                var b = model.Entities.Bounds();
+                var expected = bj.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+                double[] actual = [b.Min.X, b.Min.Y, b.Min.Z, b.Max.X, b.Max.Y, b.Max.Z];
+                var worst = expected.Zip(actual).Max(p => Math.Abs(p.First - p.Second));
+                if (worst > 0.5)
+                    oracleDiff = (oracleDiff == "" ? "" : oracleDiff + ", ") + $"bounds off by {worst:0.#}mm";
+            }
+        }
 
         stage = "dog";
         var dogPath = Path.Combine(outDir, Path.GetFileNameWithoutExtension(file) + ".dog");
@@ -80,14 +106,16 @@ Console.WriteLine($"\n{rows.Count - 1} files: {failures} failed, counts differ f
                   $".dog round-trip differs in {dogMismatches}, .skp round-trip differs in {skpMismatches}");
 return failures == 0 ? 0 : 1;
 
+// Counted like SketchUp's API (tools/skp-oracle/oracle.rb): images are neither definitions nor instances.
 static Dictionary<string, long> Count(Model m)
 {
-    var all = m.AllEntities.ToList();
+    var defs = m.Definitions.Where(d => !d.IsImage).ToList();
+    var all = defs.Select(d => d.Entities).Prepend(m.Entities).ToList();
     return new Dictionary<string, long>
     {
-        ["definitions"] = m.Definitions.Count,
-        ["group_definitions"] = m.Definitions.Count(d => d.IsGroup),
-        ["instances"] = all.Sum(e => e.Instances.Count),
+        ["definitions"] = defs.Count,
+        ["group_definitions"] = defs.Count(d => d.IsGroup),
+        ["instances"] = all.Sum(e => e.Instances.Count(i => !i.Definition.IsImage)),
         ["vertices"] = all.Sum(e => e.Edges.SelectMany(x => new[] { x.Start, x.End }).Distinct().Count()),
         ["edges"] = all.Sum(e => e.Edges.Count),
         ["faces"] = all.Sum(e => e.Faces.Count),

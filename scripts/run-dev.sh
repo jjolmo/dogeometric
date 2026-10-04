@@ -7,4 +7,4 @@ cd "$ROOT"
 dotnet build app/Dogeometric.csproj -nologo -v q
 # First run (or after a clean): let Godot import resources before running.
 [ -d app/.godot ] || "$GODOT" --headless --path app --import >/dev/null 2>&1 || true
-exec "$GODOT" --path app "$@"
+exec "$GODOT" --path app -- "$@"

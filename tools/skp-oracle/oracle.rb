@@ -40,6 +40,8 @@ module DogeometricOracle
     acc['layers'] = model.layers.size
     acc['pages'] = model.pages.size
     acc['units'] = model.options['UnitsOptions']['LengthUnit']
+    bb = model.bounds
+    acc['bounds_mm'] = bb.empty? ? [] : [bb.min.x.to_mm, bb.min.y.to_mm, bb.min.z.to_mm, bb.max.x.to_mm, bb.max.y.to_mm, bb.max.z.to_mm].map { |v| v.round(2) }
     acc
   end
 

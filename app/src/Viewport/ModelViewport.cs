@@ -21,7 +21,6 @@ public partial class ModelViewport : Control
 
     private SubViewport _subViewport = null!;
     private Camera3D _camera = null!;
-    private DirectionalLight3D _light = null!;
     private ShaderMaterial _skyMaterial = null!;
     private Control _overlay = null!;
 
@@ -88,9 +87,6 @@ public partial class ModelViewport : Control
             TonemapMode = Godot.Environment.ToneMapper.Linear,
         };
         root.AddChild(new WorldEnvironment { Environment = env });
-
-        _light = new DirectionalLight3D { LightEnergy = 0.7f, ShadowEnabled = false };
-        root.AddChild(_light);
 
         _camera = new Camera3D { Current = true };
         root.AddChild(_camera);
@@ -219,11 +215,6 @@ public partial class ModelViewport : Control
             _camera.Near = 0.01f;
         }
         _camera.Far = 1e5f;
-
-        // Headlight from over the viewer's left shoulder: SketchUp shades faces by their angle to the camera.
-        var lightDir = (dir + Camera.Right * 0.35 - Camera.Up * 0.45).Normalized();
-        var lightPos = Space.ToGodot(Vec3.Zero);
-        _light.LookAtFromPosition(lightPos, lightPos + Space.DirToGodot(lightDir), Space.DirToGodot(Camera.Up));
 
         UpdateHorizon();
         _overlay?.QueueRedraw();

@@ -61,6 +61,7 @@ public static class SkpImporter
             {
                 Name = d.Name,
                 IsGroup = d.IsGroup,
+                IsImage = d.IsImage,
                 AlwaysFaceCamera = d.AlwaysFacesCamera,
                 ShadowsFaceSun = d.ShadowsFaceSun,
             };
@@ -133,7 +134,8 @@ public static class SkpImporter
         {
             if (inst.RefIdx is not { } refId || !definitions.TryGetValue(refId, out var def))
                 continue;
-            var xf = Transform.FromColumnMajor(inst.Matrix);
+            // OpenSKP hands over SketchUp's 13-element matrix (its doc comment says 16 column-major; it isn't).
+            var xf = inst.Matrix.Count >= 16 ? Transform.FromColumnMajor(inst.Matrix) : Transform.FromSketchUp13(inst.Matrix);
             var ci = target.AddInstance(def, xf with { Origin = xf.Origin * MmPerInch });
             ci.Name = inst.Name;
             ci.Hidden = inst.Hidden;
