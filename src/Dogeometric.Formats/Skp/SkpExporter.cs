@@ -39,7 +39,12 @@ public static class SkpExporter
                 cb.AlwaysFacesCamera = def.AlwaysFaceCamera;
                 cb.ShadowsFaceSun = def.ShadowsFaceSun;
                 using (cb)
-                    WriteEntities(def.Entities, Target.For(cb), ctx);
+                {
+                    if (def.IsImage && WriteImageQuad(def, cb, ctx))
+                        ctx.Images.Add(def);
+                    else
+                        WriteEntities(def.Entities, Target.For(cb), ctx);
+                }
                 ctx.Builders[def] = cb;
             }
 
@@ -77,6 +82,14 @@ public static class SkpExporter
         return warnings;
     }
 
+    private static string? SniffImage(byte[] data) => data switch
+    {
+        [0x89, 0x50, 0x4E, 0x47, ..] => ".png",
+        [0xFF, 0xD8, 0xFF, ..] => ".jpg",
+        [(byte)'B', (byte)'M', ..] => ".bmp",
+        _ => null,
+    };
+
     private static Dictionary<Material, int> WriteMaterials(Model model, Sk.SkpBuilder b, List<string> tempFiles, List<string> warnings)
     {
         var map = new Dictionary<Material, int>();
@@ -88,7 +101,8 @@ public static class SkpExporter
                 name = $"{m.Name} {i}";
             if (m.Texture is { Data.Length: > 0 } tex)
             {
-                var ext = Path.GetExtension(tex.FileName).ToLowerInvariant();
+                // The bytes say what the image is; the stored file name can be anything (even ".skp").
+                var ext = SniffImage(tex.Data) ?? Path.GetExtension(tex.FileName).ToLowerInvariant();
                 if (ext is ".png" or ".jpg" or ".jpeg")
                 {
                     var tmp = Path.Combine(Path.GetTempPath(), $"dogeometric-tex-{Guid.NewGuid():N}{ext}");
@@ -121,9 +135,20 @@ public static class SkpExporter
             if (!ctx.Builders.TryGetValue(inst.Definition, out var cb))
                 continue;
             var (t, m3) = Placement(inst.Transform);
+            if (ctx.Images.Contains(inst.Definition))
+            {
+                // SketchUp Image entity: placed like an instance, drawn by its definition's textured quad.
+                target.AddImage(cb, t, m3, ctx.Layer(inst.Tag), inst.Hidden);
+                continue;
+            }
             target.AddInstance(cb, inst.IsGroup, string.IsNullOrEmpty(inst.Name) ? null : inst.Name, t, m3,
                 ctx.Material(inst.Material), ctx.Layer(inst.Tag), inst.Hidden);
         }
+
+        // Distinct vertices at the same place (unwelded meshes, common in imported models) would be merged by the
+        // writer, which identifies vertices by position: each extra one is nudged by a billionth of an inch, far
+        // below SketchUp's tolerance, so the topology comes back as it was.
+        var at = WrittenPositions(e);
 
         var usedByFaces = new HashSet<Edge>();
         foreach (var face in e.Faces)
@@ -136,7 +161,7 @@ public static class SkpExporter
             var soft = edges.All(x => x.Flags.HasFlag(EdgeFlags.Soft));
             var smooth = edges.All(x => x.Flags.HasFlag(EdgeFlags.Smooth));
             var hiddenEdges = edges.All(x => x.Flags.HasFlag(EdgeFlags.Hidden));
-            foreach (var (outerMm, holesMm) in WritablePolygons(face))
+            foreach (var (outerMm, holesMm) in WritablePolygons(face, at))
             {
                 var outer = outerMm.Select(Inches).ToList();
                 var holes = holesMm.Select(h => (IReadOnlyList<(double, double, double)>)h.Select(Inches).ToList()).ToList();
@@ -156,7 +181,7 @@ public static class SkpExporter
         {
             try
             {
-                target.AddEdge(Inches(edge.Start.Position), Inches(edge.End.Position), edge.Flags);
+                target.AddEdge(Inches(at(edge.Start)), Inches(at(edge.End)), edge.Flags);
             }
             catch (Sk.SkpWriteException ex)
             {
@@ -172,10 +197,10 @@ public static class SkpExporter
     /// The polygons to write for a face: the face itself when planar (within <see cref="PlaneToleranceMm"/>), or its
     /// ear-clipped triangles otherwise — correct for concave faces, unlike a fan from the first corner.
     /// </summary>
-    private static IEnumerable<(List<Vec3> Outer, List<List<Vec3>> Holes)> WritablePolygons(Face face)
+    private static IEnumerable<(List<Vec3> Outer, List<List<Vec3>> Holes)> WritablePolygons(Face face, Func<Vertex, Vec3> at)
     {
-        var outer = face.OuterLoop.Points.ToList();
-        var holes = face.InnerLoops.Select(l => l.Points.ToList()).ToList();
+        var outer = face.OuterLoop.Vertices.Select(at).ToList();
+        var holes = face.InnerLoops.Select(l => l.Vertices.Select(at).ToList()).ToList();
         var all = outer.Concat(holes.SelectMany(h => h)).ToList();
         var normal = Polygon.Normal(outer);
         var origin = new Vec3(outer.Average(p => p.X), outer.Average(p => p.Y), outer.Average(p => p.Z));
@@ -218,6 +243,48 @@ public static class SkpExporter
         return order;
     }
 
+    /// <summary>
+    /// An Image's definition: its one textured face, with the picture pinned to the quad's corners (SketchUp
+    /// stretches an Image's picture over it). False when the definition isn't a plain textured quad.
+    /// </summary>
+    private static bool WriteImageQuad(ComponentDefinition def, Sk.ComponentDefinitionBuilder cb, Context ctx)
+    {
+        if (def.Entities.Faces is not [var face] || face.OuterLoop.Edges.Count != 4 || face.FrontMaterial is not { Texture: not null } mat)
+            return false;
+        var pts = face.OuterLoop.Points.ToList();
+        var b = Bounds3.FromPoints(pts);
+        var size = b.Size;
+        if (size.X <= Tolerance.Length || size.Y <= Tolerance.Length || size.Z > Tolerance.Length)
+            return false;
+        (double, double) Uv(Vec3 p) => ((p.X - b.Min.X) / size.X, (p.Y - b.Min.Y) / size.Y);
+        cb.AddFace(pts.Select(Inches).ToList(), material: ctx.Material(mat), layer: ctx.Layer(face.Tag),
+            frontUv: pts.Take(3).Select(p => new Sk.UvCorrespondence(Inches(p), Uv(p))).ToList());
+        return true;
+    }
+
+    /// <summary>Where each vertex is written: its position, nudged when an earlier vertex already sits there.</summary>
+    private static Func<Vertex, Vec3> WrittenPositions(Entities e)
+    {
+        const double nudgeMm = 2.54e-8; // 1e-9 inch
+        var taken = new Dictionary<(long, long, long), int>();
+        Dictionary<Vertex, Vec3>? moved = null;
+        foreach (var v in e.Vertices)
+        {
+            var p = v.Position;
+            var key = ((long)Math.Round(p.X * 1e4), (long)Math.Round(p.Y * 1e4), (long)Math.Round(p.Z * 1e4));
+            if (taken.TryGetValue(key, out var n))
+            {
+                (moved ??= [])[v] = p + new Vec3(nudgeMm * (n + 1), 0, 0);
+                taken[key] = n + 1;
+            }
+            else
+            {
+                taken[key] = 0;
+            }
+        }
+        return moved == null ? v => v.Position : v => moved.TryGetValue(v, out var q) ? q : v.Position;
+    }
+
     private static ((double, double, double) Translation, double[] Matrix3x3) Placement(Transform t) =>
         (Inches(t.Origin), [t.X.X, t.Y.X, t.Z.X, t.X.Y, t.Y.Y, t.Z.Y, t.X.Z, t.Y.Z, t.Z.Z]);
 
@@ -229,6 +296,9 @@ public static class SkpExporter
         private readonly Dictionary<ComponentDefinition, bool> _empty = [];
 
         public Dictionary<ComponentDefinition, Sk.ComponentDefinitionBuilder> Builders { get; } = [];
+
+        /// <summary>Image definitions written as textured quads; their instances become Image entities.</summary>
+        public HashSet<ComponentDefinition> Images { get; } = [];
 
         public int? Material(Material? m) => m != null && materials.TryGetValue(m, out var i) ? i : null;
 
@@ -258,6 +328,10 @@ public static class SkpExporter
         public required Action<IReadOnlyList<(double, double, double)>, int?, int?, int?, bool, bool, bool, bool, IReadOnlyList<IReadOnlyList<(double, double, double)>>?> Face { get; init; }
         public required Action<(double, double, double), (double, double, double), EdgeFlags> Edge { get; init; }
         public required Action<Sk.ComponentDefinitionBuilder, bool, string?, (double, double, double), double[], int?, int?, bool> Instance { get; init; }
+        public required Action<Sk.ComponentDefinitionBuilder, (double, double, double), double[], int?, bool> Image { get; init; }
+
+        public void AddImage(Sk.ComponentDefinitionBuilder def, (double, double, double) t, double[] m3, int? layer, bool hidden) =>
+            Image(def, t, m3, layer, hidden);
 
         public void AddFace(IReadOnlyList<(double, double, double)> pts, int? mat, int? layer, int? back, bool hidden,
             bool soft, bool smooth, bool hiddenEdges, IReadOnlyList<IReadOnlyList<(double, double, double)>>? holes) =>
@@ -272,6 +346,7 @@ public static class SkpExporter
         {
             Face = (p, m, l, bk, h, s, sm, he, holes) => b.AddFace(p, m, l, bk, h, s, sm, he, holes: holes),
             Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
+            Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>
             {
                 if (group)
@@ -285,6 +360,7 @@ public static class SkpExporter
         {
             Face = (p, m, l, bk, h, s, sm, he, holes) => b.AddFace(p, m, l, bk, h, s, sm, he, holes: holes),
             Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
+            Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>
             {
                 if (group)

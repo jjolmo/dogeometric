@@ -48,6 +48,10 @@ Every change is listed here and should be offered upstream.
    records (tag 0) among a definition's entities: they take a declared slot but carry no entity. They are skipped and
    counted, and once one is seen the definition tail signature (nrel 0, GUID, name marker) ends the list, as it
    already did for burned indices.
+10. **Image entities inside definitions** (`Create.cs`, `ComponentDefinitionBuilder.AddImageInstance`,
+    `SkpBuilder.AddImageInstance`). `AddImage` only placed Images at the top level, building a definition per call;
+    SketchUp nests Images in groups and components and shares one definition between copies. The new methods place a
+    `CImage` that references an already-written image definition, at any level.
 
 ## Note on `_scaffold/blank_v17.skp`
 

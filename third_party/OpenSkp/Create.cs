@@ -1992,6 +1992,25 @@ namespace OpenSkp
         /// embed one definition's declaration inside another's - so build
         /// the group's geometry with a normal AddComponentDefinition
         /// first, then place it here.</summary>
+        /// <summary>Dogeometric patch 10: place an Image entity (CImage) inside this definition. imageDefinition is
+        /// an already-closed definition holding the image's textured quad (as SkpBuilder.AddImage builds one);
+        /// SketchUp nests Images in groups and components, which the root-only AddImage can't express.</summary>
+        public void AddImageInstance(
+            ComponentDefinitionBuilder imageDefinition,
+            (double X, double Y, double Z) translation = default,
+            double[]? matrix3x3 = null,
+            int? layer = null,
+            bool hidden = false)
+        {
+            CheckWritable("images");
+            Skp.CheckLayerHandle(layer);
+            if (!ReferenceEquals(imageDefinition.Skp, Skp))
+                throw new SkpWriteException($"image definition '{imageDefinition.Name}' belongs to a different builder");
+            if (ReferenceEquals(imageDefinition, this))
+                throw new SkpWriteException($"component definition '{Name}' cannot nest an image of itself");
+            _newEntityCount += Skp.DefinitionWriter!.WriteImage(imageDefinition.Slot, translation, CreateMath.ResolveMatrix3x3(matrix3x3, null), layer ?? 0, hidden);
+        }
+
         public void AddGroupInstance(
             ComponentDefinitionBuilder definition, string? name = null,
             (double X, double Y, double Z) translation = default,
@@ -2686,6 +2705,23 @@ namespace OpenSkp
             EnsureGeometryWriter();
             _newEntityCount += _geometryWriter!.WriteImage(imageDef.Slot, translation, resolved, layer ?? 0, hidden);
             _faceCount += 1; // reuses the "at least one root entity" check in ToBytes
+        }
+
+        /// <summary>Dogeometric patch 10: place an Image entity at the top level from an already-closed image
+        /// definition (its textured quad), so several Images can share one, as in SketchUp.</summary>
+        public void AddImageInstance(
+            ComponentDefinitionBuilder imageDefinition,
+            (double X, double Y, double Z) translation = default,
+            double[]? matrix3x3 = null,
+            int? layer = null,
+            bool hidden = false)
+        {
+            CheckLayerHandle(layer);
+            if (!ReferenceEquals(imageDefinition.Skp, this))
+                throw new SkpWriteException($"image definition '{imageDefinition.Name}' belongs to a different builder");
+            EnsureGeometryWriter();
+            _newEntityCount += _geometryWriter!.WriteImage(imageDefinition.Slot, translation, CreateMath.ResolveMatrix3x3(matrix3x3, null), layer ?? 0, hidden);
+            _faceCount += 1;
         }
 
         private void EnsureGeometryWriter()
