@@ -100,6 +100,14 @@ public static class ContextMenu
         if (single is Face face)
         {
             Item("Align View", () => AlignView(doc, view, face));
+            var back = face.FrontMaterial?.Texture == null && face.BackMaterial?.Texture != null;
+            if ((back ? face.BackMaterial : face.FrontMaterial)?.Texture != null)
+            {
+                var texture = new PopupMenu();
+                texture.AddItem("Position", 1);
+                texture.IdPressed += _ => view.Tools.Activate(new Tools.TexturePositionTool(face, back));
+                menu.AddSubmenuNodeItem("Texture", texture);
+            }
         }
         if (sel.Count > 0)
         {
