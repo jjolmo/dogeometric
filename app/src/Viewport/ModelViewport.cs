@@ -361,6 +361,20 @@ public partial class ModelViewport : Control
 
     public void QueueOverlayRedraw() => _overlay.QueueRedraw();
 
+    /// <summary>The view as a hidden-line drawing, in viewport pixels.</summary>
+    public List<Core.IO.HiddenLine.Segment> HiddenLineDrawing()
+    {
+        if (Document is not { } doc)
+            return [];
+        var eye = Camera.Eye;
+        var back = Camera.Direction.Normalized();
+        Core.Picking.Ray RayTo(Vec3 p) => Camera.Perspective
+            ? new Core.Picking.Ray(eye, (p - eye).Normalized())
+            : new Core.Picking.Ray(p - back * ParallelEyeBackoff, back);
+        (double X, double Y)? Screen(Vec3 p) => ToScreen(p) is { } s && s.X >= -Size.X && s.X <= 2 * Size.X && s.Y >= -Size.Y && s.Y <= 2 * Size.Y ? (s.X, s.Y) : null;
+        return Core.IO.HiddenLine.Visible(doc.Model, Screen, RayTo, doc.Picker);
+    }
+
     /// <summary>The drawn view as an image (the 3D scene; tool feedback on the overlay is left out).</summary>
     public Image Snapshot() => _subViewport.GetTexture().GetImage();
 

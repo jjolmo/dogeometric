@@ -269,14 +269,34 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             _exportOptionsDialog = dialog;
         });
 
-    /// <summary>File › Export › 2D Graphic: the view as it is drawn, as PNG or JPEG.</summary>
+    /// <summary>File › Export › 2D Graphic: the view as it is drawn (PNG, JPEG) or as a hidden-line drawing (SVG, PDF).</summary>
     public void ShowExport2D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 2D Graphic",
-        ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image"], path =>
+        ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image", "*.svg ; SVG drawing", "*.pdf ; PDF drawing"], path =>
         {
-            var image = viewport.Snapshot();
-            var error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
-                ? image.SaveJpg(path, 0.92f)
-                : image.SavePng(path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? path : path + ".png");
+            var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            Error error;
+            if (ext is ".svg" or ".pdf")
+            {
+                var segments = viewport.HiddenLineDrawing();
+                var (w, h) = (viewport.Size.X, viewport.Size.Y);
+                try
+                {
+                    if (ext == ".svg")
+                        System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToSvg(segments, w, h));
+                    else
+                        System.IO.File.WriteAllBytes(path, Dogeometric.Core.IO.HiddenLine.ToPdf(segments, w, h));
+                    error = Error.Ok;
+                }
+                catch (System.IO.IOException)
+                {
+                    error = Error.CantCreate;
+                }
+            }
+            else
+            {
+                var image = viewport.Snapshot();
+                error = ext is ".jpg" or ".jpeg" ? image.SaveJpg(path, 0.92f) : image.SavePng(ext == ".png" ? path : path + ".png");
+            }
             status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
         });
 
