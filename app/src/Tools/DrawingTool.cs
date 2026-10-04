@@ -83,6 +83,35 @@ public abstract class DrawingTool : Tool
         return false;
     }
 
+    /// <summary>Shape tools' plane lock (Rectangle, arcs): the drawing plane's normal, or null to follow inference.</summary>
+    protected Vec3? LockedNormal { get; private set; }
+
+    /// <summary>→ red, ← green, ↑ blue: lock the plane perpendicular to that axis (again to unlock); ↓ the plane of the
+    /// face under the cursor. Returns whether the key was one of them.</summary>
+    protected bool TogglePlaneLock(InputEventKey key)
+    {
+        Vec3? axis = key.Keycode switch { Key.Right => Red, Key.Left => Green, Key.Up => Blue, _ => null };
+        if (axis is { } a)
+            LockedNormal = LockedNormal is { } l && l.Dot(a) > 0.999 ? null : a;
+        else if (key.Keycode == Key.Down)
+            LockedNormal = LockedNormal == null && Current is { Face: { } f } c ? c.EntityToWorld.ApplyNormal(f.Normal).Normalized() : null;
+        else
+            return false;
+        OnPlaneLockChanged();
+        RefreshStatus();
+        UpdateInference();
+        return true;
+    }
+
+    protected virtual void OnPlaneLockChanged() { }
+
+    /// <summary>Preview colour: the locked axis's, black when free.</summary>
+    protected Color LockColor => LockedNormal is { } n ? AxisColor(n) : Colors.Black;
+
+    protected string LockHint => LockedNormal is { } n
+        ? IsAxis(n) ? $" Locked to the {(Math.Abs(n.Dot(Red)) > 0.99 ? "red" : Math.Abs(n.Dot(Green)) > 0.99 ? "green" : "blue")} axis." : " Locked to the plane."
+        : "";
+
     protected void ResetLocks()
     {
         Inference.LockedAxis = null;

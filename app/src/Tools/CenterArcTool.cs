@@ -31,7 +31,7 @@ public class CenterArcTool(bool pie) : DrawingTool
         (null, _) => "Select center point.",
         (_, null) => "Select start point or enter radius.",
         _ => "Select end point or enter angle.",
-    };
+    } + LockHint;
 
     public override string VcbValue => (_center, _start, Current) switch
     {
@@ -42,6 +42,12 @@ public class CenterArcTool(bool pie) : DrawingTool
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
+    protected override void OnPlaneLockChanged()
+    {
+        if (_center != null && LockedNormal is { } n)
+            _normal = n;
+    }
+
     public override void MouseDown(MouseButton button, Vector2 position)
     {
         if (button != MouseButton.Left || Current is not { } inf)
@@ -49,8 +55,8 @@ public class CenterArcTool(bool pie) : DrawingTool
         if (_center == null)
         {
             _center = inf.Point;
-            _normal = inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized()
-                : inf.Kind == InferenceKind.InPlane ? Blue : MostFacingPlane();
+            _normal = LockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized()
+                : inf.Kind == InferenceKind.InPlane ? Blue : MostFacingPlane());
         }
         else if (_start == null)
         {
@@ -150,7 +156,8 @@ public class CenterArcTool(bool pie) : DrawingTool
             View.QueueOverlayRedraw();
             return true;
         }
-        return base.KeyDown(key);
+        // The plane is fixed once the start point is down.
+        return (_start == null && TogglePlaneLock(key)) || base.KeyDown(key);
     }
 
     public override void Draw(Control overlay)
@@ -163,11 +170,11 @@ public class CenterArcTool(bool pie) : DrawingTool
                 {
                     var pts = Shapes.CenterArc(c, _normal, s, sweep, Math.Max(2, (int)(sweep * 12)));
                     for (var i = 0; i + 1 < pts.Count; i++)
-                        DrawWorldLine(overlay, pts[i], pts[i + 1], Colors.Black, 1.5f);
+                        DrawWorldLine(overlay, pts[i], pts[i + 1], LockColor, 1.5f);
                     if (pie)
                     {
-                        DrawWorldLine(overlay, c, pts[0], Colors.Black, 1.5f);
-                        DrawWorldLine(overlay, c, pts[^1], Colors.Black, 1.5f);
+                        DrawWorldLine(overlay, c, pts[0], LockColor, 1.5f);
+                        DrawWorldLine(overlay, c, pts[^1], LockColor, 1.5f);
                     }
                 }
                 DrawWorldLine(overlay, c, s, Colors.Black, 1, dashed: true);

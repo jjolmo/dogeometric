@@ -21,7 +21,7 @@ public sealed class RectangleTool : DrawingTool
     public override int CommandId => CommandIds.Rectangle;
     public override string CursorImage => "rectangle";
     public override string VcbLabel => "Dimensions";
-    public override string StatusText => _corner == null ? "Click to set first corner." : "Click to set opposite corner or enter length, width.";
+    public override string StatusText => (_corner == null ? "Click to set first corner." : "Click to set opposite corner or enter length, width.") + LockHint;
 
     public override string VcbValue => Corners() is { } c
         ? $"{Length.Format(c[0].DistanceTo(c[1]), LengthUnit.Millimeters, 1)}, {Length.Format(c[1].DistanceTo(c[2]), LengthUnit.Millimeters, 1)}"
@@ -46,12 +46,25 @@ public sealed class RectangleTool : DrawingTool
     /// <summary>The plane of the face clicked first, otherwise the axis plane most facing the viewer.</summary>
     private void ChoosePlane(InferenceResult inf)
     {
-        if (inf.Face is { } f)
+        if (LockedNormal is { } locked)
+            _normal = locked;
+        else if (inf.Face is { } f)
             _normal = inf.EntityToWorld.ApplyNormal(f.Normal);
         else if (inf.Kind == InferenceKind.InPlane)
             _normal = Blue; // on the ground
         else
             _normal = MostFacingPlane();
+        SetAxes();
+    }
+
+    protected override void OnPlaneLockChanged()
+    {
+        if (_corner != null && Current is { } inf)
+            ChoosePlane(inf);
+    }
+
+    private void SetAxes()
+    {
         // In-plane axes follow the drawing axes when the plane is axis-aligned.
         var n = _normal;
         var candidates = new[] { Red, Green, Blue }.Where(a => Math.Abs(a.Dot(n)) < 0.99).ToList();
@@ -86,7 +99,7 @@ public sealed class RectangleTool : DrawingTool
     {
         // Prefer the cursor ray's intersection with the plane; fall back to projecting the inferred point.
         var ray = View.ScreenRay(Mouse);
-        if (Current?.Kind is InferenceKind.InPlane or InferenceKind.None or InferenceKind.OnFace &&
+        if ((LockedNormal != null || Current?.Kind is InferenceKind.InPlane or InferenceKind.None or InferenceKind.OnFace) &&
             InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), _normal, onPlane) is { } hit)
             return hit;
         return p - _normal * (p - onPlane).Dot(_normal);
@@ -124,7 +137,7 @@ public sealed class RectangleTool : DrawingTool
             View.QueueOverlayRedraw();
             return true;
         }
-        return base.KeyDown(key);
+        return TogglePlaneLock(key) || base.KeyDown(key);
     }
 
     public override void Draw(Control overlay)
@@ -132,7 +145,7 @@ public sealed class RectangleTool : DrawingTool
         if (Corners() is { } c)
         {
             for (var i = 0; i < 4; i++)
-                DrawWorldLine(overlay, c[i], c[(i + 1) % 4], Colors.Black, 1.5f);
+                DrawWorldLine(overlay, c[i], c[(i + 1) % 4], LockColor, 1.5f);
         }
         DrawInference(overlay);
     }
