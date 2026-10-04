@@ -306,3 +306,76 @@ public sealed class SurfaceShapeTool(SurfaceShape shape) : Tool
                 overlay.DrawLine(a, b, new Color(0.85f, 0.1f, 0.1f), 1.5f, true);
     }
 }
+
+/// <summary>Tools on Surface's Eraser: a click erases the whole curve under the cursor (hard edges running through
+/// points where only two meet), and the faces either side heal back into the surface.</summary>
+public sealed class SurfaceEraserTool : Tool
+{
+    private List<Edge> _hover = [];
+
+    public override int CommandId => ExtensionIds.SurfaceEraser;
+    public override string CursorImage => "eraser";
+    public override string StatusText => "Eraser on Surface: click a curve drawn on a surface to erase it.";
+
+    private Entities? _entities;
+    private Transform _toWorld = Transform.Identity;
+
+    /// <summary>The curve under the cursor, in whatever group it lies (like the shapes, which draw into the clicked group).</summary>
+    private List<Edge> CurveAt(Vector2 position)
+    {
+        if (View.Document is not { } doc || View.Pick(position) is not { Edge: { } edge } hit)
+            return [];
+        var e = hit.Path.Count > 0 ? hit.Path[^1].Definition.Entities : doc.Model.Entities;
+        _entities = e;
+        _toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+        bool Hard(Edge x) => (x.Flags & (EdgeFlags.Soft | EdgeFlags.Hidden)) == 0;
+        var hard = e.Edges.Where(Hard).ToList();
+        var at = new Dictionary<Vertex, List<Edge>>();
+        foreach (var x in hard)
+            foreach (var v in new[] { x.Start, x.End })
+            {
+                if (!at.TryGetValue(v, out var list))
+                    at[v] = list = [];
+                list.Add(x);
+            }
+        var chain = new HashSet<Edge> { edge };
+        var queue = new Queue<Edge>([edge]);
+        while (queue.Count > 0)
+        {
+            var x = queue.Dequeue();
+            foreach (var v in new[] { x.Start, x.End })
+                if (at.TryGetValue(v, out var list) && list.Count == 2 && list.First(y => y != x) is var next && chain.Add(next))
+                    queue.Enqueue(next);
+        }
+        return [.. chain];
+    }
+
+    public override void MouseMove(Vector2 position, Vector2 relative)
+    {
+        _hover = CurveAt(position);
+        View.QueueOverlayRedraw();
+    }
+
+    public override void MouseDown(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || View.Document is not { } doc)
+            return;
+        var curve = CurveAt(position);
+        if (curve.Count == 0 || _entities is not { } entities)
+            return;
+        doc.Selection.Remove(curve);
+        doc.Undo.Begin("Erase on Surface", entities);
+        Editing.Erase(entities, curve);
+        doc.Undo.Commit();
+        _hover = [];
+        View.QueueOverlayRedraw();
+    }
+
+    public override void Draw(Control overlay)
+    {
+        var xf = _toWorld;
+        foreach (var x in _hover)
+            if (View.ToScreen(xf.ApplyPoint(x.Start.Position)) is { } a && View.ToScreen(xf.ApplyPoint(x.End.Position)) is { } b)
+                overlay.DrawLine(a, b, new Color(0, 0, 1), 3);
+    }
+}

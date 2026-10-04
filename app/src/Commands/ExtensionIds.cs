@@ -43,6 +43,8 @@ public static class ExtensionIds
 
     /// <summary>Tools on Surface's shape tools, from 90131 (spline ids run to 90112).</summary>
     public static int SurfaceShape(Dogeometric.App.Tools.SurfaceShape shape) => 90131 + (int)shape;
+
+    public const int SurfaceEraser = 90150;
     public const int CurviloftLoft = 90095;
     public const int CurviloftSkin = 90096;
     public const int CleanUp = 90041;

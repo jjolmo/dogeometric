@@ -1,3 +1,4 @@
+using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Picking;
 
 namespace Dogeometric.Core.Modeling;
@@ -119,8 +120,8 @@ public sealed class Document
 public static class Editing
 {
     /// <summary>
-    /// Removes instances, faces and edges. Erasing an edge also erases the faces it bounds; erasing a face keeps its
-    /// edges. Vertices no edge uses any more are dropped.
+    /// Removes instances, faces and edges. Erasing an edge also erases the faces it bounds, unless they are coplanar
+    /// and heal into one; erasing a face keeps its edges. Vertices no edge uses any more are dropped.
     /// </summary>
     public static void Erase(Entities e, IEnumerable<object> items)
     {
@@ -132,9 +133,24 @@ public static class Editing
         e.SectionPlanes.RemoveAll(set.Contains);
         if (e.ActiveSection is { } active && set.Contains(active))
             e.ActiveSection = null;
+        // An edge between two coplanar faces facing the same way, with the same materials, heals them into one.
+        foreach (var edge in edges.ToList())
+        {
+            var faces = Topology.FacesOf(e, edge).ToList();
+            if (faces.Count == 2 && faces[0] != faces[1] && !faces.Any(set.Contains) && Coplanar(faces[0], faces[1])
+                && faces[0].FrontMaterial == faces[1].FrontMaterial && faces[0].BackMaterial == faces[1].BackMaterial
+                && FaceFinder.Merge(e, faces[0], faces[1], edge) != null)
+                edges.Remove(edge);
+        }
         e.Faces.RemoveAll(f => set.Contains(f) || f.Loops.Any(l => l.Edges.Any(x => edges.Contains(x.Edge))));
         e.Edges.RemoveAll(edges.Contains);
         RemoveOrphanVertices(e);
+    }
+
+    private static bool Coplanar(Face a, Face b)
+    {
+        var n = a.Normal.Normalized();
+        return n.Dot(b.Normal.Normalized()) > 1 - 1e-9 && b.OuterLoop.Points.All(p => Math.Abs((p - a.OuterLoop.Points.First()).Dot(n)) < Tolerance.Length);
     }
 
     /// <summary>

@@ -19,7 +19,7 @@ public static class Toolbars
         Tools.SurfaceShape.Line, Tools.SurfaceShape.Rectangle, Tools.SurfaceShape.Circle, Tools.SurfaceShape.Polygon, Tools.SurfaceShape.Ellipse,
         Tools.SurfaceShape.Parallelogram, Tools.SurfaceShape.Arc, Tools.SurfaceShape.Circle3P, Tools.SurfaceShape.Sector,
         Tools.SurfaceShape.Polyline, Tools.SurfaceShape.Freehand,
-    }.Select(Commands.ExtensionIds.SurfaceShape).ToArray();
+    }.Select(Commands.ExtensionIds.SurfaceShape).Append(Commands.ExtensionIds.SurfaceEraser).ToArray();
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
     // In the original toolbar's order.
     public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }
@@ -119,6 +119,7 @@ public static class Toolbars
         foreach (var shape in Enum.GetValues<Dogeometric.App.Tools.SurfaceShape>())
             Icons[Commands.ExtensionIds.SurfaceShape(shape)] = "tos_" + shape.ToString().ToLowerInvariant();
         Icons[Commands.ExtensionIds.SandboxDrape] = "sandbox_drape";
+        Icons[Commands.ExtensionIds.SurfaceEraser] = "tos_eraser";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())
             Icons[Commands.ExtensionIds.FredoScale(kind)] = "fredoscale_" + kind.ToString().ToLowerInvariant();
     }
