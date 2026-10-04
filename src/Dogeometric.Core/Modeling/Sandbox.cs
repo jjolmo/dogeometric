@@ -220,6 +220,116 @@ public static class Sandbox
         return true;
     }
 
+    /// <summary>Drape (and Tools on Surface): the path laid on <paramref name="e"/>'s faces along <paramref name="direction"/>, cut
+    /// at their edges so each piece lies on one face; returns the runs on the surface (parts off it are dropped).</summary>
+    public static List<List<Vec3>> DrapePath(Entities e, IReadOnlyList<Vec3> path, Vec3 direction, bool closed)
+    {
+        var d = direction.Normalized();
+        var (u, w) = Polygon.PlaneAxes(d);
+        (double X, double Y) Flat(Vec3 p) => (p.Dot(u), p.Dot(w));
+        var faces = e.Faces.Where(f => !f.Hidden && Math.Abs(f.Normal.Normalized().Dot(d)) > 1e-6).ToList();
+        var edges = faces.SelectMany(Topology.EdgesOf).Distinct().ToList();
+
+        Vec3? Lift(Vec3 p)
+        {
+            // The first face met coming from far behind the path along the direction (the surface facing it).
+            Vec3? best = null;
+            var bestT = double.MaxValue;
+            var origin = p - d * 1e7;
+            foreach (var f in faces)
+            {
+                var n = f.Normal.Normalized();
+                var denom = n.Dot(d);
+                var t = (f.OuterLoop.Points.First() - origin).Dot(n) / denom;
+                if (t >= bestT)
+                    continue;
+                var hit = origin + d * t;
+                if (Contains(f, hit, n))
+                {
+                    bestT = t;
+                    best = hit;
+                }
+            }
+            return best;
+        }
+
+        var points = closed && path.Count > 2 ? path.Append(path[0]).ToList() : path.ToList();
+        var runs = new List<List<Vec3>>();
+        var run = new List<Vec3>();
+        void Add(Vec3? q)
+        {
+            if (q is not { } v)
+            {
+                if (run.Count >= 2)
+                    runs.Add(run);
+                run = [];
+                return;
+            }
+            if (run.Count == 0 || run[^1].DistanceTo(v) > Tolerance.Length)
+                run.Add(v);
+        }
+
+        for (var i = 0; i + 1 < points.Count; i++)
+        {
+            var a = points[i];
+            var b = points[i + 1];
+            var (ax, ay) = Flat(a);
+            var (bx, by) = Flat(b);
+            var cuts = new List<(double T, Vec3 P)>();
+            foreach (var edge in edges)
+            {
+                var (cx, cy) = Flat(edge.Start.Position);
+                var (ex, ey) = Flat(edge.End.Position);
+                double rx = bx - ax, ry = by - ay, sx = ex - cx, sy = ey - cy;
+                var den = rx * sy - ry * sx;
+                if (Math.Abs(den) < 1e-12)
+                    continue;
+                var t = ((cx - ax) * sy - (cy - ay) * sx) / den;
+                var s2 = ((cx - ax) * ry - (cy - ay) * rx) / den;
+                if (t > 1e-9 && t < 1 - 1e-9 && s2 >= -1e-9 && s2 <= 1 + 1e-9)
+                    cuts.Add((t, edge.Start.Position + (edge.End.Position - edge.Start.Position) * Math.Clamp(s2, 0, 1)));
+            }
+            if (i == 0)
+                Add(Lift(a));
+            foreach (var (t, p) in cuts.OrderBy(c => c.T))
+            {
+                // Only crossings on the visible surface count (an edge further back is not where the path lies).
+                if (Lift(a + (b - a) * t) is { } l && l.DistanceTo(p) < 0.01)
+                    Add(p);
+            }
+            Add(Lift(b));
+        }
+        if (run.Count >= 2)
+            runs.Add(run);
+        return runs;
+    }
+
+    private static bool Contains(Face f, Vec3 point, Vec3 n)
+    {
+        var (u, v) = Polygon.PlaneAxes(n);
+        var inside = false;
+        foreach (var loop in f.Loops)
+        {
+            var pts = loop.Points.ToList();
+            for (int i = 0, j = pts.Count - 1; i < pts.Count; j = i++)
+            {
+                double xi = pts[i].Dot(u), yi = pts[i].Dot(v), xj = pts[j].Dot(u), yj = pts[j].Dot(v);
+                double px = point.Dot(u), py = point.Dot(v);
+                if ((yi > py) != (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi)
+                    inside = !inside;
+            }
+        }
+        // On the outline counts as inside (paths cross faces exactly at their edges).
+        return inside || f.Loops.SelectMany(l => l.Edges).Any(x => DistanceToSegment(point, x.Edge.Start.Position, x.Edge.End.Position) < Tolerance.Length);
+    }
+
+    private static double DistanceToSegment(Vec3 p, Vec3 a, Vec3 b)
+    {
+        var ab = b - a;
+        var t = Math.Clamp((p - a).Dot(ab) / Math.Max(ab.LengthSquared, 1e-18), 0, 1);
+        return p.DistanceTo(a + ab * t);
+    }
+
     private static Face Up(Face f, Vec3 up)
     {
         if (f.Normal.Dot(up) < 0)

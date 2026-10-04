@@ -13,12 +13,13 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] ToolsOnSurface = Enum.GetValues<Dogeometric.App.Tools.SurfaceShape>().Select(Commands.ExtensionIds.SurfaceShape).ToArray();
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
     public static readonly int[] FredoScale = Enum.GetValues<Dogeometric.Core.Modeling.Deformation>().Select(Commands.ExtensionIds.FredoScale).ToArray();
     public static readonly int[] Sandbox =
     [
         Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
-        Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
+        Commands.ExtensionIds.SandboxDrape, Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
     ];
     public static readonly int[] BezierSpline = Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline).ToArray();
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull];
@@ -107,6 +108,9 @@ public static class Toolbars
     {
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>())
             Icons[Commands.ExtensionIds.Spline(kind)] = "spline_" + kind.ToString().ToLowerInvariant();
+        foreach (var shape in Enum.GetValues<Dogeometric.App.Tools.SurfaceShape>())
+            Icons[Commands.ExtensionIds.SurfaceShape(shape)] = "tos_" + shape.ToString().ToLowerInvariant();
+        Icons[Commands.ExtensionIds.SandboxDrape] = "sandbox_drape";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())
             Icons[Commands.ExtensionIds.FredoScale(kind)] = "fredoscale_" + kind.ToString().ToLowerInvariant();
     }

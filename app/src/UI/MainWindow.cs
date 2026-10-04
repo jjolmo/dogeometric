@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Tools on Surface", Toolbars.ToolsOnSurface, ToolbarDocks.Dock.Top);
         Bar("Curviloft", Toolbars.Curviloft, ToolbarDocks.Dock.Top);
         Bar("Fredo6_FredoScale", Toolbars.FredoScale, ToolbarDocks.Dock.Top);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
@@ -303,6 +304,15 @@ public partial class MainWindow : Control
         _commands.Register(ExtensionIds.SandboxFromScratch, () => _viewport.Tools.Activate(new SandboxGridTool()), () => _viewport.Tools.Active is SandboxGridTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxSmoove, "Smoove", "Raise or lower a terrain smoothly.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxSmoove, () => _viewport.Tools.Activate(new SmooveTool()), () => _viewport.Tools.Active is SmooveTool);
+        _commands.AddToMenu("Tools", ExtensionIds.SandboxDrape, "Drape", "Drape the selected edges onto a surface below them.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxDrape, () => _viewport.Tools.Activate(new DrapeTool()), () => _viewport.Tools.Active is DrapeTool);
+        foreach (var shape in Enum.GetValues<SurfaceShape>())
+        {
+            var id = ExtensionIds.SurfaceShape(shape);
+            _commands.AddToMenu("Tools", id, $"{shape} on Surface", $"Tools on Surface: draw a {shape.ToString().ToLowerInvariant()} on a surface.",
+                submenu: "Fredo6 Collection", groupStart: shape == SurfaceShape.Line);
+            _commands.Register(id, () => _viewport.Tools.Activate(new SurfaceShapeTool(shape)), () => _viewport.Tools.Active.CommandId == id);
+        }
         _commands.AddToMenu("Tools", ExtensionIds.SandboxAddDetail, "Add Detail", "Split the selected triangles to add detail.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxAddDetail, () =>
         {
