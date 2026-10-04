@@ -19,7 +19,8 @@ def clean(items):
             out.append({"separator": True})
             continue
         label, _, accel = text.partition("\t")
-        node = {"label": label.replace("&", "").strip()}
+        # Dogeometric is not SketchUp: menu items that name the product (About, Welcome, Search) use our name.
+        node = {"label": label.replace("&", "").strip().replace("SketchUp", "Dogeometric")}
         if it.get("children"):
             node["children"] = clean(it["children"])
         else:

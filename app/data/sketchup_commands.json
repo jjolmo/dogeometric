@@ -806,7 +806,7 @@
    "label": "Help",
    "children": [
     {
-     "label": "Welcome to SketchUp...",
+     "label": "Welcome to Dogeometric...",
      "id": 24182
     },
     {
@@ -839,11 +839,11 @@
      "separator": true
     },
     {
-     "label": "About SketchUp...",
+     "label": "About Dogeometric...",
      "id": 57664
     },
     {
-     "label": "Search SketchUp",
+     "label": "Search Dogeometric",
      "id": 59423
     },
     {
