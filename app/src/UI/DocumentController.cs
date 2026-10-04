@@ -36,6 +36,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>Re-applies the component-edit fading (after a View › Component Edit toggle).</summary>
     public void RefreshComponentEdit() => RebuildSelection();
 
+    /// <summary>View › Edge Style › Edges.</summary>
+    public bool ShowEdges
+    {
+        get => _renderer.ShowEdges;
+        set
+        {
+            _renderer.ShowEdges = value;
+            Rebuild();
+        }
+    }
+
     /// <summary>View › Hidden Objects.</summary>
     public bool ShowHiddenObjects
     {

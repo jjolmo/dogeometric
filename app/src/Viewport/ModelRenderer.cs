@@ -43,6 +43,9 @@ public sealed class ModelRenderer
     /// <summary>View › Guides.</summary>
     public bool ShowGuides { get; set; } = true;
 
+    /// <summary>View › Edge Style › Edges. Needs a rebuild.</summary>
+    public bool ShowEdges { get; set; } = true;
+
     /// <summary>View › Hidden Objects: hidden groups and components show faded. Needs a rebuild.</summary>
     public bool ShowHiddenObjects { get; set; }
 
@@ -160,7 +163,7 @@ public sealed class ModelRenderer
             }
             parent.AddChild(faces);
         }
-        if (mesh.Edges != null)
+        if (mesh.Edges != null && ShowEdges)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Hidden != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Hidden, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });

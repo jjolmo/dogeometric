@@ -101,6 +101,7 @@ public static class CommandIds
     public const int LookAround = 10525;
     public const int Walk = 10520;
     public const int BackEdges = 10619;
+    public const int Edges = 10614;
     public const int HiddenGeometry = 21155;
     public const int Fog = 10618;
     public const int HiddenObjects = 21153;
