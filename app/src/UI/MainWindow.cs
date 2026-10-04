@@ -21,6 +21,7 @@ public partial class MainWindow : Control
     private EntityInfoPanel _entityInfo = null!;
     private MaterialsPanel _materials = null!;
     private TagsPanel _tags = null!;
+    private ComponentsPanel _components = null!;
     private readonly List<Toolbar> _toolbars = [];
 
     public override void _Ready()
@@ -172,7 +173,34 @@ public partial class MainWindow : Control
                 doc.Selection.Set([created]);
         }
         _commands.Register(CommandIds.MakeGroup, () => MakeGroup(true));
-        _commands.Register(CommandIds.MakeComponent, () => MakeGroup(false));
+        _commands.Register(CommandIds.MakeComponent, () =>
+        {
+            var doc = Doc();
+            if (doc.Selection.IsEmpty)
+                return;
+            var items = doc.Selection.Items.ToList();
+            var index = doc.Model.Definitions.Count(d => !d.IsGroup && !d.IsImage) + 1;
+            MakeComponentDialog.Show(this, $"Component#{index}", r =>
+            {
+                ComponentInstance? created = null;
+                doc.Operation("Make Component", e =>
+                {
+                    created = Grouping.Make(doc.Model, e, items, asGroup: false, r.Name);
+                    var def = created.Definition;
+                    def.Description = r.Description;
+                    def.AlwaysFaceCamera = r.AlwaysFaceCamera;
+                    def.ShadowsFaceSun = r.ShadowsFaceSun;
+                    // Unchecked "Replace selection": the component goes to the model's library only.
+                    if (!r.ReplaceSelection)
+                    {
+                        Grouping.Explode(e, created);
+                        created = null;
+                    }
+                });
+                doc.Selection.Set(created != null ? [created] : []);
+                _components.Refresh();
+            });
+        });
         // View › Face Style (radio items, mirrored by the Styles toolbar).
         void Style(int id, FaceStyle style) =>
             _commands.Register(id, () => { _document.FaceStyle = style; RefreshToolbars(); }, () => _document.FaceStyle == style, radio: true);
@@ -308,6 +336,8 @@ public partial class MainWindow : Control
         _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
         list.AddChild(TraySection.Create("Entity Info", _entityInfo));
         list.AddChild(TraySection.Create("Materials", _materials));
+        _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
+        list.AddChild(TraySection.Create("Components", _components, expanded: false));
         list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
     }
 
@@ -320,10 +350,12 @@ public partial class MainWindow : Control
         {
             _entityInfo.Refresh();
             _tags.Refresh();
+            _components.Refresh();
         };
         _entityInfo.Refresh();
         _materials.Refresh();
         _tags.Refresh();
+        _components.Refresh();
     }
 
     /// <summary>Double-click on a dimension or text: edit its text in place ("&lt;&gt;" keeps a dimension's length).</summary>

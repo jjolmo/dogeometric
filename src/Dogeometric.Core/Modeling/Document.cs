@@ -340,6 +340,29 @@ public static class Grouping
         model.Entities.Instances.Count(i => i.Definition == def) +
         model.Definitions.Sum(d => d.Entities.Instances.Count(i => i.Definition == def));
 
+    /// <summary>Every instance of <paramref name="def"/> with the collection that holds it.</summary>
+    public static IEnumerable<(ComponentInstance Instance, Entities Owner)> InstancesOf(Model model, ComponentDefinition def) =>
+        model.AllEntities.SelectMany(e => e.Instances.Where(i => i.Definition == def).Select(i => (i, e)));
+
+    /// <summary>
+    /// Purge Unused: removes definitions no instance uses (repeatedly, as removing one can orphan the ones it
+    /// contained). Returns how many went.
+    /// </summary>
+    public static int PurgeUnused(Model model)
+    {
+        var removed = 0;
+        while (true)
+        {
+            var used = model.AllEntities.SelectMany(e => e.Instances).Select(i => i.Definition).ToHashSet();
+            var unused = model.Definitions.Where(d => !used.Contains(d)).ToList();
+            if (unused.Count == 0)
+                return removed;
+            foreach (var d in unused)
+                model.Definitions.Remove(d);
+            removed += unused.Count;
+        }
+    }
+
     /// <summary>Make Unique: <paramref name="inst"/> gets its own copy of its definition.</summary>
     public static void MakeUnique(Model model, ComponentInstance inst)
     {

@@ -16,7 +16,7 @@ public static class LightTheme
     {
         var theme = new Theme { DefaultFontSize = 14 };
 
-        foreach (var type in new[] { "Label", "Button", "MenuBar", "PopupMenu", "LineEdit", "CheckBox", "AcceptDialog", "TooltipLabel" })
+        foreach (var type in new[] { "Label", "Button", "MenuBar", "PopupMenu", "LineEdit", "TextEdit", "CheckBox", "AcceptDialog", "TooltipLabel" })
         {
             theme.SetColor("font_color", type, Text);
             theme.SetColor("font_disabled_color", type, TextDisabled);
@@ -56,6 +56,10 @@ public static class LightTheme
         theme.SetStylebox("read_only", "LineEdit", edit);
         theme.SetColor("font_uneditable_color", "LineEdit", Text);
         theme.SetColor("caret_color", "LineEdit", Text);
+        theme.SetStylebox("normal", "TextEdit", edit);
+        theme.SetStylebox("focus", "TextEdit", edit);
+        theme.SetStylebox("read_only", "TextEdit", edit);
+        theme.SetColor("caret_color", "TextEdit", Text);
 
         // Buttons and drop-downs (Entity Info's tag list, tray buttons): light, bordered, blue on hover.
         foreach (var type in new[] { "Button", "OptionButton" })
