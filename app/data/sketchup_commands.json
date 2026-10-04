@@ -1,0 +1,1444 @@
+{
+ "menus": [
+  {
+   "label": "File",
+   "children": [
+    {
+     "label": "New",
+     "id": 57600
+    },
+    {
+     "label": "New From Template...",
+     "id": 24446
+    },
+    {
+     "label": "Open...",
+     "id": 57601
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Save",
+     "id": 57603
+    },
+    {
+     "label": "Save As...",
+     "id": 57604
+    },
+    {
+     "label": "Save A Copy As...",
+     "id": 21136
+    },
+    {
+     "label": "Save As Template...",
+     "id": 24183
+    },
+    {
+     "label": "Revert",
+     "id": 21485
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Send to LayOut...",
+     "id": 23051
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Start PreDesign...",
+     "id": 24454
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Geo-location",
+     "children": [
+      {
+       "label": "Add Location...",
+       "id": 24216
+      },
+      {
+       "label": "Clear Location",
+       "id": 24197
+      },
+      {
+       "label": "Show Terrain",
+       "id": 24217
+      }
+     ]
+    },
+    {
+     "label": "3D Warehouse",
+     "children": [
+      {
+       "label": "Share Component...",
+       "id": 24191
+      },
+      {
+       "label": "Share Model...",
+       "id": 21989
+      }
+     ]
+    },
+    {
+     "label": "Import...",
+     "id": 21933
+    },
+    {
+     "label": "Export",
+     "children": [
+      {
+       "label": "3D Model...",
+       "id": 21149
+      },
+      {
+       "label": "2D Graphic...",
+       "id": 21237
+      },
+      {
+       "label": "Section Slice...",
+       "id": 21359
+      },
+      {
+       "label": "Animation...",
+       "id": 21388
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Print Setup...",
+     "id": 57606
+    },
+    {
+     "label": "Print Preview...",
+     "id": 57609
+    },
+    {
+     "label": "Print...",
+     "id": 57607
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Recent File",
+     "id": 57616
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Exit",
+     "id": 57665
+    }
+   ]
+  },
+  {
+   "label": "Edit",
+   "children": [
+    {
+     "label": "Undo",
+     "id": 57643
+    },
+    {
+     "label": "Redo",
+     "id": 57644
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Cut",
+     "id": 57635
+    },
+    {
+     "label": "Copy",
+     "id": 57634
+    },
+    {
+     "label": "Paste",
+     "id": 57637
+    },
+    {
+     "label": "Paste In Place",
+     "id": 21939
+    },
+    {
+     "label": "Delete",
+     "id": 21021
+    },
+    {
+     "label": "Delete Guides",
+     "id": 21044
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Select All",
+     "id": 21101
+    },
+    {
+     "label": "Select None",
+     "id": 21102
+    },
+    {
+     "label": "Invert Selection",
+     "id": 24447
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Hide",
+     "id": 21052
+    },
+    {
+     "label": "Unhide",
+     "children": [
+      {
+       "label": "Selected",
+       "id": 21152
+      },
+      {
+       "label": "Last",
+       "id": 21099
+      },
+      {
+       "label": "All",
+       "id": 21053
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Lock",
+     "id": 21906
+    },
+    {
+     "label": "Unlock",
+     "children": [
+      {
+       "label": "Selected",
+       "id": 21915
+      },
+      {
+       "label": "All",
+       "id": 21914
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Make Component...",
+     "id": 21083
+    },
+    {
+     "label": "Make Group",
+     "id": 21182
+    },
+    {
+     "label": "Close Group/Component",
+     "id": 21202
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Intersect Faces",
+     "children": [
+      {
+       "label": "With Model",
+       "id": 21524
+      },
+      {
+       "label": "With Selection",
+       "id": 21527
+      },
+      {
+       "label": "With Context",
+       "id": 21526
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Items",
+     "children": [
+      {
+       "label": "Edit Items",
+       "id": 21531
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "View",
+   "children": [
+    {
+     "label": "Toolbars...",
+     "id": 21982
+    },
+    {
+     "label": "Scene Tabs",
+     "id": 10534
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Hidden Geometry",
+     "id": 21155
+    },
+    {
+     "label": "Hidden Objects",
+     "id": 21153
+    },
+    {
+     "label": "Section Planes",
+     "id": 21347
+    },
+    {
+     "label": "Section Cuts",
+     "id": 21348
+    },
+    {
+     "label": "Section Fill",
+     "id": 21349
+    },
+    {
+     "label": "Axes",
+     "id": 10522
+    },
+    {
+     "label": "Guides",
+     "id": 21980
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Shadows",
+     "id": 10602
+    },
+    {
+     "label": "Fog",
+     "id": 10618
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Edge Style",
+     "children": [
+      {
+       "label": "Edges",
+       "id": 10614
+      },
+      {
+       "label": "Back Edges",
+       "id": 10619
+      },
+      {
+       "separator": true
+      },
+      {
+       "label": "Profiles",
+       "id": 10603
+      },
+      {
+       "label": "Depth Cue",
+       "id": 10615
+      },
+      {
+       "label": "Extension",
+       "id": 10604
+      }
+     ]
+    },
+    {
+     "label": "Face Style",
+     "children": [
+      {
+       "label": "X-ray",
+       "id": 10596
+      },
+      {
+       "separator": true
+      },
+      {
+       "label": "Wireframe",
+       "id": 10597
+      },
+      {
+       "label": "Hidden Line",
+       "id": 10598
+      },
+      {
+       "label": "Shaded",
+       "id": 10599
+      },
+      {
+       "label": "Shaded With Textures",
+       "id": 10600
+      },
+      {
+       "label": "Monochrome",
+       "id": 10601
+      }
+     ]
+    },
+    {
+     "label": "Component Edit",
+     "children": [
+      {
+       "label": "Hide Rest Of Model",
+       "id": 21586
+      },
+      {
+       "label": "Hide Similar Components",
+       "id": 21587
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Animation",
+     "children": [
+      {
+       "label": "Add Scene",
+       "id": 21067
+      },
+      {
+       "label": "Update Scene",
+       "id": 21068
+      },
+      {
+       "label": "Delete Scene",
+       "id": 21078
+      },
+      {
+       "separator": true
+      },
+      {
+       "label": "Previous Scene",
+       "id": 10536
+      },
+      {
+       "label": "Next Scene",
+       "id": 10535
+      },
+      {
+       "separator": true
+      },
+      {
+       "label": "Play",
+       "id": 10552
+      },
+      {
+       "label": "Settings",
+       "id": 21170
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "Camera",
+   "children": [
+    {
+     "label": "Previous",
+     "id": 10529
+    },
+    {
+     "label": "Next",
+     "id": 10629
+    },
+    {
+     "label": "Standard Views",
+     "children": [
+      {
+       "label": "Top",
+       "id": 10501
+      },
+      {
+       "label": "Bottom",
+       "id": 10506
+      },
+      {
+       "label": "Front",
+       "id": 10502
+      },
+      {
+       "label": "Back",
+       "id": 10505
+      },
+      {
+       "label": "Left",
+       "id": 10504
+      },
+      {
+       "label": "Right",
+       "id": 10503
+      },
+      {
+       "label": "Iso",
+       "id": 10507
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Parallel Projection",
+     "id": 10630
+    },
+    {
+     "label": "Perspective",
+     "id": 10519
+    },
+    {
+     "label": "Two-Point Perspective",
+     "id": 10627
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Match New Photo...",
+     "id": 23006
+    },
+    {
+     "label": "Edit Matched Photo",
+     "children": [
+      {
+       "label": "Dummy",
+       "id": 23001
+      }
+     ]
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Orbit",
+     "id": 10508
+    },
+    {
+     "label": "Pan",
+     "id": 10523
+    },
+    {
+     "label": "Zoom",
+     "id": 10509
+    },
+    {
+     "label": "Field of View",
+     "id": 21494
+    },
+    {
+     "label": "Zoom Window",
+     "id": 10526
+    },
+    {
+     "label": "Zoom Extents",
+     "id": 10527
+    },
+    {
+     "label": "Zoom to Photo",
+     "id": 10625
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Position Camera",
+     "id": 21169
+    },
+    {
+     "label": "Walk",
+     "id": 10520
+    },
+    {
+     "label": "Look Around",
+     "id": 10525
+    },
+    {
+     "label": "Image Igloo",
+     "id": 10631
+    }
+   ]
+  },
+  {
+   "label": "Draw",
+   "children": [
+    {
+     "label": "Lines",
+     "children": [
+      {
+       "label": "Line",
+       "id": 21020
+      },
+      {
+       "label": "Freehand",
+       "id": 21031
+      }
+     ]
+    },
+    {
+     "label": "Arcs",
+     "children": [
+      {
+       "label": "Arc",
+       "id": 21069
+      },
+      {
+       "label": "2 Point Arc",
+       "id": 21065
+      },
+      {
+       "label": "3 Point Arc",
+       "id": 21071
+      },
+      {
+       "label": "Pie",
+       "id": 21070
+      }
+     ]
+    },
+    {
+     "label": "Shapes",
+     "children": [
+      {
+       "label": "Rectangle",
+       "id": 21094
+      },
+      {
+       "label": "Rotated Rectangle",
+       "id": 24223
+      },
+      {
+       "label": "Circle",
+       "id": 21096
+      },
+      {
+       "label": "Polygon",
+       "id": 21095
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "Tools",
+   "children": [
+    {
+     "label": "Select",
+     "id": 21022
+    },
+    {
+     "label": "Eraser",
+     "id": 21019
+    },
+    {
+     "label": "Paint Bucket",
+     "id": 21074
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Move",
+     "id": 21048
+    },
+    {
+     "label": "Rotate",
+     "id": 21129
+    },
+    {
+     "label": "Scale",
+     "id": 21236
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Push/Pull",
+     "id": 21041
+    },
+    {
+     "label": "Follow Me",
+     "id": 21525
+    },
+    {
+     "label": "Offset",
+     "id": 21100
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Outer Shell",
+     "id": 24198
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Tape Measure",
+     "id": 21024
+    },
+    {
+     "label": "Protractor",
+     "id": 21057
+    },
+    {
+     "label": "Axes",
+     "id": 21126
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Dimensions",
+     "id": 21410
+    },
+    {
+     "label": "Text",
+     "id": 21405
+    },
+    {
+     "label": "3D Text",
+     "id": 21940
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Section Plane",
+     "id": 21337
+    }
+   ]
+  },
+  {
+   "label": "Window",
+   "children": [
+    {
+     "label": "Tray Placeholder",
+     "id": 10635
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Manage Trays...",
+     "id": 24224
+    },
+    {
+     "label": "New Tray...",
+     "id": 10634
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Model Info",
+     "id": 21076
+    },
+    {
+     "label": "Preferences",
+     "id": 10521
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "3D Warehouse",
+     "id": 24256
+    }
+   ]
+  },
+  {
+   "label": "Extensions",
+   "children": [
+    {
+     "label": "Extension Warehouse",
+     "id": 24211
+    },
+    {
+     "label": "Extension Manager",
+     "id": 24257
+    },
+    {
+     "label": "Developer",
+     "children": [
+      {
+       "label": "Ruby API Documentation",
+       "id": 24458
+      },
+      {
+       "label": "Ruby Console",
+       "id": 21478
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "Help",
+   "children": [
+    {
+     "label": "Welcome to SketchUp...",
+     "id": 24182
+    },
+    {
+     "label": "Help Center",
+     "id": 57667
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Contact Us",
+     "id": 24184
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "Manage Licensing",
+     "id": 21460
+    },
+    {
+     "label": "Check for Update",
+     "id": 21931
+    },
+    {
+     "label": "Check Your System",
+     "id": 24435
+    },
+    {
+     "separator": true
+    },
+    {
+     "label": "About SketchUp...",
+     "id": 57664
+    },
+    {
+     "label": "Search SketchUp",
+     "id": 59423
+    },
+    {
+     "separator": true
+    }
+   ]
+  }
+ ],
+ "commands": {
+  "10501": {
+   "description": "Move the camera to the top view of the model."
+  },
+  "10502": {
+   "description": "Move the camera to the front view of the model."
+  },
+  "10503": {
+   "description": "Move the camera to the right view of the model."
+  },
+  "10504": {
+   "description": "Move the camera to the left view of the model."
+  },
+  "10505": {
+   "description": "Move the camera to the back view of the model."
+  },
+  "10506": {
+   "description": "Move the camera to the bottom view of the model."
+  },
+  "10507": {
+   "description": "Move the camera to the nearest isometric view of the model."
+  },
+  "10508": {
+   "description": "Orbit the camera view about the model."
+  },
+  "10509": {
+   "description": "Zoom the camera view in or out."
+  },
+  "10519": {
+   "description": "Toggle perspective viewing on or off"
+  },
+  "10520": {
+   "description": "Walk with the camera"
+  },
+  "10521": {
+   "description": "View preferences dialog"
+  },
+  "10522": {
+   "description": "Show or hide the sketch axes"
+  },
+  "10523": {
+   "description": "Pan the camera view vertically or horizontally."
+  },
+  "10525": {
+   "description": "Pivot camera view about a stationary point."
+  },
+  "10526": {
+   "description": "Zoom the camera to show everything inside the selected window."
+  },
+  "10527": {
+   "description": "Zoom the camera view in or out to show the entire model."
+  },
+  "10529": {
+   "description": "Undo to the previous camera view."
+  },
+  "10534": {
+   "description": "Show or hide the scene tabs"
+  },
+  "10535": {
+   "description": "Display the next scene"
+  },
+  "10536": {
+   "description": "Display the previous scene"
+  },
+  "10552": {
+   "description": "Play/pause scene-based animation in the model."
+  },
+  "10596": {
+   "description": "X-ray Mode"
+  },
+  "10597": {
+   "description": "Wireframe"
+  },
+  "10598": {
+   "description": "Hidden Line"
+  },
+  "10599": {
+   "description": "Shaded"
+  },
+  "10600": {
+   "description": "Shaded With Textures"
+  },
+  "10601": {
+   "description": "Monochrome"
+  },
+  "10602": {
+   "description": "Shadows"
+  },
+  "10603": {
+   "description": "Profile Edges"
+  },
+  "10604": {
+   "description": "Extended Edges"
+  },
+  "10619": {
+   "description": "Display the model with back edges dashed"
+  },
+  "10625": {
+   "description": "Zoom to Photo"
+  },
+  "10627": {
+   "description": "Two Point Perspective"
+  },
+  "10629": {
+   "description": "Redo to the next camera view."
+  },
+  "10630": {
+   "description": "Parallel Projection"
+  },
+  "10631": {
+   "description": "Image Igloo"
+  },
+  "10634": {
+   "description": "Create a new Tray."
+  },
+  "21019": {
+   "description": "Erase, soften or smooth entities in the model."
+  },
+  "21020": {
+   "description": "Draw edges from point to point."
+  },
+  "21021": {
+   "description": "Erase the selected entities from the model."
+  },
+  "21022": {
+   "description": "Select entities to modify with other tools or commands."
+  },
+  "21024": {
+   "description": "Measure distances, create guide lines or points, or scale the entire model."
+  },
+  "21031": {
+   "description": "Draw freehand lines by clicking and dragging."
+  },
+  "21041": {
+   "description": "Push and pull face entities to sculpt 3d models."
+  },
+  "21044": {
+   "description": "Erase all guides"
+  },
+  "21048": {
+   "description": "Move, stretch, copy and array selected entities."
+  },
+  "21052": {
+   "description": "Hide selected geometry"
+  },
+  "21053": {
+   "description": "Unhide all hidden geometry"
+  },
+  "21057": {
+   "description": "Measure angles and create guides."
+  },
+  "21065": {
+   "description": "Draw arcs from point to point with bulge."
+  },
+  "21067": {
+   "description": "Add a new scene"
+  },
+  "21068": {
+   "description": "Update the current scene"
+  },
+  "21069": {
+   "description": "Draw arcs from center and 2 points."
+  },
+  "21070": {
+   "description": "Draw closed arcs from center and 2 points."
+  },
+  "21071": {
+   "description": "Draw arcs through 3 points on the arc circumference."
+  },
+  "21074": {
+   "description": "Apply color and material to entities in the model."
+  },
+  "21076": {
+   "description": "Display information about the model."
+  },
+  "21078": {
+   "description": "Delete the current scene"
+  },
+  "21083": {
+   "description": "Make an empty component or a component from the selected entities."
+  },
+  "21094": {
+   "description": "Draw rectangular faces from corner to corner."
+  },
+  "21095": {
+   "description": "Draw N-sided polygons from center point to radius."
+  },
+  "21096": {
+   "description": "Draw circles from center point to radius."
+  },
+  "21099": {
+   "description": "Unhide the last geometry hidden"
+  },
+  "21100": {
+   "description": "Offset selected edges in a plane."
+  },
+  "21101": {
+   "description": "Select all visible objects"
+  },
+  "21102": {
+   "description": "Clear the selection set"
+  },
+  "21126": {
+   "description": "Move or reorient the drawing axes."
+  },
+  "21129": {
+   "description": "Rotate, stretch, copy and array selected entities about an axis."
+  },
+  "21136": {
+   "description": "Save a copy of the active document"
+  },
+  "21149": {
+   "description": "Export Model"
+  },
+  "21152": {
+   "description": "Unhide selected geometry"
+  },
+  "21169": {
+   "description": "Position the camera view with a specific location, eye height and direction."
+  },
+  "21170": {
+   "description": "Show the Animation Settings dialog."
+  },
+  "21182": {
+   "description": "Create a group from the selected geometry"
+  },
+  "21202": {
+   "description": "Stop editing the active group or component."
+  },
+  "21236": {
+   "description": "Scale and stretch selected entities."
+  },
+  "21237": {
+   "description": "Export 2D Graphic"
+  },
+  "21337": {
+   "description": "Draw section planes to expose interior details in the model."
+  },
+  "21347": {
+   "description": "Toggle section planes on and off."
+  },
+  "21348": {
+   "description": "Toggle section cuts on and off"
+  },
+  "21349": {
+   "description": "Toggle section fill on and off"
+  },
+  "21359": {
+   "description": "Export the active section slice."
+  },
+  "21388": {
+   "description": "Export the animation as a video or series of images"
+  },
+  "21405": {
+   "description": "Draw text labels."
+  },
+  "21410": {
+   "description": "Draw dimension lines between any two points."
+  },
+  "21460": {
+   "description": "Display license information and add or remove a license."
+  },
+  "21478": {
+   "description": "Show the Ruby console"
+  },
+  "21485": {
+   "description": "Revert"
+  },
+  "21494": {
+   "description": "Field of View"
+  },
+  "21524": {
+   "description": "Intersect with Model"
+  },
+  "21525": {
+   "description": "Follow a path with a selected face."
+  },
+  "21526": {
+   "description": "Intersect with Context"
+  },
+  "21527": {
+   "description": "Intersect Selected"
+  },
+  "21531": {
+   "description": "Edit Items"
+  },
+  "21914": {
+   "description": "Unlock all geometry"
+  },
+  "21915": {
+   "description": "Unlock selected geometry"
+  },
+  "21931": {
+   "description": "Check Web for newer SketchUp"
+  },
+  "21933": {
+   "description": "Import"
+  },
+  "21939": {
+   "description": "Insert clipboard contents at original location."
+  },
+  "21940": {
+   "description": "Draw 3D text."
+  },
+  "21980": {
+   "description": "Toggle display of Guides on and off"
+  },
+  "21989": {
+   "description": "Share this model to 3D Warehouse."
+  },
+  "23006": {
+   "description": "Match Photo"
+  },
+  "23051": {
+   "description": "Send to LayOut"
+  },
+  "24183": {
+   "description": "Save as Template"
+  },
+  "24191": {
+   "description": "Share the selected component to 3D Warehouse."
+  },
+  "24197": {
+   "description": "Clear the model's geo-location"
+  },
+  "24198": {
+   "description": "Combine all selected solids into a single solid and remove all interior entities."
+  },
+  "24211": {
+   "description": "Add extensions to SketchUp."
+  },
+  "24223": {
+   "description": "Draw rectangular faces from 3 corners."
+  },
+  "24224": {
+   "description": "Manage your Trays."
+  },
+  "24256": {
+   "description": "Open the 3D Warehouse dialog."
+  },
+  "24257": {
+   "description": "Open the Extension Manager dialog."
+  },
+  "24447": {
+   "description": "Invert the selection set"
+  },
+  "57600": {
+   "description": "Create a new model."
+  },
+  "57601": {
+   "description": "Open an existing model."
+  },
+  "57603": {
+   "description": "Save the active model."
+  },
+  "57604": {
+   "description": "Save the active model with a new name."
+  },
+  "57606": {
+   "description": "Change the printer and printing options."
+  },
+  "57607": {
+   "description": "Print the active model."
+  },
+  "57609": {
+   "description": "Display full pages"
+  },
+  "57616": {
+   "description": "Open this document"
+  },
+  "57634": {
+   "description": "Copy the selected entities to the system clipboard."
+  },
+  "57635": {
+   "description": "Cut the selected entities to the system clipboard."
+  },
+  "57637": {
+   "description": "Paste the contents of the system clipboard into the model."
+  },
+  "57643": {
+   "description": "Undo the last action"
+  },
+  "57644": {
+   "description": "Redo the previously undone action"
+  },
+  "57664": {
+   "description": "Display program information, version number and copyright"
+  },
+  "57665": {
+   "description": "Quit the application; prompts to save documents"
+  },
+  "57667": {
+   "description": "List Help topics"
+  }
+ },
+ "shortcuts": [
+  {
+   "keys": "H",
+   "id": 10523
+  },
+  {
+   "keys": "I",
+   "id": 10631
+  },
+  {
+   "keys": "O",
+   "id": 10508
+  },
+  {
+   "keys": "Z",
+   "id": 10509
+  },
+  {
+   "keys": "Shift+Z",
+   "id": 10527
+  },
+  {
+   "keys": "A",
+   "id": 21065
+  },
+  {
+   "keys": "C",
+   "id": 21096
+  },
+  {
+   "keys": "E",
+   "id": 21019
+  },
+  {
+   "keys": "B",
+   "id": 21074
+  },
+  {
+   "keys": "P",
+   "id": 21041
+  },
+  {
+   "keys": "R",
+   "id": 21094
+  },
+  {
+   "keys": "Space",
+   "id": 21022
+  },
+  {
+   "keys": "L",
+   "id": 21020
+  },
+  {
+   "keys": "K",
+   "id": 10619
+  },
+  {
+   "keys": "M",
+   "id": 21048
+  },
+  {
+   "keys": "G",
+   "id": 21083
+  },
+  {
+   "keys": "T",
+   "id": 21024
+  },
+  {
+   "keys": "F",
+   "id": 21100
+  },
+  {
+   "keys": "Q",
+   "id": 21129
+  },
+  {
+   "keys": "S",
+   "id": 21236
+  },
+  {
+   "keys": "Ctrl+Shift+E",
+   "id": 10527
+  },
+  {
+   "keys": "Ctrl+Shift+W",
+   "id": 10526
+  },
+  {
+   "keys": "Shift+F1",
+   "id": 57669
+  },
+  {
+   "keys": "Ctrl+Shift+D",
+   "id": 21135
+  },
+  {
+   "keys": "Ctrl+T",
+   "id": 21102
+  },
+  {
+   "keys": "Ctrl+C",
+   "id": 57634
+  },
+  {
+   "keys": "Ctrl+Insert",
+   "id": 57634
+  },
+  {
+   "keys": "Shift+Delete",
+   "id": 57635
+  },
+  {
+   "keys": "Ctrl+X",
+   "id": 57635
+  },
+  {
+   "keys": "Delete",
+   "id": 21021
+  },
+  {
+   "keys": "Ctrl+V",
+   "id": 57637
+  },
+  {
+   "keys": "Shift+Insert",
+   "id": 57637
+  },
+  {
+   "keys": "Ctrl+Y",
+   "id": 57644
+  },
+  {
+   "keys": "Ctrl+A",
+   "id": 21101
+  },
+  {
+   "keys": "Ctrl+Shift+I",
+   "id": 24447
+  },
+  {
+   "keys": "Alt+Backspace",
+   "id": 57643
+  },
+  {
+   "keys": "Ctrl+Z",
+   "id": 57643
+  },
+  {
+   "keys": "Ctrl+N",
+   "id": 57600
+  },
+  {
+   "keys": "Ctrl+O",
+   "id": 57601
+  },
+  {
+   "keys": "Ctrl+P",
+   "id": 57607
+  },
+  {
+   "keys": "Ctrl+S",
+   "id": 57603
+  },
+  {
+   "keys": "F1",
+   "id": 57670
+  },
+  {
+   "keys": "Ctrl+Shift+J",
+   "id": 21134
+  },
+  {
+   "keys": "F6",
+   "id": 57680
+  },
+  {
+   "keys": "PgDn",
+   "id": 10535
+  },
+  {
+   "keys": "PgUp",
+   "id": 10536
+  },
+  {
+   "keys": "Shift+F6",
+   "id": 57681
+  },
+  {
+   "keys": "Ctrl+Shift+U",
+   "id": 21323
+  }
+ ]
+}

@@ -1,0 +1,42 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{16C19F27-9E24-4E19-9B87-FFF829E9F56E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dogeometric.Core", "src\Dogeometric.Core\Dogeometric.Core.csproj", "{CD72284D-CB84-4E65-A90F-A502603AA620}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{E498A417-792D-43EA-AA15-D89ADB43C334}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dogeometric.Core.Tests", "tests\Dogeometric.Core.Tests\Dogeometric.Core.Tests.csproj", "{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dogeometric", "app\Dogeometric.csproj", "{89C9FF6D-5E58-4CD5-A5B1-D72916D8647D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CD72284D-CB84-4E65-A90F-A502603AA620}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD72284D-CB84-4E65-A90F-A502603AA620}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD72284D-CB84-4E65-A90F-A502603AA620}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD72284D-CB84-4E65-A90F-A502603AA620}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89C9FF6D-5E58-4CD5-A5B1-D72916D8647D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89C9FF6D-5E58-4CD5-A5B1-D72916D8647D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89C9FF6D-5E58-4CD5-A5B1-D72916D8647D}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{89C9FF6D-5E58-4CD5-A5B1-D72916D8647D}.Release|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{CD72284D-CB84-4E65-A90F-A502603AA620} = {16C19F27-9E24-4E19-9B87-FFF829E9F56E}
+		{19480F3E-C7B9-44FC-9EF3-94F9CE04C52E} = {E498A417-792D-43EA-AA15-D89ADB43C334}
+	EndGlobalSection
+EndGlobal

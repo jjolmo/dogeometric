@@ -1,0 +1,400 @@
+using Dogeometric.App.Tools;
+using Dogeometric.Core.Geometry;
+using Dogeometric.Core.View;
+using Godot;
+
+namespace Dogeometric.App.Viewport;
+
+/// <summary>
+/// The drawing area: hosts the 3D world, owns the model camera and routes input. Middle-button orbit/pan,
+/// wheel zoom and middle double-click re-centre work on top of any tool, as in SketchUp.
+/// </summary>
+public partial class ModelViewport : Control
+{
+    // Measured on SketchUp 2021: 300 px of drag = 21.8° of yaw, 60 px = 4.3° of pitch (≈0.072°/px both ways).
+    private const double OrbitRadiansPerPixel = 0.072 * Math.PI / 180;
+    private const double WheelZoomFactor = 1.25;
+    // Wheel notches closer together than this belong to one camera-history step.
+    private const ulong WheelGestureMs = 600;
+    // Parallel projection still needs an eye in front of the model; push it this far back (mm).
+    private const double ParallelEyeBackoff = 100_000;
+
+    private SubViewport _subViewport = null!;
+    private Camera3D _camera = null!;
+    private DirectionalLight3D _light = null!;
+    private ShaderMaterial _skyMaterial = null!;
+    private Control _overlay = null!;
+
+    private Vec3 _navPivot;
+    private double _navDepth;
+    private bool _middleDragging;
+    private ulong _lastWheelMs;
+
+    // Fitted to SketchUp 2021's new-model view (see docs): same horizon, axis directions and scale.
+    public ViewCamera Camera { get; } = new(new Vec3(5449, -5345, 2310), new Vec3(1209, 1001, 830));
+    public CameraHistory History { get; } = new();
+    public ToolManager Tools { get; private set; } = null!;
+    public Node3D ModelRoot { get; private set; } = null!;
+    public AxesRenderer Axes { get; private set; } = null!;
+
+    /// <summary>Bounds of the model contents, used by Zoom Extents.</summary>
+    public Func<Bounds3> ModelBounds { get; set; } = () => Bounds3.Empty;
+
+    /// <summary>Raised after any camera change (menus show projection state).</summary>
+    public event Action? CameraChanged;
+
+    public override void _Ready()
+    {
+        FocusMode = FocusModeEnum.Click;
+        MouseFilter = MouseFilterEnum.Stop;
+        ClipContents = true;
+
+        var container = new SubViewportContainer { Stretch = true, MouseFilter = MouseFilterEnum.Ignore };
+        container.SetAnchorsPreset(LayoutPreset.FullRect);
+        AddChild(container);
+
+        _subViewport = new SubViewport
+        {
+            Msaa3D = Godot.Viewport.Msaa.Msaa4X,
+            HandleInputLocally = false,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
+        };
+        container.AddChild(_subViewport);
+        BuildWorld();
+
+        _overlay = new OverlayCanvas { View = this, MouseFilter = MouseFilterEnum.Ignore };
+        _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
+        AddChild(_overlay);
+
+        Tools = new ToolManager(this, new SelectTool());
+        Tools.Changed += () => MouseDefaultCursorShape = (CursorShape)Tools.Active.Cursor;
+        SyncCamera();
+    }
+
+    private void BuildWorld()
+    {
+        var root = new Node3D { Name = "World" };
+        _subViewport.AddChild(root);
+
+        _skyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sky.gdshader") };
+        var sky = new Sky { SkyMaterial = _skyMaterial };
+        var env = new Godot.Environment
+        {
+            BackgroundMode = Godot.Environment.BGMode.Sky,
+            Sky = sky,
+            AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color(1, 1, 1),
+            AmbientLightEnergy = 0.45f,
+            TonemapMode = Godot.Environment.ToneMapper.Linear,
+        };
+        root.AddChild(new WorldEnvironment { Environment = env });
+
+        _light = new DirectionalLight3D { LightEnergy = 0.7f, ShadowEnabled = false };
+        root.AddChild(_light);
+
+        _camera = new Camera3D { Current = true };
+        root.AddChild(_camera);
+
+        Axes = new AxesRenderer();
+        root.AddChild(Axes);
+
+        ModelRoot = new Node3D { Name = "Model" };
+        root.AddChild(ModelRoot);
+    }
+
+    // ---------------------------------------------------------------- camera operations (used by tools/commands)
+
+    public void BeginNavigation() => History.Record(Camera.Save());
+
+    public void BeginOrbit(Vector2 screen)
+    {
+        BeginNavigation();
+        _navPivot = PickGeometry(screen) ?? Camera.Target;
+        _navDepth = 0;
+    }
+
+    public void BeginPan(Vector2 screen)
+    {
+        BeginNavigation();
+        var anchor = PickGeometry(screen) ?? Camera.Target;
+        _navDepth = Math.Max(Camera.DepthOf(anchor), 1);
+    }
+
+    public void OrbitBy(Vector2 relative, bool gravity)
+    {
+        Camera.Orbit(_navPivot, -relative.X * OrbitRadiansPerPixel, -relative.Y * OrbitRadiansPerPixel, gravity);
+        SyncCamera();
+    }
+
+    public void PanBy(Vector2 relative)
+    {
+        if (_navDepth <= 0)
+            _navDepth = Math.Max(Camera.Distance, 1);
+        Camera.Pan(relative.X, relative.Y, Size.Y, _navDepth);
+        SyncCamera();
+    }
+
+    public void ZoomAt(Vec3 anchor, double factor)
+    {
+        Camera.ZoomAt(anchor, factor);
+        SyncCamera();
+    }
+
+    public void ChangeFovBy(double degrees)
+    {
+        Camera.SetFov(Camera.FovDegrees + degrees);
+        SyncCamera();
+    }
+
+    public void ZoomExtents()
+    {
+        BeginNavigation();
+        var bounds = ModelBounds();
+        // An empty model frames a person-sized box at the origin, like a new SketchUp model.
+        if (bounds.IsEmpty)
+            bounds = new Bounds3(new Vec3(-500, -500, 0), new Vec3(500, 500, 1800));
+        Camera.ZoomExtents(bounds, Size.X / Math.Max(Size.Y, 1));
+        SyncCamera();
+    }
+
+    public void SetStandardView(StandardView view)
+    {
+        BeginNavigation();
+        Camera.SetStandardView(view);
+        SyncCamera();
+    }
+
+    public void SetPerspective(bool perspective)
+    {
+        if (Camera.Perspective == perspective)
+            return;
+        BeginNavigation();
+        // Keep the apparent size at the target when switching projection.
+        if (!perspective)
+            Camera.OrthoHeight = 2 * Camera.Distance * Math.Tan(Camera.HalfFovRadians);
+        else
+            Camera.Set(Camera.Target - Camera.Direction * (Camera.OrthoHeight / (2 * Math.Tan(Camera.HalfFovRadians))), Camera.Target, Camera.Up);
+        Camera.Perspective = perspective;
+        SyncCamera();
+    }
+
+    public void PreviousCamera()
+    {
+        if (History.Back(Camera.Save()) is { } state)
+            ApplyState(state);
+    }
+
+    public void NextCamera()
+    {
+        if (History.Forward(Camera.Save()) is { } state)
+            ApplyState(state);
+    }
+
+    private void ApplyState(CameraState state)
+    {
+        Camera.Restore(state);
+        SyncCamera();
+    }
+
+    private void SyncCamera()
+    {
+        if (_camera == null)
+            return;
+
+        var dir = Camera.Direction;
+        var eye = Camera.Perspective ? Camera.Eye : Camera.Target - dir * (Camera.Distance + ParallelEyeBackoff);
+        _camera.LookAtFromPosition(Space.ToGodot(eye), Space.ToGodot(eye + dir * 1000), Space.DirToGodot(Camera.Up));
+
+        if (Camera.Perspective)
+        {
+            _camera.Projection = Camera3D.ProjectionType.Perspective;
+            _camera.Fov = (float)Camera.FovDegrees;
+            // Near plane scales with the viewing distance; reverse-Z keeps depth precision with a far plane this large.
+            _camera.Near = (float)Math.Clamp(Camera.Distance * Space.MetersPerUnit * 0.001, 1e-5, 1);
+        }
+        else
+        {
+            _camera.Projection = Camera3D.ProjectionType.Orthogonal;
+            _camera.Size = (float)(Camera.OrthoHeight * Space.MetersPerUnit);
+            _camera.Near = 0.01f;
+        }
+        _camera.Far = 1e5f;
+
+        // Headlight from over the viewer's left shoulder: SketchUp shades faces by their angle to the camera.
+        var lightDir = (dir + Camera.Right * 0.35 - Camera.Up * 0.45).Normalized();
+        var lightPos = Space.ToGodot(Vec3.Zero);
+        _light.LookAtFromPosition(lightPos, lightPos + Space.DirToGodot(lightDir), Space.DirToGodot(Camera.Up));
+
+        UpdateHorizon();
+        _overlay?.QueueRedraw();
+        CameraChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// SketchUp's sky gradient runs in screen space from the horizon line to the top of the view, so the shader
+    /// needs the horizon's height on screen (0 = top, 1 = bottom).
+    /// </summary>
+    private void UpdateHorizon()
+    {
+        var dir = Camera.Direction;
+        var flat = new Vec3(dir.X, dir.Y, 0);
+        double horizonUv = dir.Z > 0 ? 1.5 : -0.5;
+        if (!flat.IsZero(1e-9) && Size.Y > 0)
+        {
+            var far = Camera.Eye + flat.Normalized() * 1e9;
+            if (ToScreen(far) is { } screen)
+                horizonUv = screen.Y / Size.Y;
+        }
+        _skyMaterial.SetShaderParameter("horizon_uv", (float)horizonUv);
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationResized && _camera != null)
+            UpdateHorizon();
+    }
+
+    // ---------------------------------------------------------------- picking
+
+    /// <summary>Model-space ray through a viewport pixel.</summary>
+    public (Vec3 Origin, Vec3 Direction) ScreenRay(Vector2 screen)
+    {
+        var origin = Space.FromGodot(_camera.ProjectRayOrigin(screen));
+        var direction = Space.DirFromGodot(_camera.ProjectRayNormal(screen)).Normalized();
+        return (origin, direction);
+    }
+
+    /// <summary>Model point under the cursor, or null when the ray hits no geometry.</summary>
+    public Vec3? PickGeometry(Vector2 screen)
+    {
+        // Geometry picking arrives with the model core.
+        return null;
+    }
+
+    /// <summary>
+    /// Point under the cursor for zooming: geometry if any, otherwise the point on the ray at the target's depth.
+    /// </summary>
+    public Vec3 PickPoint(Vector2 screen)
+    {
+        if (PickGeometry(screen) is { } hit)
+            return hit;
+        var (origin, direction) = ScreenRay(screen);
+        var depth = Camera.Perspective ? Camera.Distance : Camera.Distance + ParallelEyeBackoff;
+        var along = direction.Dot(Camera.Direction);
+        return origin + direction * (depth / Math.Max(along, 1e-6));
+    }
+
+    /// <summary>Screen position of a model point, or null when it is behind the camera.</summary>
+    public Vector2? ToScreen(Vec3 point)
+    {
+        var p = Space.ToGodot(point);
+        return _camera.IsPositionBehind(p) ? null : _camera.UnprojectPosition(p);
+    }
+
+    // ---------------------------------------------------------------- input
+
+    public override void _GuiInput(InputEvent @event)
+    {
+        switch (@event)
+        {
+            case InputEventMouseButton mb:
+                HandleMouseButton(mb);
+                break;
+            case InputEventMouseMotion mm:
+                HandleMouseMotion(mm);
+                break;
+            case InputEventKey key:
+                HandleKey(key);
+                break;
+        }
+    }
+
+    private void HandleMouseButton(InputEventMouseButton mb)
+    {
+        if (mb.Pressed)
+            GrabFocus();
+
+        switch (mb.ButtonIndex)
+        {
+            case MouseButton.WheelUp or MouseButton.WheelDown when mb.Pressed:
+                var now = Time.GetTicksMsec();
+                if (now - _lastWheelMs > WheelGestureMs)
+                    BeginNavigation();
+                _lastWheelMs = now;
+                var factor = mb.ButtonIndex == MouseButton.WheelUp ? WheelZoomFactor : 1 / WheelZoomFactor;
+                ZoomAt(PickPoint(mb.Position), factor);
+                break;
+
+            case MouseButton.Middle when mb.Pressed && mb.DoubleClick:
+                CenterOn(mb.Position);
+                break;
+
+            case MouseButton.Middle when mb.Pressed:
+                _middleDragging = true;
+                if (mb.ShiftPressed)
+                    BeginPan(mb.Position);
+                else
+                    BeginOrbit(mb.Position);
+                break;
+
+            case MouseButton.Middle:
+                _middleDragging = false;
+                break;
+
+            default:
+                if (mb.Pressed)
+                    Tools.Active.MouseDown(mb.ButtonIndex, mb.Position);
+                else
+                    Tools.Active.MouseUp(mb.ButtonIndex, mb.Position);
+                break;
+        }
+        AcceptEvent();
+    }
+
+    private void HandleMouseMotion(InputEventMouseMotion mm)
+    {
+        if (_middleDragging)
+        {
+            if (mm.ShiftPressed)
+            {
+                if (_navDepth <= 0)
+                    _navDepth = Camera.Distance;
+                PanBy(mm.Relative);
+            }
+            else
+            {
+                OrbitBy(mm.Relative, gravity: !mm.CtrlPressed);
+            }
+        }
+        else
+        {
+            Tools.Active.MouseMove(mm.Position, mm.Relative);
+        }
+        _overlay.QueueRedraw();
+        AcceptEvent();
+    }
+
+    private void HandleKey(InputEventKey key)
+    {
+        var consumed = key.Pressed ? Tools.Active.KeyDown(key) : Tools.Active.KeyUp(key);
+        if (!consumed && key.Pressed && key.Keycode == Key.Escape && Tools.Active.IsNavigation)
+        {
+            Tools.ActivatePrevious();
+            consumed = true;
+        }
+        if (consumed)
+            AcceptEvent();
+    }
+
+    /// <summary>Middle double-click: pan so the clicked point becomes the view centre and orbit target.</summary>
+    private void CenterOn(Vector2 screen)
+    {
+        BeginNavigation();
+        var point = PickPoint(screen);
+        var dir = Camera.Direction;
+        var onAxis = Camera.Eye + dir * (point - Camera.Eye).Dot(dir);
+        var delta = point - onAxis;
+        Camera.Set(Camera.Eye + delta, point, Camera.Up);
+        SyncCamera();
+    }
+}

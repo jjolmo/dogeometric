@@ -1,0 +1,20 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Local-only files
+sketchup.tar.zst
+logs/
+
+# Raw dumps of SketchUp's resources (Trimble's copyrighted strings). Regenerate locally with
+# research/extract_resources.py from your own SketchUp install; they are not redistributed.
+research/sketchup_resources.json
+research/status_texts.txt

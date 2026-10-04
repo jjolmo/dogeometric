@@ -1,0 +1,74 @@
+using Godot;
+
+namespace Dogeometric.App.Commands;
+
+/// <summary>Builds SketchUp's main menu from the registry. Unimplemented commands show disabled.</summary>
+public static class MenuBuilder
+{
+    public static MenuBar Build(CommandRegistry registry, Action<string> showHint, Action restoreHint)
+    {
+        var bar = new MenuBar { Flat = true };
+        foreach (var top in registry.Menus)
+        {
+            var popup = BuildPopup(top, registry, showHint, restoreHint);
+            popup.Name = top.Label;
+            bar.AddChild(popup);
+        }
+        return bar;
+    }
+
+    private static PopupMenu BuildPopup(MenuNode node, CommandRegistry registry, Action<string> showHint, Action restoreHint)
+    {
+        var popup = new PopupMenu();
+        foreach (var child in node.Children ?? [])
+        {
+            if (child.IsSeparator)
+            {
+                popup.AddSeparator();
+            }
+            else if (child.Children != null)
+            {
+                var sub = BuildPopup(child, registry, showHint, restoreHint);
+                popup.AddSubmenuNodeItem(child.Label, sub);
+            }
+            else
+            {
+                AddCommandItem(popup, registry.Get(child.Id!.Value), child.Label);
+            }
+        }
+
+        popup.IdPressed += id => registry.Execute((int)id);
+        popup.IdFocused += id => showHint(registry.Get((int)id).Description);
+        popup.AboutToPopup += () => Refresh(popup, registry);
+        // Like SketchUp, the status bar shows the hovered command's description, then the tool hint again.
+        popup.PopupHide += restoreHint;
+        return popup;
+    }
+
+    private static void AddCommandItem(PopupMenu popup, Command cmd, string label)
+    {
+        if (cmd.IsChecked != null && cmd.IsRadio)
+            popup.AddRadioCheckItem(label, cmd.Id, cmd.Shortcut);
+        else if (cmd.IsChecked != null)
+            popup.AddCheckItem(label, cmd.Id, cmd.Shortcut);
+        else
+            popup.AddItem(label, cmd.Id, cmd.Shortcut);
+
+        popup.SetItemDisabled(popup.ItemCount - 1, !cmd.IsImplemented);
+    }
+
+    private static void Refresh(PopupMenu popup, CommandRegistry registry)
+    {
+        for (var i = 0; i < popup.ItemCount; i++)
+        {
+            var id = popup.GetItemId(i);
+            if (id < 0 || popup.IsItemSeparator(i))
+                continue;
+            var cmd = registry.Get(id);
+            if (popup.GetItemSubmenuNode(i) == null)
+                popup.SetItemDisabled(i, !cmd.IsImplemented);
+            if (cmd.IsChecked is { } isChecked)
+                popup.SetItemChecked(i, isChecked());
+        }
+    }
+}
