@@ -17,6 +17,9 @@ public partial class MainWindow : Control
     private StatusBar _status = null!;
     private DocumentController _document = null!;
     private PanelContainer _leftTools = null!;
+    private Container _leftDock = null!, _rightDock = null!, _bottomDock = null!;
+    private Control _drawingArea = null!;
+    private ToolbarDocks _docks = null!;
     private PanelContainer _tray = null!;
     private EntityInfoPanel _entityInfo = null!;
     private MaterialsPanel _materials = null!;
@@ -41,12 +44,12 @@ public partial class MainWindow : Control
         _viewport = new ModelViewport { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _status = new StatusBar();
 
-        // Drawing area with the Large Tool Set docked on its left, as in SketchUp's default layout.
+        // Drawing area between the left and right toolbar docks (the Large Tool Set starts on the left, as in
+        // SketchUp's default layout); the bottom dock sits under it.
         var middle = new HBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
         middle.AddThemeConstantOverride("separation", 0);
         layout.AddChild(middle);
-        _leftTools = new PanelContainer();
-        _leftTools.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
+        (_leftTools, _leftDock) = DockStrip(vertical: true);
         middle.AddChild(_leftTools);
         // Scene tabs sit above the drawing area, shown once the model has scenes.
         var drawing = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -59,9 +62,16 @@ public partial class MainWindow : Control
         drawing.AddChild(tabsBar);
         drawing.AddChild(_viewport);
         middle.AddChild(drawing);
+        var (rightStrip, rightDock) = DockStrip(vertical: true);
+        middle.AddChild(rightStrip);
+        _rightDock = rightDock;
         _tray = new PanelContainer { CustomMinimumSize = new Vector2(280, 0) };
         _tray.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
         middle.AddChild(_tray);
+        var (bottomStrip, bottomDock) = DockStrip(vertical: false);
+        layout.AddChild(bottomStrip);
+        _bottomDock = bottomDock;
+        _drawingArea = drawing;
         layout.AddChild(_status);
 
         _document = new DocumentController(this, _viewport, _status);
@@ -90,22 +100,32 @@ public partial class MainWindow : Control
         layout.AddChild(menuPanel);
         layout.MoveChild(menuPanel, 0);
 
-        var topBars = new HFlowContainer();
-        topBars.AddThemeConstantOverride("h_separation", 6);
-        var topPanel = new PanelContainer();
-        topPanel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
-        topPanel.AddChild(topBars);
+        var (topPanel, topBars) = DockStrip(vertical: false);
+        topPanel.Visible = true;
         layout.AddChild(topPanel);
         layout.MoveChild(topPanel, 1);
-        _toolbars.Add(Toolbar.Create("Standard", _commands, Toolbars.Icons, Toolbars.Standard));
-        _toolbars.Add(Toolbar.Create("Views", _commands, Toolbars.Icons, Toolbars.Views));
-        _toolbars.Add(Toolbar.Create("Styles", _commands, Toolbars.Icons, Toolbars.Styles));
-        _toolbars.Add(Toolbar.Create("Solid Tools", _commands, Toolbars.Icons, Toolbars.SolidTools));
-        foreach (var bar in _toolbars)
-            topBars.AddChild(bar);
-        var largeToolSet = Toolbar.Create("Large Tool Set", _commands, Toolbars.Icons, Toolbars.LargeToolSet, columns: 2);
-        _toolbars.Add(largeToolSet);
-        _leftTools.AddChild(largeToolSet);
+
+        // SketchUp's toolbars, docked as in its default layout; the others start hidden (View › Toolbars).
+        _docks = ToolbarDocks.Create(topBars, _bottomDock, _leftDock, _rightDock, _drawingArea);
+        AddChild(_docks);
+        void Bar(string name, int[] ids, ToolbarDocks.Dock dock, bool visible = true, int lines = 0)
+        {
+            var bar = Toolbar.Create(name, _commands, Toolbars.Icons, ids, lines);
+            _toolbars.Add(bar);
+            _docks.Add(bar, dock, visible);
+        }
+        Bar("Standard", Toolbars.Standard, ToolbarDocks.Dock.Top);
+        Bar("Views", Toolbars.Views, ToolbarDocks.Dock.Top);
+        Bar("Styles", Toolbars.Styles, ToolbarDocks.Dock.Top);
+        Bar("Solid Tools", Toolbars.SolidTools, ToolbarDocks.Dock.Top);
+        Bar("Getting Started", Toolbars.GettingStarted, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Principal", Toolbars.Principal, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Drawing", Toolbars.Drawing, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Edit", Toolbars.Edit, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Construction", Toolbars.Construction, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Large Tool Set", Toolbars.LargeToolSet, ToolbarDocks.Dock.Left, lines: 2);
+        _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
 
@@ -146,6 +166,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.DeleteScene, () => _scenes.DeleteCurrent());
         _commands.Register(CommandIds.NextScene, () => _scenes.Step(1));
         _commands.Register(CommandIds.PreviousScene, () => _scenes.Step(-1));
+        _commands.Register(CommandIds.Toolbars, ShowToolbarsDialog);
         _commands.Register(CommandIds.Preferences, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus()));
         _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
         {
@@ -471,6 +492,43 @@ public partial class MainWindow : Control
             else if (item is TextLabel t)
                 t.Text = text;
         }));
+    }
+
+    /// <summary>A toolbar dock strip: side docks hold standing toolbars side by side, top and bottom wrap lying ones.</summary>
+    private static (PanelContainer Panel, Container Dock) DockStrip(bool vertical)
+    {
+        var panel = new PanelContainer { Visible = false };
+        panel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
+        Container dock = vertical ? new HBoxContainer() : new HFlowContainer();
+        dock.AddThemeConstantOverride("separation", 2);
+        dock.AddThemeConstantOverride("h_separation", 6);
+        panel.AddChild(dock);
+        return (panel, dock);
+    }
+
+    /// <summary>View › Toolbars: SketchUp's list of toolbars to show, with Reset.</summary>
+    private void ShowToolbarsDialog()
+    {
+        var dialog = new AcceptDialog { Title = "Toolbars", OkButtonText = "Close" };
+        var box = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) };
+        foreach (var bar in _docks.Toolbars.OrderBy(b => b.Title))
+        {
+            var check = new CheckBox { Text = bar.Title, ButtonPressed = _docks.IsVisible(bar) };
+            check.Toggled += on => _docks.SetVisible(bar, on);
+            box.AddChild(check);
+        }
+        var reset = new Button { Text = "Reset" };
+        reset.Pressed += () =>
+        {
+            _docks.Reset();
+            dialog.QueueFree();
+        };
+        box.AddChild(reset);
+        dialog.AddChild(box);
+        dialog.Confirmed += dialog.QueueFree;
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        dialog.PopupCentered();
     }
 
     private void RegisterTool(int id, Func<Tool> create)

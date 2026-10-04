@@ -110,6 +110,7 @@ public static class CommandIds
     public const int Text3D = 21940;
     public const int ModelInfo = 21076;
     public const int Preferences = 10521;
+    public const int Toolbars = 21982;
     public const int AddScene = 21067;
     public const int SceneTabs = 10534;
     public const int UpdateScene = 21068;

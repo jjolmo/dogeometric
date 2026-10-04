@@ -3,37 +3,103 @@ using Godot;
 
 namespace Dogeometric.App.UI;
 
-/// <summary>A SketchUp toolbar: icon buttons bound to commands. Unimplemented commands show disabled.</summary>
+/// <summary>
+/// A SketchUp toolbar: a grip to drag it by, then icon buttons bound to commands (unimplemented ones show
+/// disabled). It lays out horizontally in the top and bottom docks and vertically in the side docks; the Large
+/// Tool Set keeps its two columns (or two rows).
+/// </summary>
 public partial class Toolbar : PanelContainer
 {
     public const int Separator = 0;
 
     private readonly List<(Button Button, Command Command)> _buttons = [];
+    private CommandRegistry _registry = null!;
+    private IReadOnlyDictionary<int, string> _icons = null!;
+    private int[] _layout = [];
+    private int _lines;
     private Container _box = null!;
+    private Control _grip = null!;
+
+    public string Title { get; private set; } = "";
+    public bool Vertical { get; private set; }
+
+    /// <summary>The grip was pressed: the dock manager takes over the drag.</summary>
+    public event Action<Toolbar>? DragStarted;
 
     /// <param name="layout">Command ids in order; <see cref="Separator"/> inserts a gap.</param>
-    /// <param name="columns">0 lays the buttons out in a row; 2 makes SketchUp's two-column Large Tool Set.</param>
-    public static Toolbar Create(string name, CommandRegistry registry, IReadOnlyDictionary<int, string> icons, int[] layout, int columns = 0)
+    /// <param name="lines">0 lays the buttons out in one line; 2 makes SketchUp's two-column Large Tool Set.</param>
+    public static Toolbar Create(string name, CommandRegistry registry, IReadOnlyDictionary<int, string> icons, int[] layout, int lines = 0, bool vertical = false)
     {
-        var bar = new Toolbar { Name = name };
+        var bar = new Toolbar { Name = name.Replace(" ", ""), Title = name, _registry = registry, _icons = icons, _layout = layout, _lines = lines };
         bar.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 2));
-        bar._box = columns > 0
-            ? new GridContainer { Columns = columns }
-            : new HBoxContainer();
-        bar._box.AddThemeConstantOverride("separation", 1);
-        bar._box.AddThemeConstantOverride("h_separation", 1);
-        bar._box.AddThemeConstantOverride("v_separation", 1);
-        bar.AddChild(bar._box);
+        bar.Build(lines > 0 || vertical);
+        return bar;
+    }
 
-        foreach (var id in layout)
+    /// <summary>Lays the toolbar out again along the other direction (docking it on a side or on top).</summary>
+    public void SetVertical(bool vertical)
+    {
+        if (vertical != Vertical)
+            Build(vertical);
+    }
+
+    private void Build(bool vertical)
+    {
+        Vertical = vertical;
+        foreach (var c in GetChildren())
+        {
+            RemoveChild(c);
+            c.QueueFree();
+        }
+        _buttons.Clear();
+
+        var outer = vertical ? (BoxContainer)new VBoxContainer() : new HBoxContainer();
+        outer.AddThemeConstantOverride("separation", 2);
+        AddChild(outer);
+
+        // SketchUp's dotted grip at the start of the toolbar.
+        _grip = new Grip { Vertical = vertical, CustomMinimumSize = vertical ? new Vector2(0, 8) : new Vector2(8, 0), MouseDefaultCursorShape = CursorShape.Move, TooltipText = Title };
+        _grip.GuiInput += e =>
+        {
+            if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                _grip.AcceptEvent();
+                DragStarted?.Invoke(this);
+            }
+        };
+        outer.AddChild(_grip);
+
+        if (_lines > 0)
+        {
+            // Large Tool Set: two columns standing, two rows lying down.
+            var count = _layout.Count(id => id != Separator);
+            _box = new GridContainer { Columns = vertical ? _lines : (count + _lines - 1) / _lines };
+        }
+        else
+        {
+            _box = vertical ? new VBoxContainer() : new HBoxContainer();
+        }
+        _box.AddThemeConstantOverride("separation", 1);
+        _box.AddThemeConstantOverride("h_separation", 1);
+        _box.AddThemeConstantOverride("v_separation", 1);
+        outer.AddChild(_box);
+
+        var ids = _layout;
+        if (_lines > 0 && !vertical)
+        {
+            // The layout is read in pairs (left/right column); lying down, the pairs become the two rows.
+            var plain = _layout.Where(id => id != Separator).ToList();
+            ids = plain.Where((_, i) => i % 2 == 0).Concat(plain.Where((_, i) => i % 2 == 1)).ToArray();
+        }
+        foreach (var id in ids)
         {
             if (id == Separator)
             {
-                if (columns == 0)
-                    bar._box.AddChild(new VSeparator());
+                if (_lines == 0)
+                    _box.AddChild(vertical ? new HSeparator() : new VSeparator());
                 continue;
             }
-            var cmd = registry.Get(id);
+            var cmd = _registry.Get(id);
             var button = new Button
             {
                 Flat = true,
@@ -43,14 +109,13 @@ public partial class Toolbar : PanelContainer
                 IconAlignment = HorizontalAlignment.Center,
                 TooltipText = Tooltip(cmd),
             };
-            if (icons.TryGetValue(id, out var icon) && ResourceLoader.Exists($"res://icons/{icon}.svg"))
+            if (_icons.TryGetValue(id, out var icon) && ResourceLoader.Exists($"res://icons/{icon}.svg"))
                 button.Icon = GD.Load<Texture2D>($"res://icons/{icon}.svg");
-            button.Pressed += () => registry.Execute(id);
-            bar._box.AddChild(button);
-            bar._buttons.Add((button, cmd));
+            button.Pressed += () => _registry.Execute(id);
+            _box.AddChild(button);
+            _buttons.Add((button, cmd));
         }
-        bar.Refresh();
-        return bar;
+        Refresh();
     }
 
     /// <summary>Re-reads enabled and checked state (active tool, projection, toggles).</summary>
@@ -62,6 +127,7 @@ public partial class Toolbar : PanelContainer
             button.Modulate = cmd.IsImplemented ? Colors.White : new Color(1, 1, 1, 0.35f);
             var on = cmd.IsChecked?.Invoke() == true;
             button.Flat = !on;
+            button.TooltipText = Tooltip(cmd);
         }
     }
 
@@ -70,5 +136,25 @@ public partial class Toolbar : PanelContainer
         var shortcut = CommandRegistry.ShortcutText(cmd.Shortcut);
         var title = cmd.Label.Length > 0 ? cmd.Label.TrimEnd('.') : cmd.Description;
         return shortcut.Length > 0 ? $"{title} ({shortcut})" : title;
+    }
+
+    /// <summary>The grip: two rows of dots along the toolbar's start, as Windows toolbars draw it.</summary>
+    private sealed partial class Grip : Control
+    {
+        public bool Vertical { get; set; }
+
+        public override void _Draw()
+        {
+            var dot = new Color(0.55f, 0.55f, 0.55f);
+            var length = Vertical ? Size.X : Size.Y;
+            for (var t = 4f; t < length - 3; t += 4)
+            {
+                for (var k = 0; k < 2; k++)
+                {
+                    var p = Vertical ? new Vector2(t, 2 + k * 3) : new Vector2(2 + k * 3, t);
+                    DrawRect(new Rect2(p, new Vector2(1.5f, 1.5f)), dot);
+                }
+            }
+        }
     }
 }
