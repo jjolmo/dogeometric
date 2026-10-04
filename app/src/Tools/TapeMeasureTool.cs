@@ -63,8 +63,17 @@ public sealed class TapeMeasureTool : DrawingTool
         Finish(doc, inf.Point);
     }
 
+    // The last completed measurement (local length), for resizing by typing a new length afterwards.
+    private double? _lastMeasured;
+
     private void Finish(Document doc, Vec3 end)
     {
+        if (_start is { } m)
+        {
+            var toLocal0 = doc.Context.ToWorld.Inverse();
+            var measured = _startEdge is { } e0 ? toLocal0.ApplyVector(Perpendicular(e0, end)).Length : toLocal0.ApplyPoint(m).DistanceTo(toLocal0.ApplyPoint(end));
+            _lastMeasured = measured > Tolerance.Length ? measured : null;
+        }
         if (_guides && _start is { } s)
         {
             var toLocal = doc.Context.ToWorld.Inverse();
@@ -94,6 +103,37 @@ public sealed class TapeMeasureTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
+        // After a measurement, a typed length resizes the model (or the open group) so that it measures that.
+        if (_start == null && _lastMeasured is { } measured && View.Document is { } d && Length.TryParse(text, LengthUnit.Millimeters, out var wanted) && wanted > 0)
+        {
+            var factor = wanted / measured;
+            var what = d.Context.Path.Count == 0 ? "model" : d.Context.Path[^1].IsGroup ? "group" : "component";
+            var confirm = new ConfirmationDialog { DialogText = $"Do you want to resize the {what}?", OkButtonText = "Yes", Title = "Dogeometric" };
+            confirm.CancelButtonText = "No";
+            confirm.Confirmed += () =>
+            {
+                d.Operation("Resize", e =>
+                {
+                    var all = e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances).Concat(e.Dimensions).Concat(e.Texts)
+                        .Concat(e.SectionPlanes).ToList();
+                    Transforming.Apply(e, all, Transform.Scaling(factor, factor, factor));
+                    foreach (var g in e.GuideLines)
+                    {
+                        g.Point *= factor;
+                        g.Start = g.Start * factor;
+                        g.End = g.End * factor;
+                    }
+                    foreach (var g in e.GuidePoints)
+                        g.Position *= factor;
+                });
+                _lastMeasured = null;
+                confirm.QueueFree();
+            };
+            confirm.Canceled += confirm.QueueFree;
+            View.AddChild(confirm);
+            confirm.PopupCentered();
+            return true;
+        }
         if (_start is not { } s || Current is not { } c || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
             return false;
         Vec3 end;
