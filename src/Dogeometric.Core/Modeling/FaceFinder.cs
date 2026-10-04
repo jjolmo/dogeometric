@@ -76,8 +76,27 @@ public static class FaceFinder
             Math.Abs(Math.Abs(Normal.Dot(o.Normal)) - 1) < 1e-9 && Math.Abs(D - Normal.Dot(o.Normal) * o.D) <= PlaneTolerance;
     }
 
+    /// <summary>
+    /// Merges two coplanar faces that share <paramref name="shared"/>: the edge goes and one face covers both
+    /// (SketchUp heals coplanar faces with the same orientation and materials this way).
+    /// </summary>
+    public static Face? Merge(Entities e, Face a, Face b, Edge shared)
+    {
+        var plane = new Plane(a.Normal, a.Normal.Dot(a.OuterLoop.Points.First()));
+        e.Edges.Remove(shared);
+        foreach (var f in new[] { a, b })
+            foreach (var loop in f.Loops)
+                loop.Edges.RemoveAll(x => x.Edge == shared);
+        var seeds = Topology.EdgesOf(a).Concat(Topology.EdgesOf(b)).Distinct().ToList();
+        var before = e.Faces.ToHashSet();
+        Reface(e, plane, seeds, forcedReplaced: [a, b], seedsCreateFaces: false);
+        Editing.RemoveOrphanVertices(e);
+        return e.Faces.FirstOrDefault(f => !before.Contains(f));
+    }
+
     /// <summary>Rebuilds the faces of one plane around the new edges. Returns the new edges that lie in it.</summary>
-    private static List<Edge> Reface(Entities e, Plane plane, IReadOnlyCollection<Edge> newEdges)
+    private static List<Edge> Reface(Entities e, Plane plane, IReadOnlyCollection<Edge> newEdges,
+        IReadOnlyCollection<Face>? forcedReplaced = null, bool seedsCreateFaces = true)
     {
         bool InPlane(Edge x) => plane.Contains(x.Start.Position) && plane.Contains(x.End.Position);
 
@@ -91,7 +110,7 @@ public static class FaceFinder
         // Faces in this plane that the new edges touch or lie inside: they get rebuilt.
         var planeFaces = e.Faces.Where(f => f.Loops.All(l => l.Edges.All(x => InPlane(x.Edge)))).ToList();
         var seedSet = seeds.ToHashSet();
-        var replaced = planeFaces.Where(f =>
+        var replaced = forcedReplaced?.ToList() ?? planeFaces.Where(f =>
             Topology.EdgesOf(f).Any(seedSet.Contains) ||
             seeds.Any(s => ContainsPoint(f, (s.Start.Position + s.End.Position) * 0.5, To2D))).ToList();
 
@@ -146,7 +165,7 @@ public static class FaceFinder
         {
             var sample = InteriorPoint(region, To2D);
             var source = replaced.FirstOrDefault(f => ContainsPoint(f, sample, To2D));
-            var hasNewEdge = region.Edges.Any(x => seedSet.Contains(x.Edge));
+            var hasNewEdge = seedsCreateFaces && region.Edges.Any(x => seedSet.Contains(x.Edge));
             var existing = planeFaces.Except(replaced).FirstOrDefault(f => SameBoundary(f.OuterLoop, region));
             if (existing != null || (source == null && !hasNewEdge))
                 continue;
