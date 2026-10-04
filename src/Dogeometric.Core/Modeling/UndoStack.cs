@@ -173,7 +173,7 @@ public sealed class UndoStack(Model model)
         private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
         private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
-        private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked)[] _instanceData = [];
+        private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked, Face? Glued)[] _instanceData = [];
 
         public static EntitiesState Capture(Entities e) => new()
         {
@@ -185,7 +185,7 @@ public sealed class UndoStack(Model model)
             _faces = [.. e.Faces],
             _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden, f.FrontMapping, f.BackMapping)).ToArray(),
             _instances = [.. e.Instances],
-            _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked)).ToArray(),
+            _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked, i.GluedTo)).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
             _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden)).ToArray(),
@@ -277,7 +277,7 @@ public sealed class UndoStack(Model model)
             Replace(_target.Instances, _instances);
             for (var i = 0; i < _instances.Length; i++)
             {
-                var (def, xf, name, tag, mat, hidden, locked) = _instanceData[i];
+                var (def, xf, name, tag, mat, hidden, locked, glued) = _instanceData[i];
                 var inst = _instances[i];
                 inst.Definition = def;
                 inst.Transform = xf;
@@ -286,6 +286,7 @@ public sealed class UndoStack(Model model)
                 inst.Material = mat;
                 inst.Hidden = hidden;
                 inst.Locked = locked;
+                inst.GluedTo = glued;
             }
         }
     }

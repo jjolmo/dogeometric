@@ -790,6 +790,10 @@ public partial class MainWindow : Control
                     def.Description = r.Description;
                     def.AlwaysFaceCamera = r.AlwaysFaceCamera;
                     def.ShadowsFaceSun = r.ShadowsFaceSun;
+                    def.GlueTo = r.GlueTo;
+                    def.CutsOpening = r.CutsOpening;
+                    if (r.GlueTo != GlueTo.None)
+                        created.GluedTo = Gluing.FaceUnder(e, created);
                     // Unchecked "Replace selection": the component goes to the model's library only.
                     if (!r.ReplaceSelection)
                     {

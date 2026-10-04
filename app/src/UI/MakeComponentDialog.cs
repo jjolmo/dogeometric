@@ -1,3 +1,4 @@
+using Dogeometric.Core.Modeling;
 using Godot;
 
 namespace Dogeometric.App.UI;
@@ -6,10 +7,12 @@ namespace Dogeometric.App.UI;
 /// selection becomes an instance of the new component.</summary>
 public partial class MakeComponentDialog : ConfirmationDialog
 {
-    public sealed record Result(string Name, string Description, bool AlwaysFaceCamera, bool ShadowsFaceSun, bool ReplaceSelection);
+    public sealed record Result(string Name, string Description, GlueTo GlueTo, bool CutsOpening, bool AlwaysFaceCamera, bool ShadowsFaceSun, bool ReplaceSelection);
 
     private LineEdit _name = null!;
     private TextEdit _description = null!;
+    private OptionButton _glue = null!;
+    private CheckBox _cut = null!;
     private CheckBox _faceCamera = null!;
     private CheckBox _shadowsFaceSun = null!;
     private CheckBox _replace = null!;
@@ -31,6 +34,16 @@ public partial class MakeComponentDialog : ConfirmationDialog
 
         box.AddChild(new HSeparator());
         box.AddChild(new Label { Text = "Alignment" });
+        var glueRow = new HBoxContainer();
+        glueRow.AddChild(new Label { Text = "Glue to:" });
+        dialog._glue = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        foreach (var g in Enum.GetValues<GlueTo>())
+            dialog._glue.AddItem(g.ToString());
+        glueRow.AddChild(dialog._glue);
+        box.AddChild(glueRow);
+        dialog._cut = new CheckBox { Text = "Cut opening", Disabled = true };
+        dialog._glue.ItemSelected += i => dialog._cut.Disabled = i == 0;
+        box.AddChild(dialog._cut);
         dialog._faceCamera = new CheckBox { Text = "Always face camera" };
         dialog._shadowsFaceSun = new CheckBox { Text = "Shadows face sun", Disabled = true };
         dialog._faceCamera.Toggled += on => dialog._shadowsFaceSun.Disabled = !on;
@@ -46,7 +59,9 @@ public partial class MakeComponentDialog : ConfirmationDialog
         dialog.Confirmed += () =>
         {
             var name = dialog._name.Text.Trim();
-            create(new Result(name.Length > 0 ? name : defaultName, dialog._description.Text, dialog._faceCamera.ButtonPressed,
+            var glue = (GlueTo)dialog._glue.Selected;
+            create(new Result(name.Length > 0 ? name : defaultName, dialog._description.Text, glue, glue != GlueTo.None && dialog._cut.ButtonPressed,
+                dialog._faceCamera.ButtonPressed,
                 dialog._faceCamera.ButtonPressed && dialog._shadowsFaceSun.ButtonPressed, dialog._replace.ButtonPressed));
             dialog.QueueFree();
         };

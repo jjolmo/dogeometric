@@ -104,6 +104,10 @@ public static class DogFile
                     w.WriteBoolean("alwaysFaceCamera", true);
                 if (d.ShadowsFaceSun)
                     w.WriteBoolean("shadowsFaceSun", true);
+                if (d.GlueTo != GlueTo.None)
+                    w.WriteString("glueTo", d.GlueTo.ToString());
+                if (d.CutsOpening)
+                    w.WriteBoolean("cutsOpening", true);
                 WriteEntities(w, "entities", d.Entities, materialIndex, tagIndex, defIndex);
                 w.WriteEndObject();
             }
@@ -151,7 +155,7 @@ public static class DogFile
     //   edges:    [[start, end, flags, tag, material, curve?], ...]  (-1 = none)
     //   curves:   [{center, normal, radius, segments, polygon, spline?}, ...] (optional; edges refer to them)
     //   faces:    [[loops, front, back, tag, hidden], ...]  loops = [[signed edge refs], ...], ref = ±(edge + 1)
-    //   instances:[{def, transform[16 column-major], name, tag, material, hidden, locked}, ...]
+    //   instances:[{def, transform[16 column-major], name, tag, material, hidden, locked, gluedTo (face index)}, ...]
     private static void WriteEntities(Utf8JsonWriter w, string name, Entities e,
         Dictionary<Material, int> mats, Dictionary<Tag, int> tags, Dictionary<ComponentDefinition, int> defs)
     {
@@ -277,6 +281,8 @@ public static class DogFile
                 w.WriteBoolean("hidden", true);
             if (inst.Locked)
                 w.WriteBoolean("locked", true);
+            if (inst.GluedTo is { } glued && e.Faces.IndexOf(glued) is var gi and >= 0)
+                w.WriteNumber("gluedTo", gi);
             w.WriteEndObject();
         }
         w.WriteEndArray();
@@ -461,6 +467,8 @@ public static class DogFile
                 IsImage = d.TryGetProperty("image", out var img) && img.GetBoolean(),
                 AlwaysFaceCamera = d.TryGetProperty("alwaysFaceCamera", out var fc) && fc.GetBoolean(),
                 ShadowsFaceSun = d.TryGetProperty("shadowsFaceSun", out var sfs) && sfs.GetBoolean(),
+                GlueTo = d.TryGetProperty("glueTo", out var glue) && Enum.TryParse<GlueTo>(glue.GetString(), out var g) ? g : GlueTo.None,
+                CutsOpening = d.TryGetProperty("cutsOpening", out var cut) && cut.GetBoolean(),
             });
         }
         for (var i = 0; i < defsJson.Count; i++)
@@ -565,6 +573,8 @@ public static class DogFile
             inst.Material = MaterialAt(model, ij.GetProperty("material").GetInt32());
             inst.Hidden = ij.TryGetProperty("hidden", out var h) && h.GetBoolean();
             inst.Locked = ij.TryGetProperty("locked", out var l) && l.GetBoolean();
+            if (ij.TryGetProperty("gluedTo", out var gt) && gt.GetInt32() is var gi && gi >= 0 && gi < e.Faces.Count)
+                inst.GluedTo = e.Faces[gi];
         }
 
         if (j.TryGetProperty("guideLines", out var guides))

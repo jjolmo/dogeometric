@@ -1,0 +1,67 @@
+using Dogeometric.Core.Geometry;
+using Dogeometric.Core.IO;
+using Dogeometric.Core.Modeling;
+
+namespace Dogeometric.Core.Tests;
+
+public class GluingTests
+{
+    private static (Model Model, Face Front, ComponentInstance Vent) GluedVent()
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(100, 60, 40));
+        var vent = new ComponentDefinition { Name = "Vent", GlueTo = GlueTo.Vertical, CutsOpening = true };
+        new Welder(vent.Entities).Face([new(-15, -8, 0), new(15, -8, 0), new(15, 8, 0), new(-15, 8, 0)],
+            [[new(-12, -5, 0), new(12, -5, 0), new(12, 5, 0), new(-12, 5, 0)]]);
+        m.Definitions.Add(vent);
+        var front = m.Entities.Faces.First(f => f.Normal.Normalized().Dot(-Vec3.UnitY) > 0.99);
+        var inst = m.Entities.AddInstance(vent, Gluing.OnFace(new Vec3(50, 0, 20), front.Normal.Normalized()));
+        inst.GluedTo = front;
+        return (m, front, inst);
+    }
+
+    [Fact]
+    public void A_glued_component_stands_on_the_face_and_cuts_its_outline()
+    {
+        var (m, front, vent) = GluedVent();
+        Assert.Equal(-1, vent.Transform.ApplyVector(Vec3.UnitZ).Normalized().Y, 9);
+        Assert.Same(front, Gluing.FaceUnder(m.Entities, vent));
+        var opening = Assert.Single(Gluing.Openings(m.Entities)[front]);
+        Assert.Equal(30 * 16, Polygon.Area(opening), 6);
+        Assert.All(opening, p => Assert.Equal(0, p.Y, 9));
+    }
+
+    [Fact]
+    public void Glue_choices_follow_the_face_slope()
+    {
+        Assert.True(Gluing.Accepts(GlueTo.Horizontal, Vec3.UnitZ));
+        Assert.False(Gluing.Accepts(GlueTo.Horizontal, Vec3.UnitX));
+        Assert.True(Gluing.Accepts(GlueTo.Vertical, -Vec3.UnitY));
+        Assert.True(Gluing.Accepts(GlueTo.Sloped, new Vec3(0, 1, 1).Normalized()));
+        Assert.False(Gluing.Accepts(GlueTo.None, Vec3.UnitZ));
+    }
+
+    [Fact]
+    public void Gluing_survives_saving_and_undo()
+    {
+        var (m, _, _) = GluedVent();
+        var path = Path.Combine(Path.GetTempPath(), $"glue-{Guid.NewGuid():N}.dog");
+        try
+        {
+            DogFile.Save(m, path);
+            var back = DogFile.Load(path);
+            Assert.NotNull(back.Entities.Instances[0].GluedTo);
+            Assert.True(back.Definitions[0].CutsOpening);
+            Assert.Equal(GlueTo.Vertical, back.Definitions[0].GlueTo);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+        var doc = new Document(m);
+        var inst = m.Entities.Instances[0];
+        doc.Operation("Unglue", _ => inst.GluedTo = null);
+        doc.Undo.Undo();
+        Assert.NotNull(inst.GluedTo);
+    }
+}

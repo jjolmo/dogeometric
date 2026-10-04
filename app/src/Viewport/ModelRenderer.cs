@@ -236,6 +236,7 @@ public sealed class ModelRenderer
 
         var groups = new Dictionary<(Material?, Material?), SurfaceData>();
         var smooth = SmoothNormals.For(e);
+        var openings = Gluing.Openings(e);
         foreach (var face in e.Faces)
         {
             if (face.Hidden || face.Tag is { Visible: false })
@@ -243,7 +244,7 @@ public sealed class ModelRenderer
             var key = (face.FrontMaterial, face.BackMaterial);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
-            data.AddFace(face, face.FrontMaterial, face.BackMaterial, smooth);
+            data.AddFace(face, face.FrontMaterial, face.BackMaterial, smooth, openings.GetValueOrDefault(face));
         }
 
         ArrayMesh? faces = null;
@@ -584,10 +585,11 @@ public sealed class ModelRenderer
         public List<Vector2> Uvs { get; } = [];  // front side's texture coordinates
         public List<Vector2> Uv2s { get; } = []; // back side's
 
-        public void AddFace(Face face, Material? front, Material? back, SmoothNormals? smooth = null)
+        public void AddFace(Face face, Material? front, Material? back, SmoothNormals? smooth = null, List<List<Vec3>>? openings = null)
         {
             var outer = face.OuterLoop.Points.ToList();
-            var holes = face.InnerLoops.Select(l => (IReadOnlyList<Vec3>)l.Points.ToList()).ToList();
+            var holes = face.InnerLoops.Select(l => (IReadOnlyList<Vec3>)l.Points.ToList())
+                .Concat(openings ?? []).ToList();
             var corners = face.Loops.SelectMany(l => l.Vertices).ToArray();
             var idx = Polygon.Triangulate(outer, holes);
             if (idx.Count == 0)
@@ -609,7 +611,7 @@ public sealed class ModelRenderer
                 foreach (var k in new[] { idx[i], idx[i + 2], idx[i + 1] })
                 {
                     Vertices.Add(pts[k]);
-                    Normals.Add(smooth?.At(face, corners[k]) is { } sn ? Space.DirToGodot(sn) : n);
+                    Normals.Add(k < corners.Length && smooth?.At(face, corners[k]) is { } sn ? Space.DirToGodot(sn) : n);
                     Uvs.Add(Uv(front, false, model[k]));
                     Uv2s.Add(Uv(back, true, model[k]));
                 }

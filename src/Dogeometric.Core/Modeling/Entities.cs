@@ -119,6 +119,9 @@ public sealed class ComponentInstance(ComponentDefinition definition)
     public bool Hidden { get; set; }
     public bool Locked { get; set; }
 
+    /// <summary>The face (in the same collection) it is glued to, or null.</summary>
+    public Face? GluedTo { get; set; }
+
     public bool IsGroup => Definition.IsGroup;
 }
 
@@ -237,6 +240,9 @@ public sealed class Entities
     }
 }
 
+/// <summary>SketchUp's "Glue to" choices for components.</summary>
+public enum GlueTo { None, Any, Horizontal, Vertical, Sloped }
+
 public sealed class ComponentDefinition
 {
     public string Name { get; set; } = "";
@@ -256,6 +262,12 @@ public sealed class ComponentDefinition
 
     /// <summary>SketchUp's "Shadows face sun" behaviour.</summary>
     public bool ShadowsFaceSun { get; set; }
+
+    /// <summary>Which faces instances stick to when placed (their blue axis along the face's normal).</summary>
+    public GlueTo GlueTo { get; set; }
+
+    /// <summary>Glued instances show a hole in their face where their outline on the red-green plane lies.</summary>
+    public bool CutsOpening { get; set; }
 
     public Entities Entities { get; } = new();
 }
