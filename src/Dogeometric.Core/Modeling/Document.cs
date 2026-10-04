@@ -400,6 +400,32 @@ public static class Transforming
 public static class Grouping
 {
     /// <summary>
+    /// SketchUp's Change Axes: <paramref name="axes"/> (in the instance's parent space) become the definition's
+    /// axes. Its contents move into them and every instance compensates, so nothing moves on screen.
+    /// </summary>
+    public static void ChangeAxes(Model model, ComponentInstance inst, Transform axes)
+    {
+        var def = inst.Definition;
+        var frame = axes.Then(inst.Transform.Inverse());
+        var toNew = frame.Inverse();
+        var e = def.Entities;
+        Transforming.Apply(e, e.Faces.Cast<object>().Concat(e.Edges).Concat(e.Instances).Concat(e.SectionPlanes).Concat(e.Dimensions).Concat(e.Texts).ToList(), toNew);
+        foreach (var v in e.Vertices.Where(v => !e.Edges.Any(x => x.Start == v || x.End == v)))
+            v.Position = toNew.ApplyPoint(v.Position);
+        foreach (var g in e.GuideLines)
+        {
+            g.Point = toNew.ApplyPoint(g.Point);
+            g.Direction = toNew.ApplyVector(g.Direction).Normalized();
+            if (g.Start is { } a && g.End is { } b)
+                (g.Start, g.End) = (toNew.ApplyPoint(a), toNew.ApplyPoint(b));
+        }
+        foreach (var g in e.GuidePoints)
+            g.Position = toNew.ApplyPoint(g.Position);
+        foreach (var other in model.Definitions.Select(d => d.Entities).Append(model.Entities).SelectMany(x => x.Instances).Where(x => x.Definition == def))
+            other.Transform = frame.Then(other.Transform);
+    }
+
+    /// <summary>
     /// Copies everything in <paramref name="src"/> into <paramref name="dst"/> transformed by <paramref name="t"/>,
     /// keeping topology, attributes and nested instances (which share their definitions). Returns the new top-level
     /// entities (faces, edges, instances, dimensions, texts, guides).

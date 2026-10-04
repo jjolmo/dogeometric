@@ -64,4 +64,22 @@ public class GluingTests
         doc.Undo.Undo();
         Assert.NotNull(inst.GluedTo);
     }
+
+    [Fact]
+    public void Changing_a_components_axes_moves_nothing_on_screen()
+    {
+        var m = new Model();
+        var def = new ComponentDefinition { Name = "Box" };
+        TestModels.Box(def.Entities, Vec3.Zero, new Vec3(10, 20, 30));
+        m.Definitions.Add(def);
+        var a = m.Entities.AddInstance(def, Transform.Translation(new Vec3(100, 0, 0)));
+        var b = m.Entities.AddInstance(def, Transform.Rotation(Vec3.UnitZ, 0.5).Then(Transform.Translation(new Vec3(0, 50, 0))));
+        List<Vec3> World(ComponentInstance i) => def.Entities.Vertices.Select(v => i.Transform.ApplyPoint(v.Position)).OrderBy(p => p.X).ThenBy(p => p.Y).ThenBy(p => p.Z).ToList();
+        var (wa, wb) = (World(a), World(b));
+        var axes = new Transform(Vec3.UnitY, -Vec3.UnitX, Vec3.UnitZ, new Vec3(105, 10, 0));
+        Grouping.ChangeAxes(m, a, axes);
+        Assert.Equal(new Vec3(105, 10, 0), a.Transform.Origin);
+        foreach (var (p, q) in World(a).Zip(wa).Concat(World(b).Zip(wb)))
+            Assert.True(p.DistanceTo(q) < 1e-9);
+    }
 }

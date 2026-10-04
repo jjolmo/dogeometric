@@ -6,14 +6,15 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Axes tool: click the new origin, then a point along the red axis, then one towards green; blue
-/// completes a right-handed set. Inference, arrow-key locks and the ground plane follow the new axes.
+/// completes a right-handed set. Inference, arrow-key locks and the ground plane follow the new axes. Given a
+/// component (context menu › Change Axes), the axes become that component's instead.
 /// </summary>
-public sealed class AxesTool : DrawingTool
+public sealed class AxesTool(ComponentInstance? component = null) : DrawingTool
 {
     private Vec3? _origin;
     private Vec3? _red;
 
-    public override int CommandId => CommandIds.Axes;
+    public override int CommandId => component == null ? CommandIds.Axes : 0;
     protected override Vec3? From => _origin;
 
     public override string StatusText => (_origin, _red) switch
@@ -47,6 +48,16 @@ public sealed class AxesTool : DrawingTool
                 return;
             var green = g.Normalized();
             var axes = new Transform(red, green, red.Cross(green).Normalized(), _origin.Value);
+            if (component != null)
+            {
+                var inParent = axes.Then(doc.Context.ToWorld.Inverse());
+                var collections = doc.Model.Definitions.Select(d => d.Entities).Append(doc.Model.Entities).ToArray();
+                doc.Undo.Begin("Change Axes", collections);
+                Grouping.ChangeAxes(doc.Model, component, inParent);
+                doc.Undo.Commit();
+                Manager.Activate(new SelectTool());
+                return;
+            }
             doc.Operation("Place Axes", _ => doc.Model.Axes = axes);
             _origin = null;
             _red = null;
