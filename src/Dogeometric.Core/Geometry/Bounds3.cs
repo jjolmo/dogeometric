@@ -18,5 +18,12 @@ public readonly record struct Bounds3(Vec3 Min, Vec3 Max)
 
     public Bounds3 Include(Bounds3 b) => b.IsEmpty ? this : Include(b.Min).Include(b.Max);
 
+    /// <summary>The eight corners, numbered by bits: bit 0 picks max X, bit 1 max Y, bit 2 max Z.</summary>
+    public IEnumerable<Vec3> Corners()
+    {
+        for (var i = 0; i < 8; i++)
+            yield return new Vec3((i & 1) == 0 ? Min.X : Max.X, (i & 2) == 0 ? Min.Y : Max.Y, (i & 4) == 0 ? Min.Z : Max.Z);
+    }
+
     public static Bounds3 FromPoints(IEnumerable<Vec3> points) => points.Aggregate(Empty, (b, p) => b.Include(p));
 }

@@ -36,7 +36,8 @@ public sealed class CommandRegistry
     private readonly Dictionary<int, Command> _commands = [];
     private readonly List<(Key Keys, int Id)> _aliases = [];
 
-    public IReadOnlyList<MenuNode> Menus { get; }
+    public IReadOnlyList<MenuNode> Menus => _menus;
+    private readonly List<MenuNode> _menus;
     public IReadOnlyList<(Key Keys, int Id)> Aliases => _aliases;
 
     public CommandRegistry(string jsonPath)
@@ -59,7 +60,7 @@ public sealed class CommandRegistry
                 _aliases.Add((keys, cmd.Id));
         }
 
-        Menus = ParseMenus(root.GetProperty("menus"), "");
+        _menus = ParseMenus(root.GetProperty("menus"), "");
     }
 
     /// <summary>Every command with a label (for Preferences › Shortcuts).</summary>
@@ -129,6 +130,43 @@ public sealed class CommandRegistry
         cmd.Execute = execute;
         cmd.IsChecked = isChecked;
         cmd.IsRadio = radio;
+    }
+
+    /// <summary>
+    /// An extension's menu item, appended to a top-level menu as SketchUp's <c>UI.menu("Tools").add_item</c> does
+    /// (after a separator, once per extension). <paramref name="submenu"/> puts it in a submenu of that menu.
+    /// </summary>
+    public void AddToMenu(string menu, int id, string label, string description, string? submenu = null, bool separator = true)
+    {
+        var index = _menus.FindIndex(m => m.Label.Replace("&", "") == menu);
+        if (index < 0)
+            return;
+        var top = _menus[index];
+        var children = (top.Children ?? []).ToList();
+        var item = new MenuNode(label, id, null, false);
+        if (submenu != null)
+        {
+            var at = children.FindIndex(c => c.Children != null && c.Label == submenu);
+            if (at >= 0)
+                children[at] = children[at] with { Children = [.. children[at].Children!, item] };
+            else
+            {
+                if (separator)
+                    children.Add(new MenuNode("", null, null, true));
+                children.Add(new MenuNode(submenu, null, [item], false));
+            }
+        }
+        else
+        {
+            if (separator)
+                children.Add(new MenuNode("", null, null, true));
+            children.Add(item);
+        }
+        _menus[index] = top with { Children = children };
+        var cmd = Get(id);
+        cmd.Label = label;
+        cmd.Description = description;
+        cmd.MenuPath = submenu == null ? $"{menu}/{label}" : $"{menu}/{submenu}/{label}";
     }
 
     public bool Execute(int id)

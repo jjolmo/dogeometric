@@ -93,6 +93,7 @@ public partial class MainWindow : Control
 
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
+        RegisterExtensions();
 
         _commands.LoadUserShortcuts();
         var menuPanel = new PanelContainer();
@@ -136,6 +137,8 @@ public partial class MainWindow : Control
         Bar("Construction", Toolbars.Construction, ToolbarDocks.Dock.Top, visible: false);
         Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
         Bar("Large Tool Set", Toolbars.LargeToolSet, ToolbarDocks.Dock.Left, lines: 2);
+        // Extension toolbars, as each extension adds its own.
+        Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -149,6 +152,15 @@ public partial class MainWindow : Control
         // `dogeometric model.skp`: open files given on the command line (after Godot's own "--").
         if (OS.GetCmdlineUserArgs().FirstOrDefault(a => File.Exists(a)) is { } file)
             CallDeferred(MethodName.OpenFromCommandLine, file);
+    }
+
+    /// <summary>The cloned SketchUp extensions: their menu items (where each extension puts them) and commands.</summary>
+    private void RegisterExtensions()
+    {
+        _commands.AddToMenu("Tools", ExtensionIds.SolidInspector, "Solid Inspector²",
+            "Inspect and repair solid groups and components.");
+        _commands.Register(ExtensionIds.SolidInspector, () => _viewport.Tools.Activate(new SolidInspectorTool()),
+            () => _viewport.Tools.Active is SolidInspectorTool);
     }
 
     private void RegisterCommands()

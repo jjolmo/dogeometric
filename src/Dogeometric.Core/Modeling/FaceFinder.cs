@@ -215,6 +215,9 @@ public static class FaceFinder
 
     public static void Reverse(Face face)
     {
+        // Each side's positioned texture moves to the other side and stays where it was on the face.
+        var normal = face.Normal;
+        (face.FrontMapping, face.BackMapping) = (Texturing.Flipped(face.BackMapping, normal), Texturing.Flipped(face.FrontMapping, normal));
         foreach (var loop in face.Loops)
         {
             loop.Edges.Reverse();

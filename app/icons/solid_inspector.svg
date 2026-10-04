@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path fill="#dedede" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M3.35,7.44 2.17,9.74 5.92,4.58 6.66,3.16Z"/>
+<path fill="#9e9e9e" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M21.83,9.74 20.65,7.44 17.34,3.16 18.08,4.58Z"/>
+<path fill="#dfdfdf" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M9.89,2.23 6.66,3.16 12.00,2.33 12.00,2.33Z"/>
+<path fill="#cfcfcf" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M17.34,3.16 14.11,2.23 12.00,2.33 12.00,2.33Z"/>
+<path fill="#969696" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M5.92,20.55 8.03,21.80 5.58,17.87 2.17,15.84Z"/>
+<path fill="#969696" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M15.97,21.80 18.08,20.55 21.83,15.84 18.42,17.87Z"/>
+<path fill="#ebebeb" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M6.66,3.16 5.92,4.58 12.00,2.33 12.00,2.33Z"/>
+<path fill="#d3d3d3" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M18.08,4.58 17.34,3.16 12.00,2.33 12.00,2.33Z"/>
+<path fill="#cecece" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M2.17,15.84 5.58,17.87 5.58,11.77 2.17,9.74Z"/>
+<path fill="#969696" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M18.42,17.87 21.83,15.84 21.83,9.74 18.42,11.77Z"/>
+<path fill="#f3f3f3" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M5.92,4.58 8.03,5.83 12.00,2.33 12.00,2.33Z"/>
+<path fill="#dedede" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M15.97,5.83 18.08,4.58 12.00,2.33 12.00,2.33Z"/>
+<path fill="#969696" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M12.00,22.29 15.97,21.80 18.42,17.87 12.00,18.66Z"/>
+<path fill="#969696" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M8.03,21.80 12.00,22.29 12.00,18.66 5.58,17.87Z"/>
+<path fill="#f3f3f3" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M2.17,9.74 5.58,11.77 8.03,5.83 5.92,4.58Z"/>
+<path fill="#bbbbbb" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M18.42,11.77 21.83,9.74 18.08,4.58 15.97,5.83Z"/>
+<path fill="#eaeaea" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M12.00,6.33 15.97,5.83 12.00,2.33 12.00,2.33Z"/>
+<path fill="#f3f3f3" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M8.03,5.83 12.00,6.33 12.00,2.33 12.00,2.33Z"/>
+<path fill="#4f5356" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M12.00,18.66 18.42,17.87 18.42,11.77 12.00,12.57Z"/>
+<path fill="#4f5356" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M5.58,17.87 12.00,18.66 12.00,12.57 5.58,11.77Z"/>
+<path fill="#dcdcdc" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M12.00,12.57 18.42,11.77 15.97,5.83 12.00,6.33Z"/>
+<path fill="#f2f2f2" stroke="#000" stroke-width="0.45" stroke-linejoin="round" d="M5.58,11.77 12.00,12.57 12.00,6.33 8.03,5.83Z"/>
+<path fill="none" stroke="#c00" stroke-width="1.4" stroke-linejoin="round" d="M12.00,18.66 18.42,17.87 18.42,11.77 12.00,12.57Z"/>
+<path fill="none" stroke="#c00" stroke-width="1.4" stroke-linejoin="round" d="M5.58,17.87 12.00,18.66 12.00,12.57 5.58,11.77Z"/>
+<circle cx="12" cy="12.2" r="10.5" fill="none" stroke="#000" stroke-width="1.2"/>
+</svg>

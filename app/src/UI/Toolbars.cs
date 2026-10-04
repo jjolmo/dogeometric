@@ -9,6 +9,9 @@ public static class Toolbars
     public static readonly int[] Views = [10507, 10501, 10502, 10503, 10505, 10504];
     public static readonly int[] Styles = [10596, 10619, 10597, 10598, 10599, 10600, 10601];
     public static readonly int[] SolidTools = [24198, 24200, 24201, 24202, 24203, 24204];
+
+    // Extension toolbars.
+    public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] GettingStarted = [21022, 21019, 21020, 21065, 21094, 21041, 21100, Sep, 21048, 21129, 21236, Sep, 21024, 21405, 21074, Sep, 10508, 10523, 10509, 10527];
     public static readonly int[] Principal = [21022, 21083, 21074, 21019];
     public static readonly int[] Drawing = [21020, 21031, 21094, 24223, 21096, 21095, 21069, 21065, 21071, 21070];
@@ -53,6 +56,7 @@ public static class Toolbars
         [21048] = "move", [21041] = "push_pull", [21129] = "rotate", [21525] = "follow_me", [21236] = "scale", [21100] = "offset",
         [21024] = "tape_measure", [21410] = "dimension", [21057] = "protractor", [21405] = "text", [21126] = "axes", [21940] = "text_3d",
         [10508] = "orbit", [10523] = "pan", [10509] = "zoom", [10526] = "zoom_window", [10527] = "zoom_extents", [10529] = "previous_camera", [10629] = "next_camera",
+        [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [24198] = "solid_outer_shell", [24200] = "solid_intersect", [24201] = "solid_union",
         [24202] = "solid_subtract", [24203] = "solid_trim", [24204] = "solid_split",
         [21169] = "position_camera", [10525] = "look_around", [10520] = "walk", [21337] = "section_plane",

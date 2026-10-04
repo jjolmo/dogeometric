@@ -70,6 +70,21 @@ public static class Texturing
         return (point.Dot(xr), point.Dot(yr));
     }
 
+    /// <summary>
+    /// The same placement seen from a face whose normal is reversed: the plane axes of -n are (-x, y), or (x, -y)
+    /// for a horizontal face, so that coordinate of the mapping changes sign.
+    /// </summary>
+    public static TextureMapping? Flipped(TextureMapping? mapping, Vec3 normal)
+    {
+        if (mapping == null)
+            return null;
+        var m = (double[])mapping.Matrix.Clone();
+        var column = new Vec3(-normal.Y, normal.X, 0).Length < 1e-9 ? 1 : 0;
+        for (var row = 0; row < 3; row++)
+            m[row * 3 + column] = -m[row * 3 + column];
+        return new TextureMapping(m);
+    }
+
     private static double[] Invert(double[] m)
     {
         var det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
