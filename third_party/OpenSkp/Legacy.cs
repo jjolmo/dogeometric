@@ -1308,11 +1308,14 @@ namespace OpenSkp
         private static List<(int Slot, string? Name, object? Value)> ReadEntityListInner(Archive ar, LR r, long count, string owner)
         {
             var ents = new List<(int, string?, object?)>();
-            while (ents.Count < count)
+            var nulls = 0;
+            while (ents.Count + nulls < count)
             {
                 int p = r.Pos;
                 bool hasBurnCredit = owner == "def" && ar.BurnStack.Count > 0 && ar.BurnStack[ar.BurnStack.Count - 1] > 0;
-                if (hasBurnCredit
+                // Dogeometric patch 9 (cont.): with null records about, the declared count can also run past the
+                // list, so the definition tail signature ends it whenever it shows up, not only with burn credit.
+                if ((hasBurnCredit || (owner == "def" && nulls > 0))
                     && p + 25 <= r.Data.Length
                     && Tlv.ReadU32(r.Data, p) == 0
                     && LegacyBytes.BytesEqual(r.Data, p + 22, LegacyBytes.StrMarker))
@@ -1359,7 +1362,16 @@ namespace OpenSkp
                     r.Pos = p;
                     break;
                 }
-                ents.Add((s!.Value, n, v));
+                // Dogeometric patch 9: a null record (tag 0) can stand in an entity list (SketchUp 2019); it takes
+                // one of the declared slots but carries no entity.
+                if (s == null)
+                {
+                    if (r.Pos == p)
+                        r.Pos += 2;
+                    nulls++;
+                    continue;
+                }
+                ents.Add((s.Value, n, v));
             }
             return ents;
         }
@@ -1416,6 +1428,21 @@ namespace OpenSkp
             {
                 var retry = LegacyBytes.RetryCountAfterV20Filler(r, r.Pos - 4, 5_000_000, ar);
                 if (retry.HasValue) count = retry.Value;
+            }
+            // Dogeometric patch 8: SketchUp 2019 (v19) can leave one more 2-byte null after the layer list, so the
+            // header reads two bytes early and the count lands on its own high half. Re-read it two bytes on, and
+            // keep it only when it is plausible and an object record (new class 0xFFFF or a back-reference with
+            // the 0x8000 bit) follows.
+            if (count > 5_000_000)
+            {
+                var save = r.Pos;
+                r.Pos = save - 2;
+                var shifted = r.U32();
+                var tag = r.PeekU16();
+                if (shifted > 0 && shifted <= 5_000_000 && (tag == 0xFFFF || (tag & 0x8000) != 0))
+                    count = shifted;
+                else
+                    r.Pos = save;
             }
             if (count > 5_000_000)
             {

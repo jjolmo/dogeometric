@@ -39,6 +39,15 @@ Every change is listed here and should be offered upstream.
    "Unexpected file format"). All triangles are now validated first and collinear ones skipped. Dogeometric itself
    no longer uses autoTriangulate (it triangulates non-planar faces with its own ear clipping), so this only guards
    other callers.
+8. **Definition entity count after a trailing layer separator** (`Legacy.cs`, `ReadDefinition`). SketchUp 2019 files
+   can carry one more 2-byte null after a definition's layer list, so the header was read two bytes early and the
+   entity count landed on its own high half (an "implausible def entity count"). When the count is implausible it is
+   re-read two bytes on, and kept only if it is plausible and an object record follows. Found on SketchUp's own
+   `Tutorial01.skp`.
+9. **Null records inside definition entity lists** (`Legacy.cs`, `ReadEntityListInner`). The same files put null
+   records (tag 0) among a definition's entities: they take a declared slot but carry no entity. They are skipped and
+   counted, and once one is seen the definition tail signature (nrel 0, GUID, name marker) ends the list, as it
+   already did for burned indices.
 
 ## Note on `_scaffold/blank_v17.skp`
 
