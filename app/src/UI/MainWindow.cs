@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Fredo6_FredoScale", Toolbars.FredoScale, ToolbarDocks.Dock.Top);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
         Bar("Fredo6_JointPushPull", Toolbars.JointPushPull, ToolbarDocks.Dock.Top);
@@ -308,6 +309,17 @@ public partial class MainWindow : Control
         });
         _commands.AddToMenu("Tools", ExtensionIds.SandboxFlipEdge, "Flip Edge", "Flip the diagonal between two triangles.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxFlipEdge, () => _viewport.Tools.Activate(new FlipEdgeTool()), () => _viewport.Tools.Active is FlipEdgeTool);
+        foreach (var (kind, label) in new[]
+        {
+            (Deformation.Taper, "Box Tapering"), (Deformation.Twist, "Box Twisting"),
+            (Deformation.Shear, "Planar Shearing"), (Deformation.Bend, "Radial Bending"),
+        })
+        {
+            var id = ExtensionIds.FredoScale(kind);
+            _commands.AddToMenu("Tools", id, label, $"FredoScale: {label.ToLowerInvariant()} of the selection.", submenu: "Fredo6 Collection",
+                groupStart: kind == Deformation.Taper);
+            _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind)), () => _viewport.Tools.Active.CommandId == id);
+        }
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);

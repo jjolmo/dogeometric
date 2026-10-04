@@ -78,7 +78,7 @@ public sealed class Document
             Undo.Revert();
             throw;
         }
-        GeometryChanged?.Invoke([entities]);
+        GeometryChanged?.Invoke(Undo.PendingTouched);
     }
 
     public void CommitPreview()

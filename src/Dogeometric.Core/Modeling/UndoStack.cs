@@ -77,6 +77,9 @@ public sealed class UndoStack(Model model)
 
     public bool IsPending => _pending != null;
 
+    /// <summary>The collections the open operation has touched so far.</summary>
+    public IReadOnlyCollection<Entities> PendingTouched => _pending?.Touched ?? [];
+
     public void Abort()
     {
         if (_pending is not { } p)

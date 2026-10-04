@@ -13,6 +13,7 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] FredoScale = Enum.GetValues<Dogeometric.Core.Modeling.Deformation>().Select(Commands.ExtensionIds.FredoScale).ToArray();
     public static readonly int[] Sandbox =
     [
         Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
@@ -103,5 +104,7 @@ public static class Toolbars
     {
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>())
             Icons[Commands.ExtensionIds.Spline(kind)] = "spline_" + kind.ToString().ToLowerInvariant();
+        foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())
+            Icons[Commands.ExtensionIds.FredoScale(kind)] = "fredoscale_" + kind.ToString().ToLowerInvariant();
     }
 }

@@ -17,7 +17,7 @@ public static class ExtensionCatalog
         new("rp_sphere", "", "Creates a sphere from its radius and segments (Draw menu).", true),
         new("Select Curve", "Thomas Thomassen", "Selects runs of connected visible edges with one click (Tools menu).", true),
         new("BezierSpline", "Fredo6", "Bézier, B-spline, Catmull, F-spline, Courbette, arc/chamfer/dog-bone corners, dividers (Draw › BezierSpline curves).", true),
-        new("FredoScale", "Fredo6", "Scales, tapers, twists, bends and stretches.", false),
+        new("FredoScale", "Fredo6", "Tapers, twists, shears and bends along the selection's box (Tools › Fredo6 Collection). Box stretching to come.", true),
         new("Curviloft", "Fredo6", "Skins surfaces between curves (loft, rails).", false),
         new("Tools on Surface", "Fredo6", "Draws lines, shapes and offsets on curved surfaces.", false),
         new("SUbD", "Thomas Thomassen", "Subdivision surfaces.", false),
