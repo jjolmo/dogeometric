@@ -71,6 +71,10 @@ public sealed class Face
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
 
+    /// <summary>Positioned textures (SketchUp's pins) for each side; null uses the default projection.</summary>
+    public TextureMapping? FrontMapping { get; set; }
+    public TextureMapping? BackMapping { get; set; }
+
     /// <summary>Front-side normal from the outer loop's winding (Newell's method, robust for any polygon).</summary>
     public Vec3 Normal => Polygon.Normal(OuterLoop.Points.ToList());
 

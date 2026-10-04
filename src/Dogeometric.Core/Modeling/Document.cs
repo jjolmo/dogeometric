@@ -56,6 +56,43 @@ public sealed class Document
         }
     }
 
+    /// <summary>
+    /// A live preview of an operation (Push/Pull while dragging): each call undoes the previous preview and applies
+    /// <paramref name="change"/> to the real geometry, so the view shows the actual result. The picker keeps the
+    /// geometry from before the operation, so inference doesn't snap to what is being changed. Finish with
+    /// <see cref="CommitPreview"/> or <see cref="CancelPreview"/>.
+    /// </summary>
+    public void Preview(string name, Action<Entities> change)
+    {
+        var entities = Context.Entities;
+        if (!Undo.IsPending)
+            Undo.Begin(name, entities);
+        else
+            Undo.Revert();
+        try
+        {
+            change(entities);
+        }
+        catch
+        {
+            Undo.Revert();
+            throw;
+        }
+        GeometryChanged?.Invoke([entities]);
+    }
+
+    public void CommitPreview()
+    {
+        if (Undo.IsPending)
+            Undo.Commit();
+    }
+
+    public void CancelPreview()
+    {
+        if (Undo.IsPending)
+            Undo.Abort();
+    }
+
     /// <summary>Edit › Delete: erases the selection the way SketchUp does.</summary>
     /// <summary>
     /// Opens a group or component for editing. A group whose definition other copies share becomes unique first,

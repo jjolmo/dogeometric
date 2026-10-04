@@ -61,6 +61,18 @@ public sealed class UndoStack(Model model)
     }
 
     /// <summary>Cancels the open operation and puts everything back.</summary>
+    /// <summary>Puts back what the pending operation started from, keeping it open (live previews redo it).</summary>
+    public void Revert()
+    {
+        if (_pending is not { } p)
+            return;
+        p.ModelBefore.Restore(model);
+        foreach (var s in p.Before)
+            s.Restore();
+    }
+
+    public bool IsPending => _pending != null;
+
     public void Abort()
     {
         if (_pending is not { } p)

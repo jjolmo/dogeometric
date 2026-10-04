@@ -19,6 +19,7 @@ public sealed class PushPullTool : DrawingTool
     private Face? _face;
     private Vec3 _anchor;
     private Vec3 _normal;
+    private Vec3 _localNormal;
     private double _distance;
     private ulong _lastClickMs;
 
@@ -44,6 +45,29 @@ public sealed class PushPullTool : DrawingTool
         }
         _distance = DistanceFromCursor();
         View.ShowVcbValue(VcbValue);
+        ShowPreview();
+    }
+
+    /// <summary>The real push/pull at the current distance, redone on every move (SketchUp shows the solid live).</summary>
+    private void ShowPreview()
+    {
+        if (_face is not { } face || View.Document is not { } doc)
+            return;
+        var scale = doc.Context.ToWorld.ApplyVector(_localNormal).Length;
+        var keep = Input.IsKeyPressed(Key.Ctrl);
+        var d = _distance / scale;
+        try
+        {
+            doc.Preview("Push/Pull", e =>
+            {
+                if (Math.Abs(d) > Tolerance.Length)
+                    PushPull.Apply(e, face, d, keep);
+            });
+        }
+        catch (Exception)
+        {
+            // A distance the geometry can't take (e.g. pushing through itself mid-drag): keep the last good preview.
+        }
     }
 
     public override void MouseDown(MouseButton button, Vector2 position)
@@ -68,6 +92,7 @@ public sealed class PushPullTool : DrawingTool
             var hit = View.Pick(position);
             var toWorld = doc.Context.ToWorld;
             _anchor = hit?.Point ?? toWorld.ApplyPoint(face.OuterLoop.Points.First());
+            _localNormal = face.Normal;
             _normal = toWorld.ApplyNormal(face.Normal);
             _distance = 0;
             RefreshStatus();
@@ -90,6 +115,26 @@ public sealed class PushPullTool : DrawingTool
 
     private void Apply(Document doc, Face face, double distance)
     {
+        // Finishing a live drag: the preview already holds the result at this distance; typed values redo it.
+        if (doc.Undo.IsPending)
+        {
+            _distance = distance;
+            ShowPreview();
+            if (Math.Abs(distance) > Tolerance.Length)
+            {
+                doc.CommitPreview();
+                _lastDistance = distance;
+            }
+            else
+            {
+                doc.CancelPreview();
+            }
+            _face = null;
+            _hover = null;
+            RefreshStatus();
+            View.QueueOverlayRedraw();
+            return;
+        }
         if (Math.Abs(distance) > Tolerance.Length)
         {
             // World distance along the world normal → local distance along the local normal.
@@ -125,8 +170,14 @@ public sealed class PushPullTool : DrawingTool
 
     public override bool KeyDown(InputEventKey key)
     {
+        if (key.Keycode == Key.Ctrl && !key.Echo && _face != null)
+        {
+            ShowPreview(); // Ctrl toggles "create new starting face": redo with the new mode
+            return false;
+        }
         if (key.Keycode == Key.Escape && _face != null)
         {
+            View.Document?.CancelPreview();
             _face = null;
             RefreshStatus();
             View.QueueOverlayRedraw();
@@ -143,24 +194,18 @@ public sealed class PushPullTool : DrawingTool
         var target = _face ?? _hover;
         if (target == null)
             return;
+        if (_face != null)
+        {
+            // While dragging, the model itself shows the extrusion; only the inference marker goes on top.
+            DrawInference(overlay);
+            return;
+        }
         var blue = new Color(0, 0, 1);
-        var offset = _face != null ? _normal * _distance : Vec3.Zero;
         foreach (var loop in target.Loops)
         {
             var pts = loop.Points.Select(toWorld.ApplyPoint).ToList();
             for (var i = 0; i < pts.Count; i++)
-            {
-                var a = pts[i];
-                var b = pts[(i + 1) % pts.Count];
-                DrawWorldLine(overlay, a, b, blue, 1.5f);
-                if (_face != null)
-                {
-                    DrawWorldLine(overlay, a + offset, b + offset, Colors.Black, 1.5f);
-                    DrawWorldLine(overlay, a, a + offset, Colors.Black, 1);
-                }
-            }
+                DrawWorldLine(overlay, pts[i], pts[(i + 1) % pts.Count], blue, 1.5f);
         }
-        if (_face != null)
-            DrawInference(overlay);
     }
 }
