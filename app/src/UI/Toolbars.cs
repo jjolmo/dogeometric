@@ -13,6 +13,7 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
     public static readonly int[] FredoScale = Enum.GetValues<Dogeometric.Core.Modeling.Deformation>().Select(Commands.ExtensionIds.FredoScale).ToArray();
     public static readonly int[] Sandbox =
     [
@@ -75,6 +76,8 @@ public static class Toolbars
         [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [Commands.ExtensionIds.RoundCornerRound] = "roundcorner_round",
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
+        [Commands.ExtensionIds.CurviloftLoft] = "curviloft_loft",
+        [Commands.ExtensionIds.CurviloftSkin] = "curviloft_skin",
         [Commands.ExtensionIds.SandboxFromContours] = "sandbox_from_contours",
         [Commands.ExtensionIds.SandboxFromScratch] = "sandbox_from_scratch",
         [Commands.ExtensionIds.SandboxSmoove] = "sandbox_smoove",

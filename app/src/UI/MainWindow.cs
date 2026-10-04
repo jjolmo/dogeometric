@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Curviloft", Toolbars.Curviloft, ToolbarDocks.Dock.Top);
         Bar("Fredo6_FredoScale", Toolbars.FredoScale, ToolbarDocks.Dock.Top);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("BZ__Toolbar", Toolbars.BezierSpline, ToolbarDocks.Dock.Top);
@@ -323,6 +324,11 @@ public partial class MainWindow : Control
                 groupStart: kind == Deformation.Taper);
             _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
+        _commands.AddToMenu("Tools", ExtensionIds.CurviloftLoft, "Curviloft - Loft by Spline", "Create loft junctions between curves, along splines through them.",
+            submenu: "Fredo6 Collection", groupStart: true);
+        _commands.Register(ExtensionIds.CurviloftLoft, () => Curviloft(skin: false));
+        _commands.AddToMenu("Tools", ExtensionIds.CurviloftSkin, "Curviloft - Skin Contours", "Skin a loop of four curves.", submenu: "Fredo6 Collection");
+        _commands.Register(ExtensionIds.CurviloftSkin, () => Curviloft(skin: true));
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
@@ -454,6 +460,54 @@ public partial class MainWindow : Control
         AddChild(d);
         d.PopupCentered();
         radius.GrabFocus();
+    }
+
+    private static int _loftSegments = 24, _loftRows = 6;
+
+    /// <summary>Curviloft on the selected curves: asks the segments (and rows between curves), then makes the surface as a group.</summary>
+    private void Curviloft(bool skin)
+    {
+        var doc = _document.Document;
+        var chains = Dogeometric.Core.Modeling.Curviloft.Chains(doc.Selection.Items.OfType<Edge>());
+        if (skin ? chains.Count != 4 : chains.Count < 2)
+        {
+            _status.SetHint(skin ? "Skin Contours: select four curves forming a loop." : "Loft by Spline: select two or more curves.");
+            return;
+        }
+        var d = new ConfirmationDialog { Title = skin ? "Skin Contours" : "Loft by Spline", OkButtonText = "OK" };
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddChild(new Label { Text = "Segments" });
+        var segments = new SpinBox { MinValue = 1, MaxValue = 400, Value = skin ? 12 : _loftSegments };
+        grid.AddChild(segments);
+        var rows = new SpinBox { MinValue = 1, MaxValue = 100, Value = _loftRows };
+        if (!skin)
+        {
+            grid.AddChild(new Label { Text = "Rows between curves" });
+            grid.AddChild(rows);
+        }
+        d.AddChild(grid);
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            if (!skin)
+                (_loftSegments, _loftRows) = ((int)segments.Value, (int)rows.Value);
+            var made = 0;
+            doc.Operation(skin ? "Skin Contours" : "Loft by Spline", e =>
+            {
+                var def = new ComponentDefinition { Name = "Curviloft", IsGroup = true };
+                made = skin
+                    ? Dogeometric.Core.Modeling.Curviloft.SkinContours(def.Entities, chains, (int)segments.Value)
+                    : Dogeometric.Core.Modeling.Curviloft.LoftBySpline(def.Entities, chains, (int)segments.Value, (int)rows.Value);
+                if (made == 0)
+                    return;
+                doc.Model.Definitions.Add(def);
+                e.AddInstance(def, Dogeometric.Core.Geometry.Transform.Identity);
+            });
+            _status.SetHint(made == 0 ? "Curviloft: the curves do not make a loop." : $"Curviloft: {made} faces.");
+        };
+        d.Canceled += d.QueueFree;
+        AddChild(d);
+        d.PopupCentered();
     }
 
     /// <summary>SUbD › Subdivide: asks the levels, then subdivides the selected groups' contents (or the open group's).</summary>
