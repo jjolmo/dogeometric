@@ -45,7 +45,18 @@ public sealed class MoveTool : DrawingTool
         View.ShowVcbValue(VcbValue);
         if (_from is { } f && Current is { } c)
             foreach (var (node, start, _) in _following)
-                node.GlobalTransform = start with { Origin = start.Origin + Space.ToGodot(c.Point - f) };
+                node.GlobalTransform = start with { Origin = start.Origin + Space.ToGodot(Slide(c.Point - f)) };
+    }
+
+    /// <summary>Glued components only slide along their face: the offset loses its part along the face's normal.</summary>
+    private Vec3 Slide(Vec3 worldOffset)
+    {
+        if (_copy || _items.Count == 0 || View.Document is not { } doc || _items.Any(i => i is not ComponentInstance { GluedTo: not null } g || _items.Contains(g.GluedTo!)))
+            return worldOffset;
+        var n = doc.Context.ToWorld.ApplyNormal(((ComponentInstance)_items[0]).GluedTo!.Normal).Normalized();
+        return _items.Cast<ComponentInstance>().All(i => doc.Context.ToWorld.ApplyNormal(i.GluedTo!.Normal).Normalized().Dot(n) > 0.999)
+            ? worldOffset - n * worldOffset.Dot(n)
+            : worldOffset;
     }
 
     /// <summary>Picks up the drawn groups and components being moved, or copies of them when copying.</summary>
@@ -110,13 +121,16 @@ public sealed class MoveTool : DrawingTool
             _items = doc.Selection.IsEmpty ? ItemUnderCursor(doc, position) : doc.Selection.Items.ToList();
             if (_items.Count == 0)
                 return;
+            // Components glued to a moving face go with it.
+            var faces = _items.OfType<Face>().ToHashSet();
+            _items.AddRange(doc.Context.Entities.Instances.Where(i => i.GluedTo is { } g && faces.Contains(g) && !_items.Contains(i)));
             _from = inf.Point;
             _lastCopy = null;
             Follow();
             RefreshStatus();
             return;
         }
-        Finish(doc, inf.Point - _from.Value);
+        Finish(doc, Slide(inf.Point - _from.Value));
     }
 
     private List<object> ItemUnderCursor(Document doc, Vector2 position)
@@ -181,7 +195,7 @@ public sealed class MoveTool : DrawingTool
         var dir = (c.Point - from).Normalized();
         if (dir.IsZero(1e-12))
             return false;
-        Finish(doc, dir * mm);
+        Finish(doc, Slide(dir * mm));
         return true;
     }
 
