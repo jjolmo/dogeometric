@@ -174,6 +174,7 @@ public partial class MainWindow : Control
             _document.RefreshComponentEdit();
         }, () => _document.HideSimilarComponents);
         _commands.Register(CommandIds.HiddenObjects, () => _document.ShowHiddenObjects = !_document.ShowHiddenObjects, () => _document.ShowHiddenObjects);
+        _commands.Register(CommandIds.FieldOfView, () => _viewport.Tools.Activate(new ZoomTool()));
         _commands.Register(CommandIds.Fog, () => _viewport.ShowFog = !_viewport.ShowFog, () => _viewport.ShowFog);
         _commands.Register(CommandIds.HiddenGeometry, () => _document.ShowHiddenGeometry = !_document.ShowHiddenGeometry, () => _document.ShowHiddenGeometry);
         _commands.Register(CommandIds.BackEdges, () =>

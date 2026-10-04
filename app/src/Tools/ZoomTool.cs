@@ -43,4 +43,29 @@ public sealed class ZoomTool : Tool
         if (button == MouseButton.Left)
             _dragging = false;
     }
+
+    public override string VcbValue => View.Camera.FovDegrees.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " deg";
+
+    public override void Activate() => View.ShowVcbValue(VcbValue);
+
+    /// <summary>Field of view in degrees ("35", "35deg"), or a lens focal length ("50mm", 35 mm film).</summary>
+    public override bool ApplyVcb(string text)
+    {
+        var t = text.Trim().ToLowerInvariant().Replace(',', '.');
+        double degrees;
+        if (t.EndsWith("mm"))
+        {
+            if (!double.TryParse(t[..^2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var focal) || focal <= 0)
+                return false;
+            degrees = 2 * Math.Atan(24.0 / 2 / focal) * 180 / Math.PI; // 24 mm frame height
+        }
+        else if (!double.TryParse(t.Replace("deg", "").Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out degrees))
+        {
+            return false;
+        }
+        View.BeginNavigation();
+        View.ChangeFovBy(degrees - View.Camera.FovDegrees);
+        View.ShowVcbValue(VcbValue);
+        return true;
+    }
 }

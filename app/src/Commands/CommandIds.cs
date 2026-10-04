@@ -58,6 +58,7 @@ public static class CommandIds
     // Camera
     public const int PreviousCamera = 10529;
     public const int NextCamera = 10629;
+    public const int FieldOfView = 21494;
     public const int ViewTop = 10501;
     public const int ViewFront = 10502;
     public const int ViewRight = 10503;
