@@ -13,6 +13,7 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] SelectionToys =
     [
         Commands.ExtensionIds.SelectOnlyEdges, Commands.ExtensionIds.SelectOnlyFaces, Commands.ExtensionIds.SelectOnlyGroups, Commands.ExtensionIds.SelectOnlyComponents, Sep,
@@ -66,6 +67,7 @@ public static class Toolbars
         [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [Commands.ExtensionIds.RoundCornerRound] = "roundcorner_round",
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
+        [Commands.ExtensionIds.SelectCurve] = "select_curve",
         [Commands.ExtensionIds.SelectOnlyEdges] = "select_only_edges",
         [Commands.ExtensionIds.SelectOnlyFaces] = "select_only_faces",
         [Commands.ExtensionIds.SelectOnlyGroups] = "select_only_groups",

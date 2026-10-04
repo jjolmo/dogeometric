@@ -157,6 +157,7 @@ public partial class MainWindow : Control
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
         Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
+        Bar("Select Curve", Toolbars.SelectCurve, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -243,6 +244,12 @@ public partial class MainWindow : Control
                 ? () => CleanUpDialog.Show(this, RunCleanUp)
                 : () => RunCleanUp(options()));
         }
+        _commands.AddToMenu("Extensions", ExtensionIds.CircleByDiameter, "Circle By Diameter", "Create circles by diameter: click both ends.");
+        _commands.Register(ExtensionIds.CircleByDiameter, () => _viewport.Tools.Activate(new CircleByDiameterTool()),
+            () => _viewport.Tools.Active is CircleByDiameterTool);
+        _commands.AddToMenu("Tools", ExtensionIds.SelectCurve, "Select Curve", "Select sets of connected visible edges.");
+        _commands.Register(ExtensionIds.SelectCurve, () => _viewport.Tools.Activate(new SelectCurveTool()),
+            () => _viewport.Tools.Active is SelectCurveTool);
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
