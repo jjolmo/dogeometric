@@ -46,6 +46,13 @@ module DogeometricOracle
     # import yet. Instances contribute their transformed definition box, as Entities.Bounds() does.
     acc['geometry_bounds_mm'] = mm(geometry_bounds(model.entities, {}))
     acc['face_camera'] = model.definitions.any? { |d| d.behavior.always_face_camera? && d.instances.any? }
+    # First top-level instances: where SketchUp places them (to compare with what we wrote).
+    acc['top_instances'] = model.entities.grep(Sketchup::ComponentInstance).first(12).map do |i|
+      t = i.transformation
+      { 'def' => i.definition.name, 'origin_mm' => t.origin.to_a.map { |v| v.to_mm.round(2) },
+        'xaxis' => t.xaxis.to_a.map { |v| v.round(4) }, 'dc' => !i.definition.attribute_dictionary('dynamic_attributes').nil?,
+        'glue' => !i.glued_to.nil? }
+    end
     acc
   end
 

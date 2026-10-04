@@ -9,11 +9,14 @@ cd "$LIN_DIR"
 touch oracle.jsonl
 find . -iname '*.skp' | sort | while read -r rel; do
   rel="${rel#./}"
-  grep -qF "$(basename "$rel")\"" oracle.jsonl && continue   # already done (resumable)
   win="$WIN_DIR\\${rel//\//\\}"
+  # Already done (resumable)? Match the whole path as oracle.rb writes it (JSON-escaped backslashes): files with the
+  # same name in different folders are different files.
+  key="\"file\":\"${win//\\/\\\\}\""
+  grep -qF "$key" oracle.jsonl && continue
   timeout 300 flatpak run --command=bottles-cli com.usebottles.bottles run -b SketchUp -p 'SketchUp 2021' -- \
     -RubyStartup "$WIN_DIR\\oracle.rb" "$win" < /dev/null > /dev/null 2>&1  # wine would eat the file list on stdin
-  if ! grep -qF "$(basename "$rel")\"" oracle.jsonl; then
+  if ! grep -qF "$key" oracle.jsonl; then
     echo "{\"file\": \"$rel\", \"error\": \"SketchUp did not open it (timeout or crash)\"}" >> oracle.jsonl
   fi
   pkill -f '[S]ketchUp 2021/SketchUp.exe'; pkill -f '[s]ketchup_webhelper'
