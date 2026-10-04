@@ -127,4 +127,16 @@ public class GeometryTests
         Assert.Equal(new Vec3(0, 0, 0), b.Min);
         Assert.Equal(new Vec3(105, 20, 30), b.Max);
     }
+
+    [Fact]
+    public void Three_point_arc_runs_through_its_points_on_one_circle()
+    {
+        Vec3 a = new(10, 0, 0), b = new(0, 10, 0), c = new(-10, 0, 0);
+        var arc = Shapes.ThreePointArc(a, b, c, 12)!;
+        Assert.Equal(a, arc[0]);
+        Assert.Equal(c, arc[^1]);
+        Assert.All(arc, p => Assert.Equal(10, p.Length, 6));
+        Assert.Contains(arc, p => p.DistanceTo(b) < 1e-6);
+        Assert.Null(Shapes.ThreePointArc(a, new Vec3(5, 0, 0), c, 12));
+    }
 }

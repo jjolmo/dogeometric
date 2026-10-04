@@ -53,4 +53,47 @@ public static class Shapes
         pts[^1] = end;
         return pts;
     }
+
+    /// <summary>
+    /// Arc around <paramref name="center"/> from <paramref name="start"/> turning <paramref name="sweep"/> radians about
+    /// <paramref name="normal"/> (right-handed), with <paramref name="segments"/> pieces for a full turn's share.
+    /// </summary>
+    public static List<Vec3> CenterArc(Vec3 center, Vec3 normal, Vec3 start, double sweep, int segments)
+    {
+        var n = Math.Max(1, segments);
+        var pts = new List<Vec3>(n + 1);
+        for (var i = 0; i <= n; i++)
+            pts.Add(center + (start - center).RotatedAround(normal, sweep * i / n));
+        return pts;
+    }
+
+    /// <summary>
+    /// The arc from <paramref name="a"/> through <paramref name="b"/> to <paramref name="c"/> (3-point arc), or null
+    /// when the points are in a line.
+    /// </summary>
+    public static List<Vec3>? ThreePointArc(Vec3 a, Vec3 b, Vec3 c, int segments)
+    {
+        var ab = b - a;
+        var ac = c - a;
+        var normal = ab.Cross(ac);
+        if (normal.Length < 1e-9)
+            return null;
+        // Circumcentre of the triangle.
+        var n2 = normal.Dot(normal);
+        var center = a + (normal.Cross(ab) * ac.Dot(ac) + ac.Cross(normal) * ab.Dot(ab)) / (2 * n2);
+        var axis = normal.Normalized();
+        double Angle(Vec3 p)
+        {
+            var u = (a - center).Normalized();
+            var v = axis.Cross(u);
+            var d = p - center;
+            var t = Math.Atan2(d.Dot(v), d.Dot(u));
+            return t < 0 ? t + 2 * Math.PI : t;
+        }
+        // Going from a towards b around the axis keeps b on the arc; c's angle is the sweep.
+        var sweep = Angle(c);
+        var pts = CenterArc(center, axis, a, sweep, segments);
+        pts[^1] = c;
+        return pts;
+    }
 }

@@ -92,6 +92,9 @@ public static class CommandIds
     public const int Protractor = 21057;
     public const int Axes = 21126;
     public const int Freehand = 21031;
+    public const int Arc = 21069;
+    public const int Pie = 21070;
+    public const int Arc3Point = 21071;
     public const int SectionPlane = 21337;
     public const int ReverseSection = 21334;
     public const int ActiveSectionCut = 21335;
