@@ -108,27 +108,32 @@ public sealed class ModelRenderer
     /// Fades everything outside the group or component being edited (<paramref name="path"/>, empty at the top
     /// level), as SketchUp does while you edit one.
     /// </summary>
-    public static void FadeOutside(Node3D root, IReadOnlyList<ComponentInstance> path)
+    public static void FadeOutside(Node3D root, IReadOnlyList<ComponentInstance> path, bool hideRest = false, bool hideSimilar = false)
     {
         var keys = path.Select(i => (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(i)).ToList();
-        void Walk(Node node, int depth, bool inside)
+        var edited = path.Count > 0 ? (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(path[^1].Definition) : 0UL;
+        // inside: under the open instance; similar: under another copy of the edited component.
+        void Walk(Node node, int depth, bool inside, bool similar)
         {
             foreach (var child in node.GetChildren())
             {
                 switch (child)
                 {
                     case MeshInstance3D mi:
-                        mi.SetInstanceShaderParameter("fade", inside || keys.Count == 0 ? 0f : 1f);
+                        var outside = keys.Count > 0 && !inside;
+                        mi.SetInstanceShaderParameter("fade", outside ? 1f : 0f);
+                        mi.Visible = !outside || (similar ? !hideSimilar : !hideRest);
                         break;
                     case Node3D n when n.HasMeta("instance"):
                         // Inside once the whole path matched; on the path while its prefix matches.
                         var onPath = !inside && depth < keys.Count && n.GetMeta("instance").AsUInt64() == keys[depth];
-                        Walk(n, onPath ? depth + 1 : depth, inside || onPath && depth + 1 == keys.Count);
+                        var isSimilar = similar || !onPath && !inside && keys.Count > 0 && n.GetMeta("definition").AsUInt64() == edited;
+                        Walk(n, onPath ? depth + 1 : depth, inside || onPath && depth + 1 == keys.Count, isSimilar);
                         break;
                 }
             }
         }
-        Walk(root, 0, false);
+        Walk(root, 0, false, false);
     }
 
     private void AddEntities(Entities entities, Node3D parent, Material? inherited, bool mirrored)
@@ -165,6 +170,7 @@ public sealed class ModelRenderer
                 continue;
             var node = new Node3D { Name = string.IsNullOrEmpty(inst.Name) ? inst.Definition.Name : inst.Name, Transform = ToGodot(inst.Transform) };
             node.SetMeta("instance", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst));
+            node.SetMeta("definition", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst.Definition));
             parent.AddChild(node);
             AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
         }

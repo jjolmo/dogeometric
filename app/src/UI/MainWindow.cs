@@ -158,6 +158,16 @@ public partial class MainWindow : Control
             _components.Refresh();
             _viewport.Tools.Activate(new ComponentPlaceTool(def));
         }));
+        _commands.Register(CommandIds.HideRestOfModel, () =>
+        {
+            _document.HideRestOfModel = !_document.HideRestOfModel;
+            _document.RefreshComponentEdit();
+        }, () => _document.HideRestOfModel);
+        _commands.Register(CommandIds.HideSimilarComponents, () =>
+        {
+            _document.HideSimilarComponents = !_document.HideSimilarComponents;
+            _document.RefreshComponentEdit();
+        }, () => _document.HideSimilarComponents);
         _commands.Register(CommandIds.HiddenGeometry, () => _document.ShowHiddenGeometry = !_document.ShowHiddenGeometry, () => _document.ShowHiddenGeometry);
         _commands.Register(CommandIds.BackEdges, () =>
         {

@@ -29,6 +29,13 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>View › Component Edit › Hide Rest of Model / Hide Similar Components.</summary>
+    public bool HideRestOfModel { get; set; }
+    public bool HideSimilarComponents { get; set; }
+
+    /// <summary>Re-applies the component-edit fading (after a View › Component Edit toggle).</summary>
+    public void RefreshComponentEdit() => RebuildSelection();
+
     /// <summary>View › Hidden Geometry.</summary>
     public bool ShowHiddenGeometry
     {
@@ -246,7 +253,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private void RebuildSelection()
     {
         _selectionRenderer.Build(Document, viewport.SelectionRoot);
-        ModelRenderer.FadeOutside(viewport.ModelRoot, Document.Context.Path);
+        ModelRenderer.FadeOutside(viewport.ModelRoot, Document.Context.Path, HideRestOfModel, HideSimilarComponents);
         viewport.QueueOverlayRedraw(); // dimensions and texts show selection and edits on the overlay
     }
 
