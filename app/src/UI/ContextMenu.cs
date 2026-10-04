@@ -128,6 +128,9 @@ public static class ContextMenu
             menu.AddSubmenuNodeItem("Select", select);
         }
 
+        if (sel.Count > 0)
+            AddSelectionToys(menu, doc, sel);
+
         menu.IdPressed += id =>
         {
             if (actions.TryGetValue((int)id, out var a))
@@ -137,6 +140,71 @@ public static class ContextMenu
         host.AddChild(menu);
         menu.Position = (Vector2I)(host.GetScreenPosition() + screenPosition);
         menu.Popup();
+    }
+
+    /// <summary>Selection Toys' items, at the end of the menu as SketchUp lists extensions' items.</summary>
+    private static void AddSelectionToys(PopupMenu menu, Document doc, List<object> sel)
+    {
+        var context = doc.Context.Entities;
+        void Set(List<object> items) => doc.Selection.Set(items);
+        PopupMenu Sub(string label, IEnumerable<(string Label, Action Run)> items)
+        {
+            var sub = new PopupMenu();
+            var list = items.ToList();
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (list[i].Label == "-")
+                    sub.AddSeparator();
+                else
+                    sub.AddItem(list[i].Label, i);
+            }
+            sub.IdPressed += id => list[(int)id].Run();
+            menu.AddSubmenuNodeItem(label, sub);
+            return sub;
+        }
+        menu.AddSeparator();
+        if (sel.OfType<ComponentInstance>().Any(i => !i.IsGroup))
+            Sub("Instances", [
+                ("Select Active", () => Set(SelectionToys.Copies(context, sel, groups: false, sameTag: false))),
+                ("Select Active from same Tag", () => Set(SelectionToys.Copies(context, sel, groups: false, sameTag: true))),
+            ]);
+        if (sel.OfType<ComponentInstance>().Any(i => i.IsGroup))
+            Sub("Group Copies", [
+                ("Select Active", () => Set(SelectionToys.Copies(context, sel, groups: true, sameTag: false))),
+                ("Select Active from same Tag", () => Set(SelectionToys.Copies(context, sel, groups: true, sameTag: true))),
+                ("-", () => { }),
+                ("Convert into Components", () => doc.Operation("Convert into Components", _ => SelectionToys.GroupsToComponents(doc.Model, sel))),
+            ]);
+        var faces = sel.OfType<Face>().Any();
+        var select = new List<(string, Action)>
+        {
+            ("Active on Selected Tags", () => Set(SelectionToys.OnTags(context, sel))),
+            ("Active with Selected Materials", () => Set(SelectionToys.WithMaterials(context, sel))),
+            ("-", () => { }),
+            ("Connected By Tag", () => Set(SelectionToys.ConnectedByTag(context, sel))),
+        };
+        if (faces)
+            select.AddRange([
+                ("Connected By Material", () => Set(SelectionToys.ConnectedByMaterial(context, sel, back: false))),
+                ("Connected By Back Material", () => Set(SelectionToys.ConnectedByMaterial(context, sel, back: true))),
+                ("Connected Same Direction Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.SameDirection))),
+                ("Connected Coplanar Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.Coplanar))),
+                ("Connected Parallel Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.Parallel))),
+                ("Connected Perpendicular Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.Perpendicular))),
+                ("Connected Faces by Area", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.SameArea))),
+                ("-", () => { }),
+                ("Coplanar Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.Coplanar))),
+                ("Same Direction Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.SameDirection))),
+                ("Parallel Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.Parallel))),
+                ("Perpendicular Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.Perpendicular))),
+                ("Faces by Area", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.SameArea))),
+                ("-", () => { }),
+                ("Opposite Faces", () => Set(SelectionToys.OppositeFaces(context, sel))),
+            ]);
+        Sub("Select ", select);
+        var kinds = Enum.GetValues<SelectionKind>();
+        Sub("Select Only", kinds.Select(k => (SelectionToys.Label(k), (Action)(() => Set(SelectionToys.Only(k, context, sel))))));
+        Sub("Deselect", kinds.Select(k => (SelectionToys.Label(k), (Action)(() => Set(SelectionToys.Without(k, context, sel))))));
     }
 
     private static void AlignView(Document doc, ModelViewport view, Face face)

@@ -156,6 +156,7 @@ public partial class MainWindow : Control
         Bar("Solid Inspector²", Toolbars.SolidInspector, ToolbarDocks.Dock.Top);
         Bar("Round Corner", Toolbars.RoundCorner, ToolbarDocks.Dock.Top);
         Bar("Make Faces", Toolbars.MakeFaces, ToolbarDocks.Dock.Top);
+        Bar("Selection Toys", Toolbars.SelectionToys, ToolbarDocks.Dock.Top);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -205,6 +206,26 @@ public partial class MainWindow : Control
             doc.Operation("Make Faces", e => created = MakeFaces.RunOnSelection(e, doc.Selection.Items.ToList(), doc.Undo.Touch));
             _status.SetHint(created == 0 ? "Make Faces: no new faces." : $"Make Faces: {created} face(s) created.");
         });
+        foreach (var (id, kind, only) in new[]
+        {
+            (ExtensionIds.SelectOnlyEdges, SelectionKind.Edges, true), (ExtensionIds.SelectOnlyFaces, SelectionKind.Faces, true),
+            (ExtensionIds.SelectOnlyGroups, SelectionKind.Groups, true), (ExtensionIds.SelectOnlyComponents, SelectionKind.Components, true),
+            (ExtensionIds.DeselectEdges, SelectionKind.Edges, false), (ExtensionIds.DeselectFaces, SelectionKind.Faces, false),
+            (ExtensionIds.DeselectGroups, SelectionKind.Groups, false), (ExtensionIds.DeselectComponents, SelectionKind.Components, false),
+        })
+        {
+            var name = SelectionToys.Label(kind);
+            var cmd = _commands.Get(id);
+            cmd.Label = only ? $"Select Only {name}" : $"Deselect {name}";
+            cmd.Description = only ? $"Select all {name} in the current selection." : $"Deselect all {name} in the current selection.";
+            cmd.MenuPath = $"Selection Toys/{cmd.Label}";
+            _commands.Register(id, () =>
+            {
+                var doc = _document.Document;
+                var sel = doc.Selection.Items.ToList();
+                doc.Selection.Set(only ? SelectionToys.Only(kind, doc.Context.Entities, sel) : SelectionToys.Without(kind, doc.Context.Entities, sel));
+            });
+        }
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);

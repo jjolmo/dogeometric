@@ -13,6 +13,11 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
+    public static readonly int[] SelectionToys =
+    [
+        Commands.ExtensionIds.SelectOnlyEdges, Commands.ExtensionIds.SelectOnlyFaces, Commands.ExtensionIds.SelectOnlyGroups, Commands.ExtensionIds.SelectOnlyComponents, Sep,
+        Commands.ExtensionIds.DeselectEdges, Commands.ExtensionIds.DeselectFaces, Commands.ExtensionIds.DeselectGroups, Commands.ExtensionIds.DeselectComponents,
+    ];
     public static readonly int[] RoundCorner = [Commands.ExtensionIds.RoundCornerRound, Commands.ExtensionIds.RoundCornerSharp, Commands.ExtensionIds.RoundCornerBevel];
     public static readonly int[] GettingStarted = [21022, 21019, 21020, 21065, 21094, 21041, 21100, Sep, 21048, 21129, 21236, Sep, 21024, 21405, 21074, Sep, 10508, 10523, 10509, 10527];
     public static readonly int[] Principal = [21022, 21083, 21074, 21019];
@@ -61,6 +66,14 @@ public static class Toolbars
         [Commands.ExtensionIds.SolidInspector] = "solid_inspector",
         [Commands.ExtensionIds.RoundCornerRound] = "roundcorner_round",
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
+        [Commands.ExtensionIds.SelectOnlyEdges] = "select_only_edges",
+        [Commands.ExtensionIds.SelectOnlyFaces] = "select_only_faces",
+        [Commands.ExtensionIds.SelectOnlyGroups] = "select_only_groups",
+        [Commands.ExtensionIds.SelectOnlyComponents] = "select_only_components",
+        [Commands.ExtensionIds.DeselectEdges] = "deselect_edges",
+        [Commands.ExtensionIds.DeselectFaces] = "deselect_faces",
+        [Commands.ExtensionIds.DeselectGroups] = "deselect_groups",
+        [Commands.ExtensionIds.DeselectComponents] = "deselect_components",
         [Commands.ExtensionIds.RoundCornerSharp] = "roundcorner_sharp",
         [Commands.ExtensionIds.RoundCornerBevel] = "roundcorner_bevel",
         [24198] = "solid_outer_shell", [24200] = "solid_intersect", [24201] = "solid_union",
