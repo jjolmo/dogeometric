@@ -130,12 +130,14 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
         View.QueueOverlayRedraw();
     }
 
+    public override bool StartsVcb(char c) => _lastCopy != null && c is 'x' or 'X' or '*' or '/';
+
     public override bool ApplyVcb(string text)
     {
         if (View.Document is not { } doc)
             return false;
         var t = text.Trim().ToLowerInvariant();
-        if (_lastCopy is { } last && _center == null && (t.EndsWith('x') || t.StartsWith('/') || t.EndsWith('/')))
+        if (_lastCopy is { } last && _center == null && (t.EndsWith('x') || t.StartsWith('x') || t.StartsWith('*') || t.EndsWith('*') || t.StartsWith('/') || t.EndsWith('/')))
         {
             if (!int.TryParse(t.Trim('x', '/', '*'), out var n) || n < 2)
                 return false;

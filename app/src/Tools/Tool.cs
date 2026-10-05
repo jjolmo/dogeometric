@@ -48,6 +48,9 @@ public abstract class Tool
     /// <summary>Applies text typed into the Measurements box (e.g. "250", "25cm", "40,30"). Returns false if invalid.</summary>
     public virtual bool ApplyVcb(string text) => false;
 
+    /// <summary>Characters besides digits that start typing in the Measurements box (array counts after a copy: "x5", "*5", "/5").</summary>
+    public virtual bool StartsVcb(char c) => false;
+
     /// <summary>Text the Measurements box shows while the tool works (current length, size…).</summary>
     public virtual string VcbValue => "";
 

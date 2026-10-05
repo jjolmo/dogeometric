@@ -923,7 +923,7 @@ public partial class ModelViewport : Control
             return false;
         var ch = key.Unicode > 0 ? (char)key.Unicode : '\0';
         var typing = VcbTyping.Length > 0;
-        if (!typing && !(char.IsDigit(ch) || ch is '-' or '.' or ','))
+        if (!typing && !(char.IsDigit(ch) || ch is '-' or '.' or ',' || Tools.Active.StartsVcb(ch)))
             return false;
 
         switch (key.Keycode)
