@@ -100,4 +100,27 @@ public class FredoScaleTests
         else
             Assert.True(corner.Position.DistanceTo(target) < 1e-6, $"{kind}: {corner.Position}");
     }
+
+    [Fact]
+    public void Free_shearing_leans_the_reference_line_onto_the_new_one()
+    {
+        var e = new Entities();
+        TestModels.Box(e, Vec3.Zero, new Vec3(10, 10, 20));
+        var items = e.Faces.Cast<object>().Concat(e.Edges).ToList();
+        var to = new Vec3(Math.Tan(Math.PI / 6), 0, 1);
+        Assert.Equal(8, FredoScale.ShearFree(e, items, Vec3.Zero, Vec3.UnitZ, to));
+        Assert.Contains(e.Vertices, v => v.Position.DistanceTo(new Vec3(10, 10, 0)) < 1e-9);
+        Assert.Contains(e.Vertices, v => v.Position.DistanceTo(new Vec3(20 * Math.Tan(Math.PI / 6), 0, 20)) < 1e-9);
+        // Shearing keeps the volume.
+        Assert.Equal(2000, MeshCheck.Analyze(MeshExtractor.ExtractInstance(new ComponentInstance(Def(e)))).Volume, 6);
+    }
+
+    private static ComponentDefinition Def(Entities e)
+    {
+        var d = new ComponentDefinition();
+        d.Entities.Vertices.AddRange(e.Vertices);
+        d.Entities.Edges.AddRange(e.Edges);
+        d.Entities.Faces.AddRange(e.Faces);
+        return d;
+    }
 }

@@ -32,6 +32,8 @@ public partial class MainWindow
                 && (face.FrontMaterial?.Texture != null ? face.FrontMaterial : face.BackMaterial) is { Texture: not null } material)
                 _document.EditTextureImage(material);
         });
+        _commands.Register(ExtensionIds.FredoScaleShearFree, () => _viewport.Tools.Activate(new ShearFreeTool()),
+            () => _viewport.Tools.Active is ShearFreeTool);
         _commands.Register(ExtensionIds.FredoScaleRotateFree, () => _viewport.Tools.Activate(new RotateTool(ExtensionIds.FredoScaleRotateFree)),
             () => _viewport.Tools.Active.CommandId == ExtensionIds.FredoScaleRotateFree);
         _commands.Register(ExtensionManager, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus(), _docks.Reset, "Extensions"));

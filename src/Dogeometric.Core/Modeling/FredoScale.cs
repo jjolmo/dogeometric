@@ -62,6 +62,30 @@ public static class FredoScale
         return vertices.Count;
     }
 
+    /// <summary>
+    /// Planar Shearing (Free): the line from <paramref name="origin"/> along <paramref name="from"/> leans over to
+    /// <paramref name="to"/>; every point slides parallel to the plane through <paramref name="origin"/> square to
+    /// <paramref name="from"/>, in proportion to its distance from it. Returns how many vertices moved.
+    /// </summary>
+    public static int ShearFree(Entities e, IEnumerable<object> items, Vec3 origin, Vec3 from, Vec3 to)
+    {
+        var axis = from.Normalized();
+        var side = to - axis * to.Dot(axis);
+        var along = to.Dot(axis);
+        if (side.Length < 1e-9 || along <= 1e-9)
+            return 0;
+        var slope = side / along;
+        var list = items.ToList();
+        var edges = list.OfType<Edge>().Concat(list.OfType<Face>().SelectMany(Topology.EdgesOf)).Distinct().ToList();
+        var vertices = edges.SelectMany(x => new[] { x.Start, x.End }).Distinct().ToList();
+        var touched = e.Faces.Where(f => f.Loops.Any(l => l.Vertices.Any(vertices.Contains))).ToList();
+        foreach (var v in vertices)
+            v.Position += slope * (v.Position - origin).Dot(axis);
+        foreach (var f in touched)
+            SplitIfBent(e, f);
+        return vertices.Count;
+    }
+
     /// <summary>The box <see cref="Apply"/> deforms for <paramref name="items"/>.</summary>
     public static Bounds3 BoxOf(IEnumerable<object> items)
     {
