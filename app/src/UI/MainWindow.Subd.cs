@@ -25,6 +25,12 @@ public partial class MainWindow
             "drag their labels, or double-click for infinitely sharp. Quad Push/Pull extrudes faces keeping quads.\n\n" +
             "Convert to Plain Mesh turns the surface into ordinary geometry."));
         _commands.Register(ExtensionIds.SubdPreferences, ShowSubdPreferences);
+        _commands.Register(OwnIds.EditTextureImage, () =>
+        {
+            if (_document.Document.Selection.Items.SingleOrDefault() is Face face
+                && (face.FrontMaterial?.Texture != null ? face.FrontMaterial : face.BackMaterial) is { Texture: not null } material)
+                _document.EditTextureImage(material);
+        });
         _commands.Register(ExtensionIds.SelectEdgeLoops, () =>
         {
             var doc = _document.Document;

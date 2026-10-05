@@ -11,7 +11,7 @@ public sealed record Template(string Name, string Description, string? Path = nu
 /// <summary>SketchUp's templates: File › New starts from the default one, New From Template from any.</summary>
 public static class Templates
 {
-    public static string Folder => ProjectSettings.GlobalizePath("user://Templates");
+    public static string Folder => AppPreferences.Current.Location("Templates") ?? ProjectSettings.GlobalizePath("user://Templates");
 
     public static readonly IReadOnlyList<Template> BuiltIn =
     [

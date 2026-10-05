@@ -136,10 +136,10 @@ public abstract class DrawingTool : Tool
 
     protected Color AxisColor(Vec3? dir) => dir switch
     {
-        { } d when Math.Abs(d.Dot(Red)) > 0.99 => new Color(0.86f, 0, 0),
-        { } d when Math.Abs(d.Dot(Green)) > 0.99 => new Color(0, 0.62f, 0),
-        { } d when Math.Abs(d.Dot(Blue)) > 0.99 => new Color(0, 0, 0.86f),
-        { } => new Color(0.86f, 0, 0.86f),
+        { } d when Math.Abs(d.Dot(Red)) > 0.99 => UI.AppPreferences.Current.RedAxis,
+        { } d when Math.Abs(d.Dot(Green)) > 0.99 => UI.AppPreferences.Current.GreenAxis,
+        { } d when Math.Abs(d.Dot(Blue)) > 0.99 => UI.AppPreferences.Current.BlueAxis,
+        { } => UI.AppPreferences.Current.Parallel,
         _ => Colors.Black,
     };
 

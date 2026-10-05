@@ -1167,6 +1167,7 @@ public partial class MainWindow : Control
         list.AddChild(new Label { Text = "Default Tray" });
         _entityInfo = EntityInfoPanel.Create(() => _document.Document);
         _materials = MaterialsPanel.Create(() => _document.Document);
+        _document.MaterialsChanged += _materials.Refresh;
         _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
         list.AddChild(TraySection.Create("Entity Info", _entityInfo));
         list.AddChild(TraySection.Create("Materials", _materials));

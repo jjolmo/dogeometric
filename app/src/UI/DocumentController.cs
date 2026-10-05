@@ -589,6 +589,60 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>Redraws everything (after a visibility change such as a tag toggled).</summary>
     public void RebuildAll() => Rebuild();
 
+    /// <summary>Raised when a material's picture changed outside an operation's own refresh (Edit Texture Image).</summary>
+    public event Action? MaterialsChanged;
+
+    /// <summary>Texture › Edit Texture Image: the picture opens in the image editor (Preferences › Applications) and is
+    /// loaded back each time it is saved there, as SketchUp does.</summary>
+    public void EditTextureImage(Dogeometric.Core.Modeling.Material material)
+    {
+        if (material.Texture is not { } texture)
+            return;
+        var folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dogeometric-textures");
+        System.IO.Directory.CreateDirectory(folder);
+        var extension = System.IO.Path.GetExtension(texture.FileName) is { Length: > 0 } e ? e : ".png";
+        var name = string.Concat((material.Name.Length > 0 ? material.Name : "texture").Select(c => char.IsLetterOrDigit(c) ? c : '_'));
+        var file = System.IO.Path.Combine(folder, name + extension);
+        System.IO.File.WriteAllBytes(file, texture.Data);
+        if (AppPreferences.Current.ImageEditor is { Length: > 0 } editor)
+            OS.CreateProcess(editor, [file]);
+        else
+            OS.ShellOpen(file);
+        var stamp = System.IO.File.GetLastWriteTimeUtc(file);
+        var timer = new Godot.Timer { WaitTime = 1, Autostart = true };
+        var ticks = 0;
+        timer.Timeout += () =>
+        {
+            // Watched for an hour, as long as an editing session reasonably lasts.
+            if (++ticks > 3600 || !System.IO.File.Exists(file))
+            {
+                timer.QueueFree();
+                return;
+            }
+            var now = System.IO.File.GetLastWriteTimeUtc(file);
+            if (now == stamp)
+                return;
+            stamp = now;
+            try
+            {
+                var data = System.IO.File.ReadAllBytes(file);
+                if (TextureImages.Decode(data) == null)
+                    return;
+                Document.Undo.Begin("Edit Texture Image");
+                material.Texture = new TextureImage { FileName = texture.FileName, Data = data, WidthMm = texture.WidthMm, HeightMm = texture.HeightMm };
+                Document.Undo.Commit();
+                _renderer.ForgetMaterials();
+                Rebuild();
+                MaterialsChanged?.Invoke();
+            }
+            catch (System.IO.IOException)
+            {
+                // Still being written: next tick.
+            }
+        };
+        host.AddChild(timer);
+    }
+
     /// <summary>Import places the other file's contents into this model (materials, tags and definitions merged).</summary>
     private void Merge(Model other)
     {
@@ -635,7 +689,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             // The system's file picker; test sessions (no desktop portal) set DOGEOMETRIC_NO_NATIVE_DIALOGS.
             UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
             CurrentDir = (Path ?? _recoveredFrom) is { } basis && System.IO.Path.GetDirectoryName(basis) is { Length: > 0 } dir
-                && !dir.StartsWith(Backups.Folder) ? dir : OS.GetSystemDir(OS.SystemDir.Documents),
+                && !dir.StartsWith(Backups.Folder) ? dir
+                : AppPreferences.Current.Location(title.StartsWith("Export") ? "Export" : "Models") ?? OS.GetSystemDir(OS.SystemDir.Documents),
         };
         if (mode == FileDialog.FileModeEnum.SaveFile && (Path ?? _recoveredFrom) is { } suggested)
             dialog.CurrentFile = System.IO.Path.GetFileNameWithoutExtension(suggested) + System.IO.Path.GetExtension(filters[0].Split(';', ',')[0].Trim());

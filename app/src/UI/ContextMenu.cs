@@ -115,7 +115,14 @@ public static class ContextMenu
             {
                 var texture = new PopupMenu();
                 texture.AddItem("Position", 1);
-                texture.IdPressed += _ => view.Tools.Activate(new Tools.TexturePositionTool(face, back));
+                texture.AddItem("Edit Texture Image...", 2);
+                texture.IdPressed += id =>
+                {
+                    if (id == 1)
+                        view.Tools.Activate(new Tools.TexturePositionTool(face, back));
+                    else
+                        runCommand(Commands.OwnIds.EditTextureImage);
+                };
                 menu.AddSubmenuNodeItem("Texture", texture);
             }
         }

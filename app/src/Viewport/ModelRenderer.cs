@@ -653,14 +653,22 @@ public sealed class ModelRenderer
         return m;
     }
 
-    private readonly Dictionary<Material, Texture2D?> _textures = [];
+    private readonly Dictionary<TextureImage, Texture2D?> _textures = [];
+
+    /// <summary>Drops cached materials and textures, after a material's colour or picture changed.</summary>
+    public void ForgetMaterials()
+    {
+        _faceMaterials.Clear();
+        _textures.Clear();
+        _meshes.Clear();
+    }
 
     /// <summary>The material's picture as a Godot texture (PNG, JPEG, BMP, WebP), decoded once.</summary>
     private Texture2D? TextureOf(Material? m)
     {
         if (m?.Texture is not { Data.Length: > 0 } tex)
             return null;
-        if (_textures.TryGetValue(m, out var cached))
+        if (_textures.TryGetValue(tex, out var cached))
             return cached;
         Texture2D? texture = null;
         if (TextureImages.Decode(tex.Data) is { } image)
@@ -668,7 +676,7 @@ public sealed class ModelRenderer
             image.GenerateMipmaps();
             texture = ImageTexture.CreateFromImage(image);
         }
-        _textures[m] = texture;
+        _textures[tex] = texture;
         return texture;
     }
 

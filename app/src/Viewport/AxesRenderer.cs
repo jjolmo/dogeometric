@@ -9,23 +9,27 @@ public partial class AxesRenderer : MeshInstance3D
     // SketchUp draws the axes "to infinity"; 1 km each way is beyond any enclosure model.
     private const double HalfLengthMm = 1_000_000;
 
-    // sRGB, sampled from SketchUp 2021's viewport.
-    public static readonly Color Red = Color.Color8(178, 0, 0);
-    public static readonly Color Green = Color.Color8(0, 178, 0);
-    public static readonly Color Blue = Color.Color8(0, 0, 178);
-
     public override void _Ready()
     {
-        var mesh = new ImmediateMesh();
-        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
-        AddAxis(mesh, Vec3.UnitX, Red);
-        AddAxis(mesh, Vec3.UnitY, Green);
-        AddAxis(mesh, Vec3.UnitZ, Blue);
-        mesh.SurfaceEnd();
-
-        Mesh = mesh;
+        Build();
+        UI.AppPreferences.Changed += Build;
         MaterialOverride = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/axes.gdshader") };
         CastShadow = ShadowCastingSetting.Off;
+    }
+
+    public override void _ExitTree() => UI.AppPreferences.Changed -= Build;
+
+    /// <summary>The axes in Preferences › Accessibility's colours, a little darker as SketchUp 2021 draws them.</summary>
+    private void Build()
+    {
+        var p = UI.AppPreferences.Current;
+        var mesh = new ImmediateMesh();
+        mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        AddAxis(mesh, Vec3.UnitX, p.RedAxis.Darkened(0.19f));
+        AddAxis(mesh, Vec3.UnitY, p.GreenAxis.Darkened(0.19f));
+        AddAxis(mesh, Vec3.UnitZ, p.BlueAxis.Darkened(0.19f));
+        mesh.SurfaceEnd();
+        Mesh = mesh;
     }
 
     private static void AddAxis(ImmediateMesh mesh, Vec3 axis, Color color)

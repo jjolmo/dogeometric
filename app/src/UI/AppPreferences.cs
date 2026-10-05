@@ -46,6 +46,38 @@ public sealed class AppPreferences
     /// <summary>Print a hidden-line drawing instead of the view as drawn.</summary>
     public bool PrintAsDrawing { get; set; }
 
+    // Preferences › Accessibility: axis and direction colours (HTML notation).
+    public string RedAxisColor { get; set; } = DefaultColors.Red;
+    public string GreenAxisColor { get; set; } = DefaultColors.Green;
+    public string BlueAxisColor { get; set; } = DefaultColors.Blue;
+    public string ParallelColor { get; set; } = DefaultColors.Parallel;
+    public string TangentColor { get; set; } = DefaultColors.Tangent;
+
+    public Color RedAxis => new(RedAxisColor);
+    public Color GreenAxis => new(GreenAxisColor);
+    public Color BlueAxis => new(BlueAxisColor);
+    public Color Parallel => new(ParallelColor);
+    public Color Tangent => new(TangentColor);
+
+    /// <summary>The folder chosen in Preferences › Files for <paramref name="kind"/>, or null.</summary>
+    public string? Location(string kind) => FileLocations.GetValueOrDefault(kind) is { Length: > 0 } dir && Directory.Exists(dir) ? dir : null;
+
+    public static class DefaultColors
+    {
+        public const string Red = "#db0000";
+        public const string Green = "#009e00";
+        public const string Blue = "#0000db";
+        public const string Parallel = "#db00db";
+        public const string Tangent = "#00c8c8";
+    }
+
+    // Preferences › Applications.
+    public string ImageEditor { get; set; } = "";
+
+    /// <summary>Preferences › Files: folder per kind (Models, Components, Materials, Styles, Texture images,
+    /// Watermark images, Export, Classifications, Templates); empty for the default.</summary>
+    public Dictionary<string, string> FileLocations { get; set; } = [];
+
     /// <summary>Preferences › Template: the template File › New starts from (by name).</summary>
     public string DefaultTemplate { get; set; } = "";
 

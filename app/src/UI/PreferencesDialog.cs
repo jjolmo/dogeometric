@@ -20,7 +20,9 @@ public partial class PreferencesDialog : AcceptDialog
     private bool _capturing;
     private List<Command> _shown = [];
 
-    private static readonly string[] Sections = ["Compatibility", "Drawing", "Extensions", "General", "Graphics", "Shortcuts", "Template", "Workspace"];
+    private static readonly string[] Sections = ["Accessibility", "Applications", "Compatibility", "Drawing", "Extensions", "Files", "General", "Graphics", "Shortcuts", "Template", "Workspace"];
+
+    public static readonly string[] FileKinds = ["Models", "Components", "Materials", "Styles", "Texture images", "Watermark images", "Export", "Classifications", "Templates"];
 
     /// <summary>The section shown last, opened again next time.</summary>
     private static string _lastSection = "General";
@@ -151,6 +153,82 @@ public partial class PreferencesDialog : AcceptDialog
                 box.AddChild(aa);
                 break;
 
+            case "Accessibility":
+            {
+                Heading(box, "Axis and Direction Colors");
+                var grid = new GridContainer { Columns = 2 };
+                var pickers = new List<(ColorPickerButton Button, string Default)>();
+                void Row(string label, string value, string fallback, Action<string> set)
+                {
+                    grid.AddChild(new Label { Text = label });
+                    var pick = new ColorPickerButton { Color = new Color(value), CustomMinimumSize = new Vector2(80, 24), EditAlpha = false };
+                    pick.ColorChanged += c =>
+                    {
+                        set("#" + c.ToHtml(false));
+                        AppPreferences.Save();
+                    };
+                    grid.AddChild(pick);
+                    pickers.Add((pick, fallback));
+                }
+                Row("Red Axis", p.RedAxisColor, AppPreferences.DefaultColors.Red, v => p.RedAxisColor = v);
+                Row("Green Axis", p.GreenAxisColor, AppPreferences.DefaultColors.Green, v => p.GreenAxisColor = v);
+                Row("Blue Axis", p.BlueAxisColor, AppPreferences.DefaultColors.Blue, v => p.BlueAxisColor = v);
+                Row("Magenta Parallel / Perpendicular", p.ParallelColor, AppPreferences.DefaultColors.Parallel, v => p.ParallelColor = v);
+                Row("Cyan Tangent", p.TangentColor, AppPreferences.DefaultColors.Tangent, v => p.TangentColor = v);
+                box.AddChild(grid);
+                var resetColors = new Button { Text = "Reset All", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+                resetColors.Pressed += () =>
+                {
+                    (p.RedAxisColor, p.GreenAxisColor, p.BlueAxisColor, p.ParallelColor, p.TangentColor) = (AppPreferences.DefaultColors.Red,
+                        AppPreferences.DefaultColors.Green, AppPreferences.DefaultColors.Blue, AppPreferences.DefaultColors.Parallel, AppPreferences.DefaultColors.Tangent);
+                    AppPreferences.Save();
+                    foreach (var (button, fallback) in pickers)
+                        button.Color = new Color(fallback);
+                };
+                box.AddChild(resetColors);
+                break;
+            }
+
+            case "Applications":
+            {
+                Heading(box, "Default Image Editor");
+                var row = new HBoxContainer();
+                var path = new LineEdit { Text = p.ImageEditor, Editable = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+                row.AddChild(path);
+                var choose = new Button { Text = "Choose..." };
+                choose.Pressed += () => PickPath(FileDialog.FileModeEnum.OpenFile, v =>
+                {
+                    p.ImageEditor = v;
+                    path.Text = v;
+                    AppPreferences.Save();
+                });
+                row.AddChild(choose);
+                box.AddChild(row);
+                break;
+            }
+
+            case "Files":
+            {
+                Heading(box, "File Locations");
+                var grid = new GridContainer { Columns = 3 };
+                foreach (var kind in FileKinds)
+                {
+                    grid.AddChild(new Label { Text = kind + ":" });
+                    var path = new LineEdit { Text = p.FileLocations.GetValueOrDefault(kind, ""), PlaceholderText = "(default)", Editable = false, CustomMinimumSize = new Vector2(330, 0) };
+                    grid.AddChild(path);
+                    var edit = new Button { Text = "Edit...", TooltipText = "Choose the folder" };
+                    edit.Pressed += () => PickPath(FileDialog.FileModeEnum.OpenDir, v =>
+                    {
+                        p.FileLocations[kind] = v;
+                        path.Text = v;
+                        AppPreferences.Save();
+                    });
+                    grid.AddChild(edit);
+                }
+                box.AddChild(grid);
+                break;
+            }
+
             case "Template":
                 Heading(box, "Default Drawing Template");
                 var templates = Templates.All();
@@ -201,6 +279,24 @@ public partial class PreferencesDialog : AcceptDialog
                 BuildShortcuts(box);
                 break;
         }
+    }
+
+    private void PickPath(FileDialog.FileModeEnum mode, Action<string> picked)
+    {
+        var dialog = new FileDialog { FileMode = mode, Access = FileDialog.AccessEnum.Filesystem, UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "" };
+        dialog.FileSelected += v =>
+        {
+            picked(v);
+            dialog.QueueFree();
+        };
+        dialog.DirSelected += v =>
+        {
+            picked(v);
+            dialog.QueueFree();
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(800, 560));
     }
 
     private static void Heading(VBoxContainer box, string text)

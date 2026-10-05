@@ -116,4 +116,5 @@ public static class OwnIds
 {
     public const int RecoverBackup = 95001;
     public const int CenterPoints = 95002;
+    public const int EditTextureImage = 95003;
 }

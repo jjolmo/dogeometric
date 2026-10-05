@@ -27,7 +27,8 @@ public partial class OverlayCanvas : Control
     {
         if (view.Document is not { Model.Options.ShowComponentAxes: true } doc)
             return;
-        Color[] colors = [new(0.85f, 0.1f, 0.1f), new(0.1f, 0.6f, 0.1f), new(0.1f, 0.2f, 0.9f)];
+        var p = UI.AppPreferences.Current;
+        Color[] colors = [p.RedAxis, p.GreenAxis, p.BlueAxis];
         void Walk(Dogeometric.Core.Modeling.Entities e, Dogeometric.Core.Geometry.Transform parent)
         {
             foreach (var inst in e.Instances.Where(i => !i.Hidden))
