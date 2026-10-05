@@ -74,4 +74,29 @@ public class SandboxTests
         Assert.DoesNotContain(e.Edges, x => Topology.FacesOf(e, x).Count() > 2);
         Assert.All(e.Faces, f => Assert.True(f.Normal.Z > 0));
     }
+
+    [Fact]
+    public void Stamp_previewed_on_a_terrain_group_undoes_in_one_step()
+    {
+        var model = new Model();
+        var terrain = new ComponentDefinition { Name = "Terrain", IsGroup = true };
+        Sandbox.Grid(terrain.Entities, Vec3.Zero, Vec3.UnitX, 100, Vec3.UnitY, 100, 10);
+        Sandbox.Smoove(terrain.Entities, new Vec3(50, 50, 0), 45, Vec3.UnitZ, 20);
+        model.Definitions.Add(terrain);
+        model.Entities.AddInstance(terrain, Transform.Identity);
+        var doc = new Document(model);
+        var before = terrain.Entities.Vertices.Select(v => v.Position).OrderBy(p => p.X).ThenBy(p => p.Y).ToList();
+        var faces = terrain.Entities.Faces.Count;
+
+        Vec3[] square = [new(40, 40, 0), new(60, 40, 0), new(60, 60, 0), new(40, 60, 0)];
+        foreach (var height in new[] { 5.0, 12.0, 10.0 })
+            doc.Preview("Stamp", e => Sandbox.Stamp(e, square, height, 15), terrain.Entities);
+        doc.CommitPreview();
+        Assert.Contains(terrain.Entities.Vertices, v => v.Position.DistanceTo(new Vec3(50, 50, 10)) < 1e-6);
+
+        Assert.True(doc.Undo.Undo());
+        Assert.Equal(faces, terrain.Entities.Faces.Count);
+        Assert.Equal(before, terrain.Entities.Vertices.Select(v => v.Position).OrderBy(p => p.X).ThenBy(p => p.Y).ToList());
+        Assert.False(doc.Undo.Undo());
+    }
 }
