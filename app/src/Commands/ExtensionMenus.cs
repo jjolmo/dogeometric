@@ -1,6 +1,7 @@
 using Dogeometric.Core.Modeling;
 using Dogeometric.App.Tools;
 using E = Dogeometric.App.Commands.ExtensionIds;
+using I = Dogeometric.App.Commands.ExtensionInfoIds;
 
 namespace Dogeometric.App.Commands;
 
@@ -35,6 +36,9 @@ public static class ExtensionMenus
               Polyline T-Bone Corners | {{S(SplineKind.TBone)}}
               F-Spline | {{S(SplineKind.FSpline)}}
               Polyline Segmentor | {{S(SplineKind.Segmentor)}}
+              ---
+              About... | {{I.BezierSplineAbout}}
+              Documentation... | {{I.BezierSplineDocumentation}}
             ---
             Sphere | {{E.Sphere}}
             Sandbox
@@ -55,6 +59,9 @@ public static class ExtensionMenus
                 Loft by Spline | {{E.CurviloftLoft}}
                 Loft along path | {{E.CurviloftPath}}
                 Skin Contours | {{E.CurviloftSkin}}
+                ---
+                About Curviloft... | {{I.CurviloftAbout}}
+                Video... | {{I.CurviloftVideo}}
               FredoScale
                 Quick Launcher... | {{E.FredoScaleLauncher}}
                 ---
@@ -79,6 +86,9 @@ public static class ExtensionMenus
                 Radial Bending (Free) | {{F(Deformation.Bend)}}
                 ---
                 Make Unique | {{E.FredoScaleMakeUnique}}
+                ---
+                About FredoScale... | {{I.FredoScaleAbout}}
+                Video... | {{I.FredoScaleVideo}}
               JointPushPull
                 Quick Launcher... | {{E.JointPushPullLauncher}}
                 Joint Push Pull | {{E.JointPushPull}}
@@ -87,10 +97,16 @@ public static class ExtensionMenus
                 Normal Push Pull | {{E.NormalPushPull}}
                 Extrude Push Pull | {{E.ExtrudePushPull}}
                 Follow Push Pull | {{E.FollowPushPull}}
+                ---
+                About JointPushPull... | {{I.JointPushPullAbout}}
+                Video... | {{I.JointPushPullVideo}}
               RoundCorner
                 Round Corner | {{E.RoundCornerRound}}
                 Sharp Corner | {{E.RoundCornerSharp}}
                 Bevel | {{E.RoundCornerBevel}}
+                ---
+                About Round Corner... | {{I.RoundCornerAbout}}
+                Video... | {{I.RoundCornerVideo}}
               ToolsOnSurface
                 Generic Tools on Surface | {{E.SurfaceGeneric}}
                 ---
@@ -110,6 +126,9 @@ public static class ExtensionMenus
                 ---
                 Edit Contours on Surface | {{T(SurfaceShape.Polyline)}}
                 Eraser on Surface | {{E.SurfaceEraser}}
+                ---
+                About Tools on Surface... | {{I.ToolsOnSurfaceAbout}}
+                Video... | {{I.ToolsOnSurfaceVideo}}
             ---
             Loop subdivision smooth | {{E.LoopSubdivision}}
             Advanced Camera Tools

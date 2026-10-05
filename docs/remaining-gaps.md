@@ -27,7 +27,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Notes |
 |---|---|
-| BezierSpline › About / Documentation, Fredo6 About/Video/Donation entries | Plugin chrome; no modelling function. |
+| Fredo6 Donation, Plugin Information, Check for Update and LibFredo6 Settings | Payment pages and plugin services with no use in a native rebuild. About, Video and Documentation entries are there. |
 | Advanced Camera Tools sub-categories | All 93 cameras are there; RED Mysterium sits under RED® (as in SketchUp's CSV). |
 
 ## Closed in this round (for reference)

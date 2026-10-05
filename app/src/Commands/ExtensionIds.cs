@@ -114,6 +114,17 @@ public static class HelpIds
 }
 
 /// <summary>Dogeometric's own commands, which SketchUp does not have.</summary>
+/// <summary>The About, Video and Documentation entries the cloned extensions add to their menus.</summary>
+public static class ExtensionInfoIds
+{
+    public const int BezierSplineAbout = 90400, BezierSplineDocumentation = 90401;
+    public const int CurviloftAbout = 90402, CurviloftVideo = 90403;
+    public const int FredoScaleAbout = 90404, FredoScaleVideo = 90405;
+    public const int JointPushPullAbout = 90406, JointPushPullVideo = 90407;
+    public const int RoundCornerAbout = 90408, RoundCornerVideo = 90409;
+    public const int ToolsOnSurfaceAbout = 90410, ToolsOnSurfaceVideo = 90411;
+}
+
 public static class OwnIds
 {
     public const int RecoverBackup = 95001;
