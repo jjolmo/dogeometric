@@ -32,6 +32,30 @@ public partial class MainWindow
                 && (face.FrontMaterial?.Texture != null ? face.FrontMaterial : face.BackMaterial) is { Texture: not null } material)
                 _document.EditTextureImage(material);
         });
+        foreach (var (id, label) in new[]
+        {
+            (ExtensionIds.SplineVertexMarks, "Vertex marks (toggle F5)"), (ExtensionIds.SplineExtras, "Extra Parameters (TAB)"),
+            (ExtensionIds.SplineCloseNice, "Close loop nicely (Toggle F9)"), (ExtensionIds.SplineCloseLine, "Close loop with line (Toggle F8)"),
+        })
+            (_commands.Get(id).Label, _commands.Get(id).Description) = (label, label);
+        _commands.Register(ExtensionIds.SplineVertexMarks, () =>
+        {
+            BezierSplineTool.VertexMarks = !BezierSplineTool.VertexMarks;
+            _viewport.QueueOverlayRedraw();
+        }, () => BezierSplineTool.VertexMarks);
+        foreach (var (id, mode) in new[] { (ExtensionIds.SplineCloseNice, BezierSplineTool.Closure.Nice), (ExtensionIds.SplineCloseLine, BezierSplineTool.Closure.Line) })
+            _commands.Register(id, () =>
+            {
+                BezierSplineTool.CloseMode = BezierSplineTool.CloseMode == mode ? BezierSplineTool.Closure.Open : mode;
+                _viewport.QueueOverlayRedraw();
+            }, () => BezierSplineTool.CloseMode == mode);
+        _commands.Register(ExtensionIds.SplineExtras, () =>
+        {
+            if (_viewport.Tools.Active is BezierSplineTool bz)
+                bz.ShowExtras();
+            else
+                _status.SetHint("Start a BezierSpline curve tool first, then press TAB or this button for its parameters.");
+        });
         _commands.Register(ExtensionIds.FredoScaleShearFree, () => _viewport.Tools.Activate(new ShearFreeTool()),
             () => _viewport.Tools.Active is ShearFreeTool);
         _commands.Register(ExtensionIds.FredoScaleRotateFree, () => _viewport.Tools.Activate(new RotateTool(ExtensionIds.FredoScaleRotateFree)),

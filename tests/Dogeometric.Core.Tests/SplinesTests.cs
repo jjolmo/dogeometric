@@ -108,4 +108,15 @@ public class SplinesTests
         Assert.Contains(pts, p => p.DistanceTo(new Vec3(18, -2, 0)) < 1e-9);
         Assert.All(pts, p => Assert.True(p.Y >= -2 - 1e-9 && p.X <= 20 + 1e-9));
     }
+
+    [Fact]
+    public void Closing_with_a_line_adds_a_straight_edge_back_to_the_start()
+    {
+        var e = new Entities();
+        var data = new SplineData(SplineKind.CubicBezier, [new(0, 0, 0), new(10, 10, 0), new(20, 10, 0), new(30, 0, 0)], 7, 0, false, LineClosed: true);
+        var edges = Splines.Draw(e, data);
+        Assert.Contains(edges, x => x.Start.Position.DistanceTo(Vec3.Zero) < 1e-9 && x.End.Position.DistanceTo(new Vec3(30, 0, 0)) < 1e-9
+            || x.End.Position.DistanceTo(Vec3.Zero) < 1e-9 && x.Start.Position.DistanceTo(new Vec3(30, 0, 0)) < 1e-9);
+        Assert.Single(e.Faces);
+    }
 }

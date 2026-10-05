@@ -33,6 +33,10 @@ public static class ExtensionIds
     public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
     public const int SplineDividerAnimation = 90114;
     public const int SplineEdit = 90120;
+    public const int SplineVertexMarks = 90115;
+    public const int SplineExtras = 90116;
+    public const int SplineCloseNice = 90117;
+    public const int SplineCloseLine = 90118;
 
     public const int SandboxFromContours = 90071;
     public const int SandboxFromScratch = 90072;
@@ -79,7 +83,6 @@ public static class ExtensionIds
     public const int FredoScaleShearFree = 90205;
     public const int FredoScaleRotateFree = 90206;
     public const int FredoScaleMakeUnique = 90207;
-    public const int SurfaceEditContours = 90210;
     public const int Interact = 90220;
     public const int SubdQuadPushPull = 90230;
     public const int SubdDisplayEdges = 90231;

@@ -37,7 +37,8 @@ public sealed class Curve
     public SplineData? Spline { get; set; }
 }
 
-public sealed record SplineData(SplineKind Kind, IReadOnlyList<Vec3> ControlPoints, int Precision, double Parameter, bool Closed);
+/// <param name="LineClosed">BezierSpline's "close loop with line" (F8): the open curve plus a straight closing edge.</param>
+public sealed record SplineData(SplineKind Kind, IReadOnlyList<Vec3> ControlPoints, int Precision, double Parameter, bool Closed, bool LineClosed = false);
 
 public sealed class Edge(Vertex start, Vertex end)
 {

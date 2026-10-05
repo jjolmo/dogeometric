@@ -191,8 +191,7 @@ public sealed class CommandRegistry
                 {
                     var (label, id) = (text[..bar], int.Parse(text[(bar + 3)..]));
                     nodes.Add(new MenuNode(label, id, null, false));
-                    if (Get(id) is { Label.Length: 0 } cmd)
-                        cmd.Label = label;
+                    Get(id).Label = label;
                     Get(id).MenuPath = $"{path}/{label}";
                 }
                 else

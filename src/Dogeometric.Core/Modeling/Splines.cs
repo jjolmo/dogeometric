@@ -67,6 +67,7 @@ public static class Splines
         var closed = pts.Count > 2 && pts[0].DistanceTo(pts[^1]) < Tolerance.Length;
         if (closed)
             pts.RemoveAt(pts.Count - 1);
+        closed |= data.LineClosed && pts.Count > 2;
         var curve = data.Kind == SplineKind.Polyline ? null : new Curve { Segments = pts.Count, Spline = data };
         return StickyGeometry.DrawEdges(e, pts, closed, null, curve);
     }

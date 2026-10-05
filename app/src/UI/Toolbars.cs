@@ -14,25 +14,46 @@ public static class Toolbars
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
     public static readonly int[] MakeFaces = [Commands.ExtensionIds.MakeFaces];
-    public static readonly int[] ToolsOnSurface = new[]
-    {
-        Tools.SurfaceShape.Line, Tools.SurfaceShape.Rectangle, Tools.SurfaceShape.Circle, Tools.SurfaceShape.Polygon, Tools.SurfaceShape.Ellipse,
-        Tools.SurfaceShape.Parallelogram, Tools.SurfaceShape.Arc, Tools.SurfaceShape.Circle3P, Tools.SurfaceShape.Sector,
-        Tools.SurfaceShape.Polyline, Tools.SurfaceShape.Freehand,
-    }.Select(Commands.ExtensionIds.SurfaceShape).Prepend(Commands.ExtensionIds.SurfaceGeneric).Append(Commands.ExtensionIds.SurfaceOffset).Append(Commands.ExtensionIds.SurfaceEraser).ToArray();
+    // Extension toolbars as the reference install shows them (read from SketchUp's own toolbar list).
+    private static int Tos(Tools.SurfaceShape shape) => Commands.ExtensionIds.SurfaceShape(shape);
+    private static int Fsc(Deformation kind) => Commands.ExtensionIds.FredoScale(kind);
+    public static readonly int[] ToolsOnSurface =
+    [
+        Commands.ExtensionIds.SurfaceGeneric, Sep, Tos(Tools.SurfaceShape.Line), Sep,
+        Tos(Tools.SurfaceShape.Rectangle), Tos(Tools.SurfaceShape.Circle), Tos(Tools.SurfaceShape.Polygon), Tos(Tools.SurfaceShape.Ellipse),
+        Tos(Tools.SurfaceShape.Parallelogram), Tos(Tools.SurfaceShape.Arc), Tos(Tools.SurfaceShape.Circle3P), Tos(Tools.SurfaceShape.Sector), Sep,
+        Commands.ExtensionIds.SurfaceOffset, Tos(Tools.SurfaceShape.Freehand), Sep,
+        Tos(Tools.SurfaceShape.Polyline), Commands.ExtensionIds.SurfaceEraser,
+    ];
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftPath, Commands.ExtensionIds.CurviloftSkin];
-    // In the original toolbar's order.
-    public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }
-        .Select(Commands.ExtensionIds.FredoScale).Prepend(Commands.ExtensionIds.FredoScaleLauncher).ToArray();
+    public static readonly int[] FredoScale =
+    [
+        Commands.ExtensionIds.FredoScaleLauncher, Sep, Fsc(Deformation.Scale), Sep, Fsc(Deformation.Taper), Sep,
+        Fsc(Deformation.Shear), Commands.ExtensionIds.FredoScaleShearFree, Sep, Fsc(Deformation.Stretch), Sep, Fsc(Deformation.Twist), Sep,
+        Fsc(Deformation.Rotate), Commands.ExtensionIds.FredoScaleRotateFree, Sep, Fsc(Deformation.Bend),
+    ];
     public static readonly int[] Sandbox =
     [
-        Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
+        Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Sep, Commands.ExtensionIds.SandboxSmoove,
         Commands.ExtensionIds.SandboxStamp, Commands.ExtensionIds.SandboxDrape, Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
     ];
-    public static readonly int[] BezierSpline = [.. Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline), Commands.ExtensionIds.SplineEdit];
+    private static int Bz(SplineKind kind) => Commands.ExtensionIds.Spline(kind);
+    public static readonly int[] BezierSpline =
+    [
+        Bz(SplineKind.ClassicBezier), Bz(SplineKind.Polyline), Commands.ExtensionIds.SplineDividerAnimation, Bz(SplineKind.ArcCorners),
+        Bz(SplineKind.UniformBSpline), Bz(SplineKind.CatmullSpline), Bz(SplineKind.Chamfer), Bz(SplineKind.Courbette), Bz(SplineKind.CubicBezier),
+        Bz(SplineKind.Divider), Bz(SplineKind.DogBone), Bz(SplineKind.TBone), Bz(SplineKind.FSpline), Sep,
+        Commands.ExtensionIds.SplineEdit, Commands.ExtensionIds.SplineVertexMarks, Commands.ExtensionIds.SplineExtras,
+        Commands.ExtensionIds.SplineCloseNice, Commands.ExtensionIds.SplineCloseLine,
+    ];
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPullLauncher, Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.RoundPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
-    public static readonly int[] Subd = [Commands.ExtensionIds.SubdSubdivided, Commands.ExtensionIds.SubdIncrease, Commands.ExtensionIds.SubdDecrease, Commands.ExtensionIds.SubdCrease];
+    public static readonly int[] Subd =
+    [
+        Commands.ExtensionIds.SubdSubdivided, Sep, Commands.ExtensionIds.SubdIncrease, Commands.ExtensionIds.SubdDecrease, Sep,
+        Commands.ExtensionIds.SubdCrease, Commands.ExtensionIds.SubdQuadPushPull, Sep, Commands.ExtensionIds.SubdDisplayEdges, Sep,
+        Commands.ExtensionIds.SubdEntityInfo, Sep, Commands.ExtensionIds.SubdGettingStarted,
+    ];
     public static readonly int[] SelectionToys =
     [
         Commands.ExtensionIds.SelectOnlyEdges, Commands.ExtensionIds.SelectOnlyFaces, Commands.ExtensionIds.SelectOnlyGroups, Commands.ExtensionIds.SelectOnlyComponents, Sep,
@@ -132,6 +153,17 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SubdIncrease] = "subd_increase";
         Icons[Commands.ExtensionIds.SubdDecrease] = "subd_decrease";
         Icons[Commands.ExtensionIds.SubdCrease] = "subd_crease";
+        Icons[Commands.ExtensionIds.SubdQuadPushPull] = "subd_quad_pushpull";
+        Icons[Commands.ExtensionIds.SubdDisplayEdges] = "subd_display_edges";
+        Icons[Commands.ExtensionIds.SubdEntityInfo] = "subd_entity_info";
+        Icons[Commands.ExtensionIds.SubdGettingStarted] = "subd_help";
+        Icons[Commands.ExtensionIds.FredoScaleShearFree] = "fredoscale_shear_free";
+        Icons[Commands.ExtensionIds.FredoScaleRotateFree] = "fredoscale_rotate_free";
+        Icons[Commands.ExtensionIds.SplineVertexMarks] = "spline_vertex_marks";
+        Icons[Commands.ExtensionIds.SplineExtras] = "spline_extras";
+        Icons[Commands.ExtensionIds.SplineCloseNice] = "spline_close_nice";
+        Icons[Commands.ExtensionIds.SplineCloseLine] = "spline_close_line";
+        Icons[Commands.ExtensionIds.SplineDividerAnimation] = "spline_divider_animation";
         Icons[Commands.ExtensionIds.SurfaceEraser] = "tos_eraser";
         Icons[Commands.ExtensionIds.SurfaceOffset] = "tos_offset";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())

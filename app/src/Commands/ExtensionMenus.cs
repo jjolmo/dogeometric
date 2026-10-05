@@ -108,7 +108,7 @@ public static class ExtensionMenus
                 Offset on Surface | {{E.SurfaceOffset}}
                 Free Hand on Surface | {{T(SurfaceShape.Freehand)}}
                 ---
-                Edit Contours on Surface | {{E.SurfaceEditContours}}
+                Edit Contours on Surface | {{T(SurfaceShape.Polyline)}}
                 Eraser on Surface | {{E.SurfaceEraser}}
             ---
             Loop subdivision smooth | {{E.LoopSubdivision}}

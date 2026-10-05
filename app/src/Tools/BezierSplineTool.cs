@@ -8,13 +8,20 @@ using Curve = Dogeometric.Core.Modeling.Curve;
 namespace Dogeometric.App.Tools;
 
 /// <summary>BezierSpline's curve tools: click control points (Esc removes the last), double-click or Return to finish;
-/// "Ns" sets the precision, a length the family's extra value; F8/F9 close the curve, F7 opens it.</summary>
+/// "Ns" sets the precision, a length the family's extra value; F9 closes nicely, F8 with a line, F7 opens, F5 toggles
+/// vertex marks, TAB opens the extra parameters.</summary>
 public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
 {
     private static readonly Dictionary<SplineKind, (int Precision, double Parameter)> Settings = [];
 
+    public enum Closure { Open, Nice, Line }
+
+    /// <summary>The BZ toolbar's toggles, shared by every curve tool for the session.</summary>
+    public static Closure CloseMode { get; set; }
+    public static bool VertexMarks { get; set; }
+
     private readonly List<Vec3> _points = [];
-    private bool _closed;
+    private bool _closed => CloseMode == Closure.Nice;
     private ulong _lastClickMs;
     private Vector2 _lastClickAt;
 
@@ -74,11 +81,38 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
             return;
         var toLocal = doc.Context.ToWorld.Inverse();
         var controls = _points.Select(toLocal.ApplyPoint).ToList();
-        doc.Operation(Info.Menu, e => Splines.Draw(e, new SplineData(kind, controls, Setting.Precision, Setting.Parameter, _closed)));
+        doc.Operation(Info.Menu, e => Splines.Draw(e, new SplineData(kind, controls, Setting.Precision, Setting.Parameter, _closed, CloseMode == Closure.Line)));
         _points.Clear();
-        _closed = false;
         RefreshStatus();
         View.QueueOverlayRedraw();
+    }
+
+    /// <summary>TAB: the family's precision and extra value in a dialog.</summary>
+    public void ShowExtras()
+    {
+        var d = new ConfirmationDialog { Title = $"{Info.Menu} - Parameters", Theme = UI.LightTheme.Create() };
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddChild(new Label { Text = "Precision (segments)" });
+        var precision = new SpinBox { MinValue = Info.PrecisionMin, MaxValue = Info.PrecisionMax, Value = Setting.Precision, Editable = Info.PrecisionMin != Info.PrecisionMax };
+        grid.AddChild(precision);
+        SpinBox? parameter = null;
+        if (Info.Parameter != null)
+        {
+            grid.AddChild(new Label { Text = Info.Parameter });
+            parameter = new SpinBox { MinValue = 0.01, MaxValue = 100000, Step = kind == SplineKind.Segmentor ? 1 : 0.1, Value = Setting.Parameter, Suffix = kind == SplineKind.Segmentor ? "" : "mm" };
+            grid.AddChild(parameter);
+        }
+        d.AddChild(grid);
+        d.Confirmed += () =>
+        {
+            Setting = ((int)precision.Value, parameter?.Value ?? Setting.Parameter);
+            View.ShowVcbValue(VcbValue);
+            View.QueueOverlayRedraw();
+            d.QueueFree();
+        };
+        d.Canceled += d.QueueFree;
+        View.AddChild(d);
+        d.PopupCentered();
     }
 
     public override bool ApplyVcb(string text)
@@ -124,13 +158,24 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
                 RefreshStatus();
                 View.QueueOverlayRedraw();
                 return true;
-            case Key.F8 or Key.F9:
-                _closed = true;
+            case Key.F9:
+                CloseMode = CloseMode == Closure.Nice ? Closure.Open : Closure.Nice;
+                View.QueueOverlayRedraw();
+                return true;
+            case Key.F8:
+                CloseMode = CloseMode == Closure.Line ? Closure.Open : Closure.Line;
                 View.QueueOverlayRedraw();
                 return true;
             case Key.F7:
-                _closed = false;
+                CloseMode = Closure.Open;
                 View.QueueOverlayRedraw();
+                return true;
+            case Key.F5:
+                VertexMarks = !VertexMarks;
+                View.QueueOverlayRedraw();
+                return true;
+            case Key.Tab:
+                ShowExtras();
                 return true;
         }
         return base.KeyDown(key);
@@ -148,6 +193,12 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
             var pts = Curve(controls);
             for (var i = 0; i + 1 < pts.Count; i++)
                 DrawWorldLine(overlay, pts[i], pts[i + 1], Colors.Black, 2);
+            if (CloseMode == Closure.Line && pts.Count > 2)
+                DrawWorldLine(overlay, pts[^1], pts[0], new Color(0.85f, 0.1f, 0.1f), 2);
+            if (VertexMarks)
+                foreach (var p in pts)
+                    if (View.ToScreen(p) is { } s)
+                        overlay.DrawRect(new Rect2(s - new Vector2(2.5f, 2.5f), new Vector2(5, 5)), new Color(0, 0.85f, 0.9f));
         }
         foreach (var p in _points)
             if (View.ToScreen(p) is { } s)
