@@ -488,4 +488,17 @@ public class DogFileTests
         Assert.True(face.CastShadows);
         Assert.True(tree.ReceiveShadows);
     }
+
+    [Fact]
+    public void Material_colorize_round_trips_and_undoes()
+    {
+        var m = new Model();
+        var mat = new Material { Name = "Brick", Color = new Rgba(200, 80, 40) };
+        m.Materials.Add(mat);
+        var doc = new Document(m);
+        doc.Operation("Colorize", _ => mat.Colorize = true);
+        Assert.True(RoundTrip(m).Materials.Single(x => x.Name == "Brick").Colorize);
+        doc.Undo.Undo();
+        Assert.False(mat.Colorize);
+    }
 }
