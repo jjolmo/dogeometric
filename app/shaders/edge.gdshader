@@ -7,6 +7,8 @@ render_mode unshaded, cull_disabled, shadows_disabled;
 instance uniform float fade = 0.0;
 
 uniform vec4 color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+// Styles › Edge color by material or by axis: each edge brings its own colour.
+uniform bool vertex_colors = false;
 // Relative pull towards the camera (fraction of the distance). Reverse-Z depth is proportional to 1/distance,
 // so scaling clip z by (1 + bias) moves the point bias × distance closer: a few millimetres at a few metres.
 uniform float depth_bias = 0.0006;
@@ -26,6 +28,6 @@ void fragment() {
 	if (SECTION_CUT) {
 		discard;
 	}
-	ALBEDO = color.rgb;
+	ALBEDO = vertex_colors ? COLOR.rgb : color.rgb;
 	ALBEDO = mix(ALBEDO, vec3(0.72), fade);
 }

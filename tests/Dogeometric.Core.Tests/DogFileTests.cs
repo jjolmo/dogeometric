@@ -335,4 +335,23 @@ public class DogFileTests
         Assert.Same(other, inst.Definition);
         Assert.Equal(new Vec3(7, 0, 0), inst.Transform.Origin);
     }
+
+    [Fact]
+    public void The_style_survives_saving_and_undo()
+    {
+        var model = new Model();
+        var doc = new Document(model);
+        var style = new StyleSettings { Name = "Plans", ProfileWidth = 5, EdgeColorMode = EdgeColorMode.ByAxis, EdgeColor = new Rgba(10, 20, 30),
+            BackColor = new Rgba(1, 2, 3), Sky = false, GroundTransparency = 0.4, GroundFromBelow = true };
+        doc.Undo.Begin("Style");
+        model.Style = style;
+        doc.Undo.Commit();
+        var path = Path.Combine(Path.GetTempPath(), $"style-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path).Style;
+        File.Delete(path);
+        Assert.Equal(style, back);
+        doc.Undo.Undo();
+        Assert.Equal(new StyleSettings(), model.Style);
+    }
 }

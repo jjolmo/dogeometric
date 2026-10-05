@@ -24,8 +24,45 @@ public enum FaceStyle
 /// </summary>
 public sealed class ModelRenderer
 {
-    private static readonly Rgba DefaultFront = new(255, 255, 255);
-    private static readonly Rgba DefaultBack = new(164, 178, 187);
+    private StyleSettings _style = new();
+    private Rgba DefaultFront => _style.FrontColor;
+    private Rgba DefaultBack => _style.BackColor;
+    private Transform _axes = Transform.Identity;
+
+    public StyleSettings Style => _style;
+
+    /// <summary>Applies the model's style; returns true when the meshes must be built again (edge or face colours).</summary>
+    public bool SetStyle(StyleSettings s, Transform axes)
+    {
+        var old = _style;
+        _style = s;
+        _axes = axes;
+        _profileMaterial.SetShaderParameter("profile_width", _showProfiles ? (float)s.ProfileWidth : 0f);
+        _profileMaterial.SetShaderParameter("extension_px", _extension ? (float)s.ExtensionLength : 0f);
+        _profileMaterial.SetShaderParameter("depth_cue_px", _depthCue ? (float)s.DepthCueWidth : 0f);
+        var edge = Color.Color8(s.EdgeColor.R, s.EdgeColor.G, s.EdgeColor.B);
+        _edgeMaterial.SetShaderParameter("color", edge);
+        _edgeMaterial.SetShaderParameter("vertex_colors", s.EdgeColorMode != EdgeColorMode.AllSame);
+        _profileMaterial.SetShaderParameter("color", edge);
+        var rebuild = old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
+            || s.EdgeColorMode != EdgeColorMode.AllSame && old.EdgeColor != s.EdgeColor;
+        if (rebuild)
+            ForgetMaterials();
+        return rebuild;
+    }
+
+    /// <summary>An edge's colour by the style: its material's, or its axis colour, else the style's edge colour.</summary>
+    private Color EdgeColorOf(Edge edge)
+    {
+        var fallback = Color.Color8(_style.EdgeColor.R, _style.EdgeColor.G, _style.EdgeColor.B);
+        if (_style.EdgeColorMode == EdgeColorMode.ByMaterial)
+            return edge.Material is { } m ? Color.Color8(m.Color.R, m.Color.G, m.Color.B) : fallback;
+        var d = (edge.End.Position - edge.Start.Position).Normalized();
+        var p = UI.AppPreferences.Current;
+        return Math.Abs(d.Dot(_axes.X.Normalized())) > 0.9999 ? p.RedAxis
+            : Math.Abs(d.Dot(_axes.Y.Normalized())) > 0.9999 ? p.GreenAxis
+            : Math.Abs(d.Dot(_axes.Z.Normalized())) > 0.9999 ? p.BlueAxis : fallback;
+    }
 
     private readonly Shader _faceShader = GD.Load<Shader>("res://shaders/face.gdshader");
     private readonly Shader _faceLitShader = GD.Load<Shader>("res://shaders/face_lit.gdshader");
@@ -48,7 +85,7 @@ public sealed class ModelRenderer
         set
         {
             _showProfiles = value;
-            _profileMaterial.SetShaderParameter("profile_width", value ? 3f : 0f);
+            _profileMaterial.SetShaderParameter("profile_width", value ? (float)_style.ProfileWidth : 0f);
         }
     }
 
@@ -61,7 +98,7 @@ public sealed class ModelRenderer
         set
         {
             _extension = value;
-            _profileMaterial.SetShaderParameter("extension_px", value ? 3f : 0f);
+            _profileMaterial.SetShaderParameter("extension_px", value ? (float)_style.ExtensionLength : 0f);
         }
     }
 
@@ -72,7 +109,7 @@ public sealed class ModelRenderer
         set
         {
             _depthCue = value;
-            _profileMaterial.SetShaderParameter("depth_cue_px", value ? 4f : 0f);
+            _profileMaterial.SetShaderParameter("depth_cue_px", value ? (float)_style.DepthCueWidth : 0f);
         }
     }
 
@@ -358,6 +395,7 @@ public sealed class ModelRenderer
         }
 
         var lines = new List<Vector3>();
+        var colors = new List<Color>();
         foreach (var edge in e.Edges)
         {
             // Soft, smooth and hidden edges are not drawn (SketchUp's default style).
@@ -365,6 +403,12 @@ public sealed class ModelRenderer
                 continue;
             lines.Add(Space.ToGodot(edge.Start.Position));
             lines.Add(Space.ToGodot(edge.End.Position));
+            if (_style.EdgeColorMode != EdgeColorMode.AllSame)
+            {
+                var c = EdgeColorOf(edge);
+                colors.Add(c);
+                colors.Add(c);
+            }
         }
         ArrayMesh? edges = null;
         if (lines.Count > 0)
@@ -373,6 +417,8 @@ public sealed class ModelRenderer
             var arrays = new Godot.Collections.Array();
             arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex] = lines.ToArray();
+            if (colors.Count > 0)
+                arrays[(int)Mesh.ArrayType.Color] = colors.ToArray();
             edges.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
             edges.SurfaceSetMaterial(0, _edgeMaterial);
         }

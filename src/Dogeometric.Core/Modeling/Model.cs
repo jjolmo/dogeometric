@@ -19,6 +19,35 @@ public sealed class Scene
 }
 
 /// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
+/// <summary>Styles › Edit › Edge Settings: what colour edges take.</summary>
+public enum EdgeColorMode { AllSame, ByMaterial, ByAxis }
+
+/// <summary>The model's style (Styles › Edit), as SketchUp keeps it with the model: edge widths and colour, face
+/// colours, and the background with its sky and ground. Defaults are SketchUp 2021's Default Style.</summary>
+public sealed record StyleSettings
+{
+    public string Name { get; init; } = "Default Style";
+
+    public int ProfileWidth { get; init; } = 3;
+    public int DepthCueWidth { get; init; } = 4;
+    public int ExtensionLength { get; init; } = 3;
+    public EdgeColorMode EdgeColorMode { get; init; } = EdgeColorMode.AllSame;
+    public Rgba EdgeColor { get; init; } = new(0, 0, 0);
+
+    public Rgba FrontColor { get; init; } = new(255, 255, 255);
+    public Rgba BackColor { get; init; } = new(164, 178, 187);
+
+    public Rgba BackgroundColor { get; init; } = new(255, 255, 255);
+    public bool Sky { get; init; } = true;
+    public Rgba SkyColor { get; init; } = new(47, 172, 224);
+    public bool Ground { get; init; } = true;
+    public Rgba GroundColor { get; init; } = new(191, 191, 198);
+
+    /// <summary>0 opaque to 1 invisible, as SketchUp's ground transparency slider.</summary>
+    public double GroundTransparency { get; init; }
+    public bool GroundFromBelow { get; init; }
+}
+
 /// <summary>Model Info's Components, Credits and Rendering settings.</summary>
 public sealed record ModelOptions
 {
@@ -92,6 +121,7 @@ public sealed class Model
     public bool ShowSectionFill { get; set; } = true;
 
     public ModelOptions Options { get; set; } = new();
+    public StyleSettings Style { get; set; } = new();
 
     /// <summary>
     /// SketchUp's drawing axes (Axes tool): origin and red/green/blue directions, orthonormal. Inference, arrow-key

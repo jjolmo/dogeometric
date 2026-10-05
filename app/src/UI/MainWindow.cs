@@ -1207,7 +1207,8 @@ public partial class MainWindow : Control
         _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         _components.SaveAsRequested += _document.SaveComponentAs;
-        _styles = StylesPanel.Create(_commands);
+        _styles = StylesPanel.Create(_commands, () => _document.Model.Style, _document.SetStyle);
+        _document.StyleChanged += _styles.Refresh;
         _shadows = ShadowsPanel.Create(() => _document.Document, _document.ApplyShadows);
         _document.ShadowsChanged += _shadows.Refresh;
         _document.DocumentReplaced += _shadows.Refresh;

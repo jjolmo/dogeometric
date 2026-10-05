@@ -528,6 +528,13 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 viewport.ApplyShadows(Model.Shadows);
                 ShadowsChanged?.Invoke();
             }
+            if (Model.Style != _renderer.Style)
+            {
+                if (_renderer.SetStyle(Model.Style, Model.Axes))
+                    changed = null;
+                viewport.ApplyStyle(Model.Style);
+                StyleChanged?.Invoke();
+            }
             // Undo and redo can change a material's look, which the renderer caches.
             var looks = MaterialLooks();
             if (looks != _materialLooks)
@@ -557,6 +564,9 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         viewport.ModelBounds = () => Model.Entities.Bounds();
         viewport.PreviewOpenings = PreviewOpenings;
         _renderer.SetShadows(Model.Shadows);
+        _renderer.SetStyle(Model.Style, Model.Axes);
+        viewport.ApplyStyle(Model.Style);
+        StyleChanged?.Invoke();
         Rebuild();
         viewport.UpdateSection();
         viewport.UpdateAxes();
@@ -620,6 +630,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             return;
         _renderer.LookingThrough = camera;
         Rebuild();
+    }
+
+    /// <summary>Raised when the model's style changes (an edit, undo, another model).</summary>
+    public event Action? StyleChanged;
+
+    /// <summary>Styles › Edit: changes the model's style as one undoable step.</summary>
+    public void SetStyle(Func<StyleSettings, StyleSettings> change)
+    {
+        Document.Undo.Begin("Edit Style");
+        Model.Style = change(Model.Style);
+        Document.Undo.Commit();
     }
 
     /// <summary>A material's colour, opacity or picture changed: cached looks are dropped and the view redrawn.</summary>

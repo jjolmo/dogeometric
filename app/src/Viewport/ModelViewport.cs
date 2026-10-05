@@ -359,6 +359,7 @@ public partial class ModelViewport : Control
         _camera.Far = _camera.Near * 1e6f;
 
         UpdateHorizon();
+        _skyMaterial.SetShaderParameter("camera_below", Camera.Eye.Z < 0);
         UpdateFog();
         UpdateShadowRange();
         // As in SketchUp, a matched photo goes away once the camera leaves it.
@@ -493,6 +494,22 @@ public partial class ModelViewport : Control
     private Godot.Environment? _environment;
     private Bounds3 _fogBounds = Bounds3.Empty;
     private (double Start, double End) _fogRange = (0, 1);
+
+    /// <summary>Styles › Background: plain colour, sky and ground (with its transparency and whether it shows from below).</summary>
+    public void ApplyStyle(StyleSettings s)
+    {
+        Color C(Rgba c) => Color.Color8(c.R, c.G, c.B);
+        var sky = C(s.SkyColor);
+        _skyMaterial.SetShaderParameter("sky_top", sky);
+        // SketchUp fades its sky to almost white at the horizon.
+        _skyMaterial.SetShaderParameter("sky_horizon", sky.Lerp(Colors.White, 0.7f));
+        _skyMaterial.SetShaderParameter("ground", C(s.GroundColor));
+        _skyMaterial.SetShaderParameter("background", C(s.BackgroundColor));
+        _skyMaterial.SetShaderParameter("sky_on", s.Sky);
+        _skyMaterial.SetShaderParameter("ground_on", s.Ground);
+        _skyMaterial.SetShaderParameter("ground_transparency", (float)s.GroundTransparency);
+        _skyMaterial.SetShaderParameter("ground_from_below", s.GroundFromBelow);
+    }
 
     /// <summary>Fog panel: start and end (0 to 1 across the model's depth) and colour (null for the background's).</summary>
     public void SetFog(double start, double end, Color? color)

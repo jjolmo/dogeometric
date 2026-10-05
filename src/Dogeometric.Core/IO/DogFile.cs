@@ -56,6 +56,7 @@ public static class DogFile
             w.WriteString("sourceVersion", model.SourceVersion);
             WriteShadows(w, model.Shadows);
             w.WriteBoolean("sectionFill", model.ShowSectionFill);
+            WriteStyle(w, model.Style);
             w.WriteStartObject("options");
             w.WriteString("author", model.Options.Author);
             w.WriteString("name", model.Options.Name);
@@ -233,6 +234,58 @@ public static class DogFile
     //   curves:   [{center, normal, radius, segments, polygon, spline?}, ...] (optional; edges refer to them)
     //   faces:    [[loops, front, back, tag, hidden], ...]  loops = [[signed edge refs], ...], ref = ±(edge + 1)
     //   instances:[{def, transform[16 column-major], name, tag, material, hidden, locked, gluedTo (face index)}, ...]
+    private static string RgbaText(Rgba c) => $"{c.R},{c.G},{c.B}";
+
+    private static Rgba ReadRgba(JsonElement e, string name, Rgba fallback) =>
+        e.TryGetProperty(name, out var v) && v.GetString()?.Split(',') is [var r, var g, var b]
+            ? new Rgba(byte.Parse(r), byte.Parse(g), byte.Parse(b)) : fallback;
+
+    private static void WriteStyle(Utf8JsonWriter w, StyleSettings s)
+    {
+        w.WriteStartObject("style");
+        w.WriteString("name", s.Name);
+        w.WriteNumber("profileWidth", s.ProfileWidth);
+        w.WriteNumber("depthCueWidth", s.DepthCueWidth);
+        w.WriteNumber("extensionLength", s.ExtensionLength);
+        w.WriteString("edgeColorMode", s.EdgeColorMode.ToString());
+        w.WriteString("edgeColor", RgbaText(s.EdgeColor));
+        w.WriteString("frontColor", RgbaText(s.FrontColor));
+        w.WriteString("backColor", RgbaText(s.BackColor));
+        w.WriteString("backgroundColor", RgbaText(s.BackgroundColor));
+        w.WriteBoolean("sky", s.Sky);
+        w.WriteString("skyColor", RgbaText(s.SkyColor));
+        w.WriteBoolean("ground", s.Ground);
+        w.WriteString("groundColor", RgbaText(s.GroundColor));
+        w.WriteNumber("groundTransparency", s.GroundTransparency);
+        w.WriteBoolean("groundFromBelow", s.GroundFromBelow);
+        w.WriteEndObject();
+    }
+
+    private static StyleSettings ReadStyle(JsonElement j)
+    {
+        var d = new StyleSettings();
+        int Int(string n, int f) => j.TryGetProperty(n, out var v) ? v.GetInt32() : f;
+        bool Bool(string n, bool f) => j.TryGetProperty(n, out var v) ? v.GetBoolean() : f;
+        return new StyleSettings
+        {
+            Name = j.TryGetProperty("name", out var n) ? n.GetString() ?? d.Name : d.Name,
+            ProfileWidth = Int("profileWidth", d.ProfileWidth),
+            DepthCueWidth = Int("depthCueWidth", d.DepthCueWidth),
+            ExtensionLength = Int("extensionLength", d.ExtensionLength),
+            EdgeColorMode = j.TryGetProperty("edgeColorMode", out var m) && Enum.TryParse<EdgeColorMode>(m.GetString(), out var mode) ? mode : d.EdgeColorMode,
+            EdgeColor = ReadRgba(j, "edgeColor", d.EdgeColor),
+            FrontColor = ReadRgba(j, "frontColor", d.FrontColor),
+            BackColor = ReadRgba(j, "backColor", d.BackColor),
+            BackgroundColor = ReadRgba(j, "backgroundColor", d.BackgroundColor),
+            Sky = Bool("sky", d.Sky),
+            SkyColor = ReadRgba(j, "skyColor", d.SkyColor),
+            Ground = Bool("ground", d.Ground),
+            GroundColor = ReadRgba(j, "groundColor", d.GroundColor),
+            GroundTransparency = j.TryGetProperty("groundTransparency", out var t) ? t.GetDouble() : d.GroundTransparency,
+            GroundFromBelow = Bool("groundFromBelow", d.GroundFromBelow),
+        };
+    }
+
     private static void WriteEntities(Utf8JsonWriter w, string name, Entities e,
         Dictionary<Material, int> mats, Dictionary<Tag, int> tags, Dictionary<ComponentDefinition, int> defs)
     {
@@ -536,6 +589,8 @@ public static class DogFile
         }
         if (r.TryGetProperty("sectionFill", out var fill))
             model.ShowSectionFill = fill.GetBoolean();
+        if (r.TryGetProperty("style", out var styleJson))
+            model.Style = ReadStyle(styleJson);
         if (r.TryGetProperty("options", out var opts))
             model.Options = new ModelOptions
             {
