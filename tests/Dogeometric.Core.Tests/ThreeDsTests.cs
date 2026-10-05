@@ -29,6 +29,42 @@ public class ThreeDsTests
     }
 
     [Fact]
+    public void Textures_go_out_under_short_names_and_come_back_placed_as_they_were()
+    {
+        var model = new Model();
+        var def = new ComponentDefinition { Name = "Box", IsGroup = true };
+        TestModels.Box(def.Entities, Vec3.Zero, new Vec3(100, 50, 20));
+        model.Definitions.Add(def);
+        model.Entities.AddInstance(def, Transform.Identity);
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "circuit board.png", Data = [1, 2, 3], WidthMm = 40, HeightMm = 20 } };
+        foreach (var f in def.Entities.Faces)
+            f.FrontMaterial = chip;
+        var top = def.Entities.Faces.Single(f => f.Normal.Z > 0.9);
+        top.FrontMapping = TextureMapping.FromPlanePoints(Texturing.PlanePoint(top, new Vec3(10, 5, 20)),
+            Texturing.PlanePoint(top, new Vec3(10, 35, 20)), Texturing.PlanePoint(top, new Vec3(-5, 5, 20)), 40, 20);
+        var saved = new Dictionary<string, byte[]>();
+        using var stream = new MemoryStream();
+        ThreeDs.Write(model, stream, saveImage: (file, data) => saved[file] = data);
+
+        Assert.Equal([1, 2, 3], saved["circuitb.png"]);
+        var back = ThreeDs.Read(stream.ToArray(), "box", readFile: file => saved.GetValueOrDefault(file));
+        var faces = back.AllEntities.SelectMany(e => e.Faces).ToList();
+        Assert.Equal(6, faces.Count);
+        foreach (var original in def.Entities.Faces)
+        {
+            var copy = faces.Single(f => f.Normal.Dot(original.Normal) > 0.99);
+            Assert.NotNull(copy.FrontMaterial?.Texture);
+            foreach (var p in original.OuterLoop.Points)
+            {
+                var (u, v) = Texturing.Uv(original, false, p, chip);
+                var (u2, v2) = Texturing.Uv(copy, false, p, copy.FrontMaterial!);
+                Assert.Equal(u, u2, 4);
+                Assert.Equal(v, v2, 4);
+            }
+        }
+    }
+
+    [Fact]
     public void Meshes_over_the_vertex_limit_are_split_into_several_objects()
     {
         var (model, _, _) = TestModels.TwoBoxGroups();

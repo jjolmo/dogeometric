@@ -189,10 +189,7 @@ public static class DaeImport
             painted.Clear();
             AddMesh(geometry, [unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, 1], bindings);
             foreach (var (face, front, back) in MeshImport.AddMerged(target, polygons.Select((p, i) => (p, painted[i])).ToList()))
-            {
-                (face.FrontMaterial, face.FrontMapping) = front is TexturedKey f ? (f.Material, f.Mapping(face.Normal)) : ((Material?)front, null);
-                (face.BackMaterial, face.BackMapping) = back is TexturedKey b ? (b.Material, b.Mapping(face.Normal)) : ((Material?)back, null);
-            }
+                MeshImport.Paint(face, front, back);
             return polygons.Count > 0;
         }
 
@@ -275,44 +272,6 @@ public static class DaeImport
         // The file's up axis turns the whole model to SketchUp's Z up.
         model.Entities.AddInstance(top, ToTransform(up));
         return model;
-    }
-
-    /// <summary>A textured polygon's material and where its texture's (0,0), (1,0) and (0,1) land in space; triangles of
-    /// one face share them, so they merge only with triangles textured the same way.</summary>
-    private sealed class TexturedKey(Material material, Vec3 origin, Vec3 uEnd, Vec3 vEnd) : IEquatable<TexturedKey>
-    {
-        public Material Material => material;
-
-        public static TexturedKey? From(Material material, Vec3 p0, Vec3 p1, Vec3 p2, (double U, double V) t0, (double U, double V) t1, (double U, double V) t2)
-        {
-            var (a, b, c, d) = (t1.U - t0.U, t1.V - t0.V, t2.U - t0.U, t2.V - t0.V);
-            var det = a * d - b * c;
-            if (Math.Abs(det) < 1e-12)
-                return null;
-            var du = ((p1 - p0) * d - (p2 - p0) * b) * (1 / det);
-            var dv = ((p2 - p0) * a - (p1 - p0) * c) * (1 / det);
-            var origin = p0 - du * t0.U - dv * t0.V;
-            // The picture's size: one copy of it across the first face that uses it.
-            if (material.Texture is { WidthMm: <= 0 } texture)
-                (texture.WidthMm, texture.HeightMm) = (du.Length, dv.Length);
-            return new TexturedKey(material, origin, origin + du, origin + dv);
-        }
-
-        public TextureMapping Mapping(Vec3 normal)
-        {
-            var (x, y) = Texturing.PlaneAxes(normal);
-            (double, double) Flat(Vec3 p) => (p.Dot(x), p.Dot(y));
-            return TextureMapping.FromPlanePoints(Flat(origin), Flat(uEnd), Flat(vEnd), material.Texture!.WidthMm, material.Texture.HeightMm);
-        }
-
-        public bool Equals(TexturedKey? other) => other != null && other.Material == material
-            && other.Corners().Zip(Corners()).All(pair => pair.First.DistanceTo(pair.Second) <= 1e-6 * Math.Max(1, (uEnd - origin).Length + (vEnd - origin).Length));
-
-        private Vec3[] Corners() => [origin, uEnd, vEnd];
-
-        public override bool Equals(object? obj) => Equals(obj as TexturedKey);
-
-        public override int GetHashCode() => material.GetHashCode();
     }
 
     private static double[] Numbers(string? text) =>

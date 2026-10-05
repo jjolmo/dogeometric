@@ -5,18 +5,21 @@ using Dogeometric.Core.Modeling;
 namespace Dogeometric.Core.IO;
 
 /// <summary>3D Studio (.3ds) export and import as SketchUp does: a mesh object per top-level group or component, material
-/// colours and transparency, millimetres with the master scale saying so.</summary>
+/// colours, transparency and textures (pictures beside the file, under 8.3 names), millimetres with the master scale
+/// saying so.</summary>
 public static class ThreeDs
 {
     private const ushort Main = 0x4D4D, Version = 0x0002, Editor = 0x3D3D, MeshVersion = 0x3D3E, MasterScale = 0x0100;
     private const ushort MaterialBlock = 0xAFFF, MaterialName = 0xA000, Ambient = 0xA010, Diffuse = 0xA020, Specular = 0xA030, Transparency = 0xA050;
     private const ushort Rgb24 = 0x0011, RgbFloat = 0x0010, Percent = 0x0030;
-    private const ushort Object = 0x4000, TriMesh = 0x4100, Vertices = 0x4110, Faces = 0x4120, FaceMaterials = 0x4130, Smoothing = 0x4150, Matrix = 0x4160;
+    private const ushort Object = 0x4000, TriMesh = 0x4100, Vertices = 0x4110, Faces = 0x4120, FaceMaterials = 0x4130, MapCoords = 0x4140, Smoothing = 0x4150, Matrix = 0x4160;
+    private const ushort TextureMap = 0xA200, MapName = 0xA300;
     private const int MaxVertices = 65535;
 
     /// <summary>Writes the model (or the selection) and returns how many mesh objects it holds; 3DS indexes vertices with
     /// 16 bits, so bigger meshes go out as several objects.</summary>
-    public static int Write(Model model, Stream stream, ExportOptions? options = null, int maxVertices = MaxVertices)
+    /// <param name="saveImage">Takes each texture's picture under its file name; without it materials go out untextured.</param>
+    public static int Write(Model model, Stream stream, ExportOptions? options = null, int maxVertices = MaxVertices, Action<string, byte[]>? saveImage = null)
     {
         options ??= new ExportOptions();
         var root = options.SelectionContext ?? model.Entities;
@@ -49,16 +52,28 @@ public static class ThreeDs
         }
 
         var editor = new List<byte[]> { Chunk(MeshVersion, BitConverter.GetBytes(3u)), Chunk(MasterScale, BitConverter.GetBytes((float)(1 / 25.4))) };
+        var textured = new HashSet<Material>();
+        var imageNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var m in materials)
         {
             var name = materialNames[m] = Unique(m.Name, 16);
             var colour = m.Color;
-            editor.Add(Chunk(MaterialBlock,
+            var parts = new List<byte[]>
+            {
                 Chunk(MaterialName, CString(name)),
                 Chunk(Ambient, Chunk(Rgb24, [0, 0, 0])),
                 Chunk(Diffuse, Chunk(Rgb24, [colour.R, colour.G, colour.B])),
                 Chunk(Specular, Chunk(Rgb24, [84, 84, 84])),
-                Chunk(Transparency, Chunk(Percent, BitConverter.GetBytes((ushort)Math.Round((1 - m.Opacity) * 100))))));
+                Chunk(Transparency, Chunk(Percent, BitConverter.GetBytes((ushort)Math.Round((1 - m.Opacity) * 100)))),
+            };
+            if (m.Texture is { Data.Length: > 0 } texture && saveImage != null)
+            {
+                var imageFile = ShortName(texture.FileName, imageNames);
+                saveImage(imageFile, texture.Data);
+                parts.Add(Chunk(TextureMap, Chunk(Percent, BitConverter.GetBytes((ushort)100)), Chunk(MapName, CString(imageFile))));
+                textured.Add(m);
+            }
+            editor.Add(Chunk(MaterialBlock, [.. parts.SelectMany(b => b)]));
         }
         usedNames.Clear();
         var count = 0;
@@ -74,6 +89,19 @@ public static class ThreeDs
                         vertices.Write((float)p.Y);
                         vertices.Write((float)p.Z);
                     }
+                var meshChunks = new List<byte[]> { Chunk(Vertices, Bytes(vertices)) };
+                if (part.Any(t => t.Uv != null && t.Material != null && textured.Contains(t.Material)))
+                {
+                    var uvs = new BinaryWriter(new MemoryStream());
+                    uvs.Write((ushort)(part.Length * 3));
+                    foreach (var t in part)
+                        foreach (var (u, v) in t.Uv is { } uv && t.Material != null && textured.Contains(t.Material) ? [uv.A, uv.B, uv.C] : new (double, double)[3])
+                        {
+                            uvs.Write((float)u);
+                            uvs.Write((float)v);
+                        }
+                    meshChunks.Add(Chunk(MapCoords, Bytes(uvs)));
+                }
                 var faces = new BinaryWriter(new MemoryStream());
                 faces.Write((ushort)part.Length);
                 for (var i = 0; i < part.Length; i++)
@@ -98,8 +126,9 @@ public static class ThreeDs
                 var matrix = new BinaryWriter(new MemoryStream());
                 foreach (var v in new float[] { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 })
                     matrix.Write(v);
-                editor.Add(Chunk(Object, CString(Unique(name, 10)),
-                    Chunk(TriMesh, Chunk(Vertices, Bytes(vertices)), Chunk(Matrix, Bytes(matrix)), Chunk(Faces, [.. faceChunks.SelectMany(b => b)]))));
+                meshChunks.Add(Chunk(Matrix, Bytes(matrix)));
+                meshChunks.Add(Chunk(Faces, [.. faceChunks.SelectMany(b => b)]));
+                editor.Add(Chunk(Object, CString(Unique(name, 10)), Chunk(TriMesh, [.. meshChunks.SelectMany(b => b)])));
                 count++;
             }
         var file = Chunk(Main, Chunk(Version, BitConverter.GetBytes(3u)), Chunk(Editor, [.. editor.SelectMany(b => b)]));
@@ -107,14 +136,29 @@ public static class ThreeDs
         return count;
     }
 
+    /// <summary>Reads a .3ds file, its textures from beside it (3DS names are often in another case than the files).</summary>
+    public static Model Load(string path, double mmPerUnit = 1)
+    {
+        var folder = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        byte[]? ReadFile(string name)
+        {
+            var file = Path.Combine(folder, name.Replace('\\', '/'));
+            if (!File.Exists(file))
+                file = Directory.EnumerateFiles(folder).FirstOrDefault(f => Path.GetFileName(f).Equals(Path.GetFileName(name), StringComparison.OrdinalIgnoreCase)) ?? "";
+            return File.Exists(file) ? File.ReadAllBytes(file) : null;
+        }
+        return Read(File.ReadAllBytes(path), Path.GetFileNameWithoutExtension(path), mmPerUnit, ReadFile);
+    }
+
     /// <summary>Reads a .3ds: each mesh object becomes a group; <paramref name="mmPerUnit"/> applies when the file's master
     /// scale is the neutral 1 (otherwise the master scale, in inches, sets the unit).</summary>
-    public static Model Read(byte[] data, string name, double mmPerUnit = 1)
+    /// <param name="readFile">Fetches a texture by the file name the material gives.</param>
+    public static Model Read(byte[] data, string name, double mmPerUnit = 1, Func<string, byte[]?>? readFile = null)
     {
         var model = new Model();
         var materials = new Dictionary<string, Material>();
         var scale = mmPerUnit;
-        var objects = new List<(string Name, List<Vec3> Vertices, List<(int A, int B, int C)> Faces, Dictionary<int, string> FaceMaterial)>();
+        var objects = new List<(string Name, List<Vec3> Vertices, List<(double U, double V)> Uvs, List<(int A, int B, int C)> Faces, Dictionary<int, string> FaceMaterial)>();
 
         void Walk(int start, int end)
         {
@@ -154,6 +198,7 @@ public static class ThreeDs
         void ReadMaterial(int start, int end)
         {
             string? materialName = null;
+            string? textureFile = null;
             var colour = new Rgba(200, 200, 200);
             var opacity = 1.0;
             for (var at = start; at + 6 <= end;)
@@ -168,10 +213,25 @@ public static class ThreeDs
                     colour = c;
                 else if (id == Transparency && BitConverter.ToUInt16(data, at + 6) == Percent)
                     opacity = 1 - BitConverter.ToUInt16(data, at + 12) / 100.0;
+                else if (id == TextureMap)
+                    for (var t = at + 6; t + 6 <= at + length;)
+                    {
+                        var tLength = (int)BitConverter.ToUInt32(data, t + 2);
+                        if (tLength < 6)
+                            break;
+                        if (BitConverter.ToUInt16(data, t) == MapName)
+                            textureFile = ReadCString(t + 6).Text;
+                        t += tLength;
+                    }
                 at += length;
             }
             if (materialName != null)
-                materials[materialName] = new Material { Name = materialName, Color = colour, Opacity = Math.Clamp(opacity, 0, 1) };
+                materials[materialName] = new Material
+                {
+                    Name = materialName, Color = colour, Opacity = Math.Clamp(opacity, 0, 1),
+                    Texture = textureFile != null && readFile?.Invoke(textureFile) is { Length: > 0 } picture
+                        ? new TextureImage { FileName = Path.GetFileName(textureFile), Data = picture } : null,
+                };
         }
 
         Rgba? ReadColour(int start, int end)
@@ -205,6 +265,7 @@ public static class ThreeDs
                 if (id == TriMesh)
                 {
                     var vertices = new List<Vec3>();
+                    var uvs = new List<(double U, double V)>();
                     var faces = new List<(int, int, int)>();
                     var faceMaterial = new Dictionary<int, string>();
                     for (var m = at + 6; m + 6 <= at + length;)
@@ -218,6 +279,12 @@ public static class ThreeDs
                             int n = BitConverter.ToUInt16(data, m + 6);
                             for (var i = 0; i < n; i++)
                                 vertices.Add(new Vec3(BitConverter.ToSingle(data, m + 8 + 12 * i), BitConverter.ToSingle(data, m + 12 + 12 * i), BitConverter.ToSingle(data, m + 16 + 12 * i)));
+                        }
+                        else if (sub == MapCoords)
+                        {
+                            int n = BitConverter.ToUInt16(data, m + 6);
+                            for (var i = 0; i < n && m + 16 + 8 * i <= m + subLength; i++)
+                                uvs.Add((BitConverter.ToSingle(data, m + 8 + 8 * i), BitConverter.ToSingle(data, m + 12 + 8 * i)));
                         }
                         else if (sub == Faces)
                         {
@@ -242,7 +309,7 @@ public static class ThreeDs
                         }
                         m += subLength;
                     }
-                    objects.Add((objectName, vertices, faces, faceMaterial));
+                    objects.Add((objectName, vertices, uvs, faces, faceMaterial));
                 }
                 at += length;
             }
@@ -257,13 +324,24 @@ public static class ThreeDs
         }
 
         Walk(0, data.Length);
-        foreach (var (objectName, vertices, faces, faceMaterial) in objects.Where(o => o.Faces.Count > 0))
+        foreach (var (objectName, vertices, uvs, faces, faceMaterial) in objects.Where(o => o.Faces.Count > 0))
         {
             var def = new ComponentDefinition { Name = objectName, IsGroup = true };
-            var polygons = faces.Select((f, i) => (new List<Vec3> { vertices[f.A] * scale, vertices[f.B] * scale, vertices[f.C] * scale },
-                (object?)(faceMaterial.TryGetValue(i, out var mn) && materials.TryGetValue(mn, out var m) ? m : null))).ToList();
+            object? Key(int i, List<Vec3> p, (int A, int B, int C) f)
+            {
+                if (!faceMaterial.TryGetValue(i, out var mn) || !materials.TryGetValue(mn, out var m))
+                    return null;
+                if (m.Texture == null || Math.Max(f.A, Math.Max(f.B, f.C)) >= uvs.Count)
+                    return m;
+                return (object?)TexturedKey.From(m, p[0], p[1], p[2], uvs[f.A], uvs[f.B], uvs[f.C]) ?? m;
+            }
+            var polygons = faces.Select((f, i) =>
+            {
+                var p = new List<Vec3> { vertices[f.A] * scale, vertices[f.B] * scale, vertices[f.C] * scale };
+                return (p, Key(i, p, f));
+            }).ToList();
             foreach (var (face, front, back) in MeshImport.AddMerged(def.Entities, polygons))
-                (face.FrontMaterial, face.BackMaterial) = ((Material?)front, (Material?)back);
+                MeshImport.Paint(face, front, back);
             model.Definitions.Add(def);
             model.Entities.AddInstance(def, Transform.Identity).Name = objectName;
         }
@@ -272,6 +350,21 @@ public static class ThreeDs
         if (model.Definitions.Count == 0)
             throw new InvalidDataException($"no meshes in {name}");
         return model;
+    }
+
+    /// <summary>An 8.3 file name, as 3DS stores them, unique among <paramref name="taken"/>.</summary>
+    private static string ShortName(string fileName, HashSet<string> taken)
+    {
+        var ext = new string(Path.GetExtension(fileName).TrimStart('.').Where(char.IsAsciiLetterOrDigit).Take(3).ToArray());
+        if (ext.Length == 0)
+            ext = "png";
+        var stem = new string(Path.GetFileNameWithoutExtension(fileName).Where(char.IsAsciiLetterOrDigit).Take(8).ToArray());
+        if (stem.Length == 0)
+            stem = "texture";
+        var name = $"{stem}.{ext}";
+        for (var i = 1; !taken.Add(name); i++)
+            name = $"{stem[..Math.Min(stem.Length, 7 - i.ToString().Length)]}~{i}.{ext}";
+        return name;
     }
 
     private static byte[] Chunk(ushort id, params byte[][] parts)

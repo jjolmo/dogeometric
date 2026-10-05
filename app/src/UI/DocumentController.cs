@@ -507,7 +507,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Core.IO.DxfImport.Load(path)
                 : System.IO.Path.GetExtension(path).Equals(".3ds", StringComparison.OrdinalIgnoreCase)
-                ? ThreeDs.Read(File.ReadAllBytes(path), System.IO.Path.GetFileNameWithoutExtension(path),
+                ? ThreeDs.Load(path,
                     MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o3 && o3.TryGetValue("Units (STL, OBJ, 3DS)", out var u3) ? (int)u3 : 0].Mm)
                 : System.IO.Path.GetExtension(path).Equals(".dwg", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Formats.CadFiles.LoadDwg(path)
@@ -581,7 +581,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (Write(path, (m, p) =>
                 {
                     using var s = File.Create(p);
-                    objects = ThreeDs.Write(m, s, options);
+                    objects = ThreeDs.Write(m, s, options, saveImage: (file, data) => File.WriteAllBytes(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(p)!, file), data));
                 }))
                 status.SetHint($"Exported {objects} 3DS objects");
             return;
