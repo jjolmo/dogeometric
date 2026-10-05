@@ -199,6 +199,21 @@ public sealed class AnnotationOverlay
             canvas.DrawLine(sa, sb, color, active ? 2 : 1, true);
             lines.Add((sa, sb));
         }
+        // The symbol labels the plane at its four arrow tips, as SketchUp tags its sections.
+        if (s.Symbol.Length > 0)
+        {
+            var half = SectionHalfSize(doc);
+            var n = xf.ApplyNormal(s.Normal).Normalized();
+            var c = xf.ApplyPoint(s.Point);
+            var (u, v) = Polygon.PlaneAxes(n);
+            var font = canvas.GetThemeDefaultFont();
+            foreach (var corner in new[] { c + (u + v) * half, c + (v - u) * half, c - (u + v) * half, c + (u - v) * half })
+                if (view.ToScreen(corner + n * half * 0.18) is { } at)
+                {
+                    var size = font.GetStringSize(s.Symbol, HorizontalAlignment.Left, -1, 12);
+                    canvas.DrawString(font, at + new Vector2(-size.X / 2, -4), s.Symbol, HorizontalAlignment.Left, -1, 12, color);
+                }
+        }
         _drawn.Add((s, owners, null, [.. lines]));
     }
 

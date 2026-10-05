@@ -8,15 +8,16 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Section Plane: the plane follows the face under the cursor (or the axis plane facing the viewer),
-/// with its arrows pointing into the face; a click places it and makes it the active cut of the context. Arrow keys
-/// lock it to the red, green or blue axis.
+/// with its arrows pointing into the face; a click asks for its name and symbol, places it and makes it the active
+/// cut of the context. Shift holds the current plane; arrow keys lock it to the red, green or blue axis.
 /// </summary>
 public sealed class SectionPlaneTool : DrawingTool
 {
     private Vec3? _locked;
+    private bool _shiftLocked;
 
     public override int CommandId => CommandIds.SectionPlane;
-    public override string StatusText => "Place the section plane on a face, or press an arrow key to lock its orientation.";
+    public override string StatusText => "Place section plane on face.  Shift = Lock to plane.";
 
     /// <summary>Arrow direction (world) for the cursor: into the face under it.</summary>
     private Vec3 Normal(InferenceResult inf) =>
@@ -28,16 +29,28 @@ public sealed class SectionPlaneTool : DrawingTool
             return;
         var toLocal = doc.Context.ToWorld.Inverse();
         var plane = new SectionPlane(toLocal.ApplyPoint(inf.Point), toLocal.ApplyNormal(Normal(inf)).Normalized());
-        doc.Operation("Section Plane", e =>
+        var number = doc.Context.Entities.SectionPlanes.Count + 1;
+        void Place(string name, string symbol) => doc.Operation("Section Plane", e =>
         {
-            plane.Name = $"Section Plane {e.SectionPlanes.Count + 1}";
+            plane.Name = name;
+            plane.Symbol = symbol;
             e.SectionPlanes.Add(plane);
             e.ActiveSection = plane;
         });
+        if (UI.AppPreferences.Current.AskSectionName)
+            UI.SectionNameDialog.Show(View, $"Section Plane {number}", number.ToString(), Place);
+        else
+            Place($"Section Plane {number}", number.ToString());
     }
 
     public override bool KeyDown(InputEventKey key)
     {
+        if (key.Keycode == Key.Shift && !key.Echo && _locked == null && Current is { } inf)
+        {
+            _locked = Normal(inf);
+            _shiftLocked = true;
+            return true;
+        }
         Vec3? axis = key.Keycode switch
         {
             Key.Right => Red,
@@ -48,10 +61,23 @@ public sealed class SectionPlaneTool : DrawingTool
         if (axis is { } a)
         {
             _locked = _locked is { } l && Math.Abs(l.Dot(a)) > 0.99 ? null : a;
+            _shiftLocked = false;
             View.QueueOverlayRedraw();
             return true;
         }
         return base.KeyDown(key);
+    }
+
+    public override bool KeyUp(InputEventKey key)
+    {
+        if (key.Keycode == Key.Shift && _shiftLocked)
+        {
+            _locked = null;
+            _shiftLocked = false;
+            View.QueueOverlayRedraw();
+            return true;
+        }
+        return base.KeyUp(key);
     }
 
     public override void Draw(Control overlay)

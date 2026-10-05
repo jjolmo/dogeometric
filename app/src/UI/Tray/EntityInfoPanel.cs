@@ -60,7 +60,8 @@ public partial class EntityInfoPanel : VBoxContainer
             case SectionPlane s:
                 Title("Section Plane");
                 TagRow(doc, s.Tag, t => doc.Operation("Change Tag", _ => s.Tag = t));
-                Edit("Name", s.Name, v => doc.Operation("Rename", _ => s.Name = v));
+                Edit("Name", s.Name, v => doc.Operation("Rename Section Plane", _ => s.Name = v));
+                Edit("Symbol", s.Symbol, v => doc.Operation("Rename Symbol", _ => s.Symbol = v.Length > 3 ? v[..3] : v));
                 Check("Hidden", s.Hidden, v => doc.Operation("Hide", _ => s.Hidden = v));
                 break;
             case LinearDimension d:

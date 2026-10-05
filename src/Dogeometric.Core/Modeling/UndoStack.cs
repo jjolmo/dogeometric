@@ -192,7 +192,7 @@ public sealed class UndoStack(Model model)
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
         private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden, DimensionKind Kind)[] _dimensions = [];
-        private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, Tag? Tag, bool Hidden)[] _sections = [];
+        private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, string Symbol, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
         private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
         private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked, Face? Glued)[] _instanceData = [];
@@ -215,7 +215,7 @@ public sealed class UndoStack(Model model)
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
             _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind)).ToArray(),
-            _sections = e.SectionPlanes.Select(s => (s, s.Point, s.Normal, s.Name, s.Tag, s.Hidden)).ToArray(),
+            _sections = e.SectionPlanes.Select(s => (s, s.Point, s.Normal, s.Name, s.Symbol, s.Tag, s.Hidden)).ToArray(),
             _activeSection = e.ActiveSection,
             _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden)).ToArray(),
         };
@@ -245,11 +245,12 @@ public sealed class UndoStack(Model model)
                 d.Kind = kind;
             }
             Replace(_target.SectionPlanes, _sections.Select(s => s.Plane).ToArray());
-            foreach (var (s, point, normal, name, tag, hidden) in _sections)
+            foreach (var (s, point, normal, name, symbol, tag, hidden) in _sections)
             {
                 s.Point = point;
                 s.Normal = normal;
                 s.Name = name;
+                s.Symbol = symbol;
                 s.Tag = tag;
                 s.Hidden = hidden;
             }

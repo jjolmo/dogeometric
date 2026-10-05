@@ -593,6 +593,8 @@ public static class DogFile
                 WriteVec(w, "normal", s.Normal);
                 if (s.Name.Length > 0)
                     w.WriteString("name", s.Name);
+                if (s.Symbol.Length > 0)
+                    w.WriteString("symbol", s.Symbol);
                 if (s == e.ActiveSection)
                     w.WriteBoolean("active", true);
                 w.WriteNumber("tag", Ref(tags, s.Tag));
@@ -965,6 +967,7 @@ public static class DogFile
                 var plane = new SectionPlane(ReadVec(s.GetProperty("point")), ReadVec(s.GetProperty("normal")))
                 {
                     Name = s.TryGetProperty("name", out var nm) ? nm.GetString() ?? "" : "",
+                    Symbol = s.TryGetProperty("symbol", out var sy) ? sy.GetString() ?? "" : "",
                     Tag = TagAt(model, s.GetProperty("tag").GetInt32()),
                     Hidden = s.TryGetProperty("hidden", out var h) && h.GetBoolean(),
                 };

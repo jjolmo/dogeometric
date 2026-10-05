@@ -55,6 +55,8 @@ public sealed class SectionPlane(Vec3 point, Vec3 normal)
     public Vec3 Point { get; set; } = point;
     public Vec3 Normal { get; set; } = normal.Normalized();
     public string Name { get; set; } = "";
+    /// <summary>The short label (up to three characters) drawn in the plane's markers.</summary>
+    public string Symbol { get; set; } = "";
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
 }
