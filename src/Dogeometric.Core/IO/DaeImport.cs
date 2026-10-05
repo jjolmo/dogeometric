@@ -11,7 +11,11 @@ public static class DaeImport
 {
     public static Model Load(string path) => Path.GetExtension(path).Equals(".kmz", StringComparison.OrdinalIgnoreCase)
         ? LoadKmz(path)
-        : Read(XDocument.Load(path), Path.GetFileNameWithoutExtension(path));
+        : Read(XDocument.Load(path), Path.GetFileNameWithoutExtension(path), relative =>
+        {
+            var file = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, Uri.UnescapeDataString(relative));
+            return File.Exists(file) ? File.ReadAllBytes(file) : null;
+        });
 
     /// <summary>A KMZ (Google Earth) file: the COLLADA model its KML links to, or the first one inside.</summary>
     public static Model LoadKmz(string path)
@@ -25,11 +29,33 @@ public static class DaeImport
         var dae = (linked != null ? zip.GetEntry(linked.TrimStart('.', '/')) : null)
             ?? zip.Entries.FirstOrDefault(e => e.FullName.EndsWith(".dae", StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidDataException("the KMZ holds no COLLADA model");
-        using var stream = dae.Open();
-        return Read(XDocument.Load(stream), Path.GetFileNameWithoutExtension(path));
+        var folder = Path.GetDirectoryName(dae.FullName.Replace('\\', '/'))?.Replace('\\', '/') ?? "";
+        byte[]? ReadEntry(string relative)
+        {
+            var parts = new List<string>();
+            foreach (var part in $"{folder}/{Uri.UnescapeDataString(relative)}".Split('/', StringSplitOptions.RemoveEmptyEntries))
+                if (part == "..")
+                {
+                    if (parts.Count > 0)
+                        parts.RemoveAt(parts.Count - 1);
+                }
+                else if (part != ".")
+                    parts.Add(part);
+            if (zip.GetEntry(string.Join('/', parts)) is not { } entry)
+                return null;
+            using var s = entry.Open();
+            using var copy = new MemoryStream();
+            s.CopyTo(copy);
+            return copy.ToArray();
+        }
+        XDocument xml;
+        using (var stream = dae.Open())
+            xml = XDocument.Load(stream);
+        return Read(xml, Path.GetFileNameWithoutExtension(path), ReadEntry);
     }
 
-    public static Model Read(XDocument doc, string name)
+    /// <summary>Reads a COLLADA document; <paramref name="readFile"/> fetches its textures by their relative paths.</summary>
+    public static Model Read(XDocument doc, string name, Func<string, byte[]?>? readFile = null)
     {
         var root = doc.Root ?? throw new InvalidDataException("empty COLLADA file");
         var ns = root.Name.Namespace;
@@ -65,11 +91,30 @@ public static class DaeImport
                 Name = (string?)element.Attribute("name") ?? id,
                 Color = colour.Length >= 3 ? new Rgba(B(colour[0]), B(colour[1]), B(colour[2])) : new Rgba(200, 200, 200),
                 Opacity = Math.Clamp(opacity * (colour.Length >= 4 ? colour[3] : 1), 0, 1),
+                Texture = TextureOf(shading?.Element(ns + "diffuse")?.Element(ns + "texture")),
             };
         }
 
+        // diffuse <texture> → sampler newparam → surface newparam → image → its file.
+        TextureImage? TextureOf(XElement? texture)
+        {
+            if (texture == null || readFile == null)
+                return null;
+            var profile = texture.Ancestors(ns + "profile_COMMON").FirstOrDefault();
+            XElement? Param(string? sid) => profile?.Elements(ns + "newparam").FirstOrDefault(p => (string?)p.Attribute("sid") == sid);
+            var target = (string?)texture.Attribute("texture");
+            var surface = (string?)Param(target)?.Element(ns + "sampler2D")?.Element(ns + "source");
+            var imageId = ((string?)Param(surface)?.Element(ns + "surface")?.Element(ns + "init_from") ?? target)?.Trim();
+            var file = imageId != null ? ((string?)ids.GetValueOrDefault(imageId)?.Element(ns + "init_from"))?.Trim() : null;
+            if (string.IsNullOrEmpty(file))
+                return null;
+            if (file.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+                file = file[7..];
+            return readFile(file) is { Length: > 0 } data ? new TextureImage { FileName = Path.GetFileName(file.Replace('\\', '/')), Data = data } : null;
+        }
+
         var polygons = new List<List<Vec3>>();
-        var painted = new List<Material?>();
+        var painted = new List<object?>();
 
         void AddMesh(XElement geometry, double[] world, Dictionary<string, string> bindings)
         {
@@ -83,6 +128,7 @@ public static class DaeImport
                 || !sources.TryGetValue((string)src.Attribute("id")!, out var positions))
                 return;
             Vec3 Point(int i) => Apply(world, new Vec3(positions.Data[i * positions.Stride], positions.Data[i * positions.Stride + 1], positions.Data[i * positions.Stride + 2]));
+            var sourceIds = mesh.Elements(ns + "source").ToDictionary(e => "#" + (string)e.Attribute("id")!, e => (string)e.Attribute("id")!);
 
             foreach (var primitive in mesh.Elements().Where(e => e.Name.LocalName is "triangles" or "polylist" or "polygons"))
             {
@@ -90,13 +136,23 @@ public static class DaeImport
                 var stride = inputs.Count == 0 ? 1 : inputs.Max(i => (int?)i.Attribute("offset") ?? 0) + 1;
                 var vertexOffset = (int?)inputs.FirstOrDefault(i => (string?)i.Attribute("semantic") == "VERTEX")?.Attribute("offset") ?? 0;
                 var material = MaterialFor(bindings.GetValueOrDefault((string?)primitive.Attribute("material") ?? ""));
+                var texcoord = inputs.Where(i => (string?)i.Attribute("semantic") == "TEXCOORD").OrderBy(i => (int?)i.Attribute("set") ?? 0).FirstOrDefault();
+                var uvs = material?.Texture != null && texcoord != null && sourceIds.TryGetValue((string?)texcoord.Attribute("source") ?? "", out var uvId)
+                    ? sources[uvId] : default;
+                var uvOffset = (int?)texcoord?.Attribute("offset") ?? 0;
                 void Polygon(double[] p, int start, int corners)
                 {
                     var polygon = new List<Vec3>(corners);
                     for (var c = 0; c < corners; c++)
                         polygon.Add(Point((int)p[(start + c) * stride + vertexOffset]));
                     polygons.Add(polygon);
-                    painted.Add(material);
+                    if (uvs.Data is { Length: > 0 } && corners >= 3)
+                    {
+                        (double U, double V) Uv(int c) => ((int)p[(start + c) * stride + uvOffset] * uvs.Stride is var k && k + 1 < uvs.Data.Length ? (uvs.Data[k], uvs.Data[k + 1]) : (0, 0));
+                        painted.Add(TexturedKey.From(material!, polygon[0], polygon[1], polygon[2], Uv(0), Uv(1), Uv(2)) ?? (object)material!);
+                    }
+                    else
+                        painted.Add(material);
                 }
                 if (primitive.Name.LocalName == "polygons")
                 {
@@ -132,8 +188,11 @@ public static class DaeImport
             polygons.Clear();
             painted.Clear();
             AddMesh(geometry, [unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, 1], bindings);
-            foreach (var (face, front, back) in MeshImport.AddMerged(target, polygons.Select((p, i) => (p, (object?)painted[i])).ToList()))
-                (face.FrontMaterial, face.BackMaterial) = ((Material?)front, (Material?)back);
+            foreach (var (face, front, back) in MeshImport.AddMerged(target, polygons.Select((p, i) => (p, painted[i])).ToList()))
+            {
+                (face.FrontMaterial, face.FrontMapping) = front is TexturedKey f ? (f.Material, f.Mapping(face.Normal)) : ((Material?)front, null);
+                (face.BackMaterial, face.BackMapping) = back is TexturedKey b ? (b.Material, b.Mapping(face.Normal)) : ((Material?)back, null);
+            }
             return polygons.Count > 0;
         }
 
@@ -216,6 +275,44 @@ public static class DaeImport
         // The file's up axis turns the whole model to SketchUp's Z up.
         model.Entities.AddInstance(top, ToTransform(up));
         return model;
+    }
+
+    /// <summary>A textured polygon's material and where its texture's (0,0), (1,0) and (0,1) land in space; triangles of
+    /// one face share them, so they merge only with triangles textured the same way.</summary>
+    private sealed class TexturedKey(Material material, Vec3 origin, Vec3 uEnd, Vec3 vEnd) : IEquatable<TexturedKey>
+    {
+        public Material Material => material;
+
+        public static TexturedKey? From(Material material, Vec3 p0, Vec3 p1, Vec3 p2, (double U, double V) t0, (double U, double V) t1, (double U, double V) t2)
+        {
+            var (a, b, c, d) = (t1.U - t0.U, t1.V - t0.V, t2.U - t0.U, t2.V - t0.V);
+            var det = a * d - b * c;
+            if (Math.Abs(det) < 1e-12)
+                return null;
+            var du = ((p1 - p0) * d - (p2 - p0) * b) * (1 / det);
+            var dv = ((p2 - p0) * a - (p1 - p0) * c) * (1 / det);
+            var origin = p0 - du * t0.U - dv * t0.V;
+            // The picture's size: one copy of it across the first face that uses it.
+            if (material.Texture is { WidthMm: <= 0 } texture)
+                (texture.WidthMm, texture.HeightMm) = (du.Length, dv.Length);
+            return new TexturedKey(material, origin, origin + du, origin + dv);
+        }
+
+        public TextureMapping Mapping(Vec3 normal)
+        {
+            var (x, y) = Texturing.PlaneAxes(normal);
+            (double, double) Flat(Vec3 p) => (p.Dot(x), p.Dot(y));
+            return TextureMapping.FromPlanePoints(Flat(origin), Flat(uEnd), Flat(vEnd), material.Texture!.WidthMm, material.Texture.HeightMm);
+        }
+
+        public bool Equals(TexturedKey? other) => other != null && other.Material == material
+            && other.Corners().Zip(Corners()).All(pair => pair.First.DistanceTo(pair.Second) <= 1e-6 * Math.Max(1, (uEnd - origin).Length + (vEnd - origin).Length));
+
+        private Vec3[] Corners() => [origin, uEnd, vEnd];
+
+        public override bool Equals(object? obj) => Equals(obj as TexturedKey);
+
+        public override int GetHashCode() => material.GetHashCode();
     }
 
     private static double[] Numbers(string? text) =>

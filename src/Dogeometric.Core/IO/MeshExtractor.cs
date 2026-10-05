@@ -3,11 +3,14 @@ using Dogeometric.Core.Modeling;
 
 namespace Dogeometric.Core.IO;
 
-/// <summary>A triangle in model (world) space, wound counter-clockwise seen from its front side.</summary>
-public readonly record struct Triangle(Vec3 A, Vec3 B, Vec3 C, Material? Material)
+/// <summary>A triangle in model (world) space, wound counter-clockwise seen from its front side; textured, it carries
+/// its corners' texture coordinates in images (1 = one copy of the picture).</summary>
+public readonly record struct Triangle(Vec3 A, Vec3 B, Vec3 C, Material? Material, TriangleUv? Uv = null)
 {
     public Vec3 Normal => (B - A).Cross(C - A).Normalized();
 }
+
+public readonly record struct TriangleUv((double U, double V) A, (double U, double V) B, (double U, double V) C);
 
 public sealed class ExportOptions
 {
@@ -107,20 +110,22 @@ public static class MeshExtractor
         if (indices.Count == 0)
             return;
 
-        var points = outer.Concat(holes.SelectMany(h => h)).Select(xf.ApplyPoint).ToArray();
+        var local = outer.Concat(holes.SelectMany(h => h)).ToArray();
+        var points = local.Select(xf.ApplyPoint).ToArray();
         var front = face.FrontMaterial ?? inherited;
         var back = face.BackMaterial ?? inherited;
+        // Texture coordinates come from the face's own plane, before the transform, so they travel with it.
+        TriangleUv? Uv(Material? m, bool backSide, int a, int b, int c) => m?.Texture == null ? null
+            : new TriangleUv(Texturing.Uv(face, backSide, local[a], m), Texturing.Uv(face, backSide, local[b], m), Texturing.Uv(face, backSide, local[c], m));
         for (var i = 0; i < indices.Count; i += 3)
         {
-            var a = points[indices[i]];
-            var b = points[indices[i + 1]];
-            var c = points[indices[i + 2]];
+            var (ia, ib, ic) = (indices[i], indices[i + 1], indices[i + 2]);
             // A mirroring transform flips the winding; swap to keep the front side facing out.
             if (mirrored)
-                (b, c) = (c, b);
-            output.Add(new Triangle(a, b, c, front));
+                (ib, ic) = (ic, ib);
+            output.Add(new Triangle(points[ia], points[ib], points[ic], front, Uv(front, false, ia, ib, ic)));
             if (doubleSided)
-                output.Add(new Triangle(a, c, b, back));
+                output.Add(new Triangle(points[ia], points[ic], points[ib], back, Uv(back, true, ia, ic, ib)));
         }
     }
 }

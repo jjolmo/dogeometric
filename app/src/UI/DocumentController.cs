@@ -623,7 +623,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                     using (var s = File.Create(p)) GltfWriter.WriteGlb(triangles, s);
                     break;
                 case ".dae":
-                    using (var s = File.Create(p)) DaeWriter.Write(triangles, s);
+                    DaeWriter.Write(triangles, p);
                     break;
                 case ".kmz":
                     KmzWriter.Write(m, triangles, p, System.IO.Path.GetFileNameWithoutExtension(p));

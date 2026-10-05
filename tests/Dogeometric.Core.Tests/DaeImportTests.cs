@@ -27,6 +27,44 @@ public class DaeImportTests
     }
 
     [Fact]
+    public void Textures_go_out_beside_the_file_and_come_back_placed_as_they_were()
+    {
+        var model = new Model();
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "chip.png", Data = [1, 2, 3, 4], WidthMm = 40, HeightMm = 20 } };
+        TestModels.Box(model.Entities, Vec3.Zero, new Vec3(100, 50, 20));
+        foreach (var f in model.Entities.Faces)
+            (f.FrontMaterial, f.BackMaterial) = (chip, chip);
+        var top = model.Entities.Faces.Single(f => f.Normal.Z > 0.9);
+        // Turned, stretched and moved, as Texture › Position leaves it.
+        top.FrontMapping = TextureMapping.FromPlanePoints(Texturing.PlanePoint(top, new Vec3(10, 5, 20)),
+            Texturing.PlanePoint(top, new Vec3(10, 35, 20)), Texturing.PlanePoint(top, new Vec3(-5, 5, 20)), 40, 20);
+        var saved = new Dictionary<string, byte[]>();
+        using var stream = new MemoryStream();
+        DaeWriter.Write(MeshExtractor.Extract(model, new ExportOptions { DoubleSided = true }), stream, "box", (path, data) => saved[path] = data);
+        stream.Position = 0;
+
+        Assert.Equal([1, 2, 3, 4], saved["box/chip.png"]);
+        var back = DaeImport.Read(XDocument.Load(stream), "box", path => saved.GetValueOrDefault(path));
+
+        var faces = back.AllEntities.SelectMany(e => e.Faces).ToList();
+        Assert.Equal(6, faces.Count);
+        foreach (var original in model.Entities.Faces)
+        {
+            var copy = faces.Single(f => f.Normal.Dot(original.Normal) > 0.99);
+            Assert.Equal("Chip", copy.FrontMaterial?.Name);
+            Assert.Same(copy.FrontMaterial, copy.BackMaterial);
+            foreach (var p in original.OuterLoop.Points)
+                foreach (var side in new[] { false, true })
+                {
+                    var (u, v) = Texturing.Uv(original, side, p, chip);
+                    var (u2, v2) = Texturing.Uv(copy, side, p, copy.FrontMaterial!);
+                    Assert.Equal(u, u2, 6);
+                    Assert.Equal(v, v2, 6);
+                }
+        }
+    }
+
+    [Fact]
     public void Units_up_axis_node_transforms_and_polylists_are_applied()
     {
         // A 1×1 inch square in the XY plane of a Y-up file, raised 2 inches by its node.

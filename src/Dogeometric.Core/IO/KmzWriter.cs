@@ -40,7 +40,11 @@ public static class KmzWriter
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
         using (var entry = zip.CreateEntry("doc.kml").Open())
             kml.Save(entry);
-        using var dae = zip.CreateEntry($"models/{file}.dae").Open();
-        DaeWriter.Write(triangles, dae);
+        var textures = new List<(string Path, byte[] Data)>();
+        using (var dae = zip.CreateEntry($"models/{file}.dae").Open())
+            DaeWriter.Write(triangles, dae, file, (relative, data) => textures.Add(($"models/{relative}", data)));
+        foreach (var (entry, data) in textures)
+            using (var s = zip.CreateEntry(entry).Open())
+                s.Write(data);
     }
 }
