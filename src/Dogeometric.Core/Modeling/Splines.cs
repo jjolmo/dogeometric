@@ -6,8 +6,12 @@ namespace Dogeometric.Core.Modeling;
 public enum SplineKind
 {
     ClassicBezier, Polyline, CubicBezier, UniformBSpline, CatmullSpline, FSpline, Courbette,
-    ArcCorners, Chamfer, DogBone, Divider, Segmentor, TBone,
+    ArcCorners, Chamfer, DogBone, Divider, Segmentor, TBone, DividerAnimation,
 }
+
+/// <summary>Polyline Divider for Animation's step modes: equal steps (the shortest or the longest), speeding up,
+/// slowing down, or both ways.</summary>
+public enum AnimationSteps { EqualMinimum, EqualMaximum, Accelerate, Decelerate, AccelerateDecelerate, DecelerateAccelerate }
 
 /// <summary>
 /// The curves of Fredo6's BezierSpline, computed from their control points. Precision is what each family's
@@ -32,6 +36,7 @@ public static class Splines
         SplineKind.Divider => new("Polyline Divider", 2, 1, 1, 1, "Length"),
         SplineKind.Segmentor => new("Polyline Segmentor", 2, 1, 1, 1, "Segments"),
         SplineKind.TBone => new("Polyline T-Bone Corners", 2, 1, 120, 24, "Radius"),
+        SplineKind.DividerAnimation => new("Polyline Divider for Animation", 2, 1, 1, 1, "Min step"),
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -60,10 +65,91 @@ public static class Splines
         };
     }
 
+    /// <summary>
+    /// Polyline Divider for Animation (BezierSpline): the polyline cut into steps between <paramref name="min"/> and
+    /// <paramref name="max"/>, growing or shrinking evenly by <paramref name="mode"/>, so a camera moving one step per
+    /// frame along it speeds up or slows down.
+    /// </summary>
+    public static List<Vec3> DivideForAnimation(IReadOnlyList<Vec3> pts, AnimationSteps mode, double min, double max)
+    {
+        var steps = AnimationStepLengths(Length(pts), mode, min, max);
+        if (steps.Count == 0 || pts.Count < 2)
+            return [.. pts];
+        var result = new List<Vec3> { pts[0] };
+        var (i, k, step, at) = (0, 0, steps[0], pts[0]);
+        while (true)
+        {
+            if (i + 1 >= pts.Count || k >= steps.Count)
+            {
+                // The last piece joins the previous one when it is much shorter than a step.
+                if (result[^1].DistanceTo(pts[^1]) < steps[^1] * 0.4 && result.Count > 1)
+                    result[^1] = pts[^1];
+                else
+                    result.Add(pts[^1]);
+                return result;
+            }
+            var next = pts[i + 1];
+            var d = at.DistanceTo(next);
+            if (d >= step)
+            {
+                at += (next - pts[i]).Normalized() * step;
+                result.Add(at);
+                if (Math.Abs(d - step) < 1e-12)
+                    i++;
+                step = ++k < steps.Count ? steps[k] : 0;
+            }
+            else
+            {
+                at = next;
+                step -= d;
+                i++;
+            }
+        }
+    }
+
+    /// <summary>The step lengths along a curve of <paramref name="length"/>, as BezierSpline computes them.</summary>
+    public static List<double> AnimationStepLengths(double length, AnimationSteps mode, double min, double max)
+    {
+        var steps = new List<double>();
+        var (first, last) = mode is AnimationSteps.EqualMaximum or AnimationSteps.Decelerate or AnimationSteps.DecelerateAccelerate ? (max, min) : (min, max);
+        if (mode is AnimationSteps.EqualMinimum or AnimationSteps.EqualMaximum || Math.Abs(max - min) < 1e-12)
+        {
+            if (first <= 0)
+                return steps;
+            var count = Math.Max(1, (int)Math.Round(length / first));
+            steps.AddRange(Enumerable.Repeat(length / count, count));
+            return steps;
+        }
+        void Ramp(double span, double from, double to)
+        {
+            var accel = (max * max - min * min) / 2 / span;
+            var count = (int)Math.Round((max - min) / accel);
+            if (count < 2)
+                return;
+            // Steps growing evenly from the first, adjusted so they add up to the span exactly.
+            var grow = (span - count * from) / (count * (count - 1) / 2.0);
+            for (var i = 0; i < count; i++)
+                steps.Add(from + grow * i);
+        }
+        if (mode is AnimationSteps.Accelerate or AnimationSteps.Decelerate)
+            Ramp(length, first, last);
+        else
+        {
+            Ramp(length / 2, first, last);
+            Ramp(length / 2, last, first);
+        }
+        return steps;
+    }
+
+    /// <summary>The curve's points for its family and settings (closed curves repeat their first point at the end).</summary>
+    public static List<Vec3> Points(SplineData data) => data.Kind == SplineKind.DividerAnimation
+        ? DivideForAnimation(data.Closed && data.ControlPoints.Count > 2 ? [.. data.ControlPoints, data.ControlPoints[0]] : data.ControlPoints, data.Mode, data.Parameter, data.Maximum)
+        : Compute(data.Kind, data.ControlPoints, data.Precision, data.Parameter, data.Closed && data.ControlPoints.Count > 2);
+
     /// <summary>Draws a BezierSpline curve as one curve entity; closed curves drop their repeated end point.</summary>
     public static List<Edge> Draw(Entities e, SplineData data)
     {
-        var pts = Compute(data.Kind, data.ControlPoints, data.Precision, data.Parameter, data.Closed && data.ControlPoints.Count > 2);
+        var pts = Points(data);
         var closed = pts.Count > 2 && pts[0].DistanceTo(pts[^1]) < Tolerance.Length;
         if (closed)
             pts.RemoveAt(pts.Count - 1);

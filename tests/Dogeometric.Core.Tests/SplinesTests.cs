@@ -119,4 +119,37 @@ public class SplinesTests
             || x.End.Position.DistanceTo(Vec3.Zero) < 1e-9 && x.Start.Position.DistanceTo(new Vec3(30, 0, 0)) < 1e-9);
         Assert.Single(e.Faces);
     }
+
+    [Theory]
+    [InlineData(AnimationSteps.EqualMaximum)]
+    [InlineData(AnimationSteps.Accelerate)]
+    [InlineData(AnimationSteps.Decelerate)]
+    [InlineData(AnimationSteps.AccelerateDecelerate)]
+    public void Animation_steps_cover_the_curve_and_change_as_asked(AnimationSteps mode)
+    {
+        var steps = Splines.AnimationStepLengths(300, mode, 5, 20);
+        Assert.Equal(300, steps.Sum(), 6);
+        switch (mode)
+        {
+            case AnimationSteps.EqualMaximum:
+                Assert.All(steps, s => Assert.Equal(20, s, 6));
+                break;
+            case AnimationSteps.Accelerate:
+                Assert.True(steps[0] < steps[^1]);
+                Assert.Equal(5, steps[0], 6);
+                break;
+            case AnimationSteps.Decelerate:
+                Assert.True(steps[0] > steps[^1]);
+                break;
+            default:
+                Assert.True(steps[steps.Count / 2] > steps[0] && steps[steps.Count / 2] > steps[^1]);
+                break;
+        }
+
+        var line = new List<Vec3> { Vec3.Zero, new(100, 0, 0), new(100, 200, 0) };
+        var pts = Splines.DivideForAnimation(line, mode, 5, 20);
+        Assert.Equal(line[0], pts[0]);
+        Assert.Equal(line[^1], pts[^1]);
+        Assert.InRange(pts.Count, steps.Count, steps.Count + 1);
+    }
 }

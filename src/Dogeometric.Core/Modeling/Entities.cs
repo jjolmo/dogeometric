@@ -38,7 +38,10 @@ public sealed class Curve
 }
 
 /// <param name="LineClosed">BezierSpline's "close loop with line" (F8): the open curve plus a straight closing edge.</param>
-public sealed record SplineData(SplineKind Kind, IReadOnlyList<Vec3> ControlPoints, int Precision, double Parameter, bool Closed, bool LineClosed = false);
+/// <param name="Maximum">Divider for Animation: the longest step (<paramref name="Parameter"/> is the shortest).</param>
+/// <param name="Mode">Divider for Animation: how the steps change along the curve.</param>
+public sealed record SplineData(SplineKind Kind, IReadOnlyList<Vec3> ControlPoints, int Precision, double Parameter, bool Closed,
+    bool LineClosed = false, double Maximum = 0, AnimationSteps Mode = AnimationSteps.EqualMaximum);
 
 public sealed class Edge(Vertex start, Vertex end)
 {

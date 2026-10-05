@@ -43,7 +43,7 @@ public static class Toolbars
     private static int Bz(SplineKind kind) => Commands.ExtensionIds.Spline(kind);
     public static readonly int[] BezierSpline =
     [
-        Bz(SplineKind.ClassicBezier), Bz(SplineKind.Polyline), Commands.ExtensionIds.SplineDividerAnimation, Bz(SplineKind.ArcCorners),
+        Bz(SplineKind.ClassicBezier), Bz(SplineKind.Polyline), Bz(SplineKind.DividerAnimation), Bz(SplineKind.ArcCorners),
         Bz(SplineKind.UniformBSpline), Bz(SplineKind.CatmullSpline), Bz(SplineKind.Chamfer), Bz(SplineKind.Courbette), Bz(SplineKind.CubicBezier),
         Bz(SplineKind.Divider), Bz(SplineKind.DogBone), Bz(SplineKind.TBone), Bz(SplineKind.FSpline), Sep,
         Commands.ExtensionIds.SplineEdit, Commands.ExtensionIds.SplineVertexMarks, Commands.ExtensionIds.SplineExtras,
@@ -172,7 +172,6 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SplineExtras] = "spline_extras";
         Icons[Commands.ExtensionIds.SplineCloseNice] = "spline_close_nice";
         Icons[Commands.ExtensionIds.SplineCloseLine] = "spline_close_line";
-        Icons[Commands.ExtensionIds.SplineDividerAnimation] = "spline_divider_animation";
         Icons[Commands.ExtensionIds.SurfaceEraser] = "tos_eraser";
         Icons[Commands.ExtensionIds.SurfaceOffset] = "tos_offset";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())

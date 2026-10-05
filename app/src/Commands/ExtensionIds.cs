@@ -31,7 +31,6 @@ public static class ExtensionIds
     public const int Sphere = 90054;
     /// <summary>BezierSpline's curve tools, one id per family from 90101.</summary>
     public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
-    public const int SplineDividerAnimation = 90114;
     public const int SplineEdit = 90120;
     public const int SplineVertexMarks = 90115;
     public const int SplineExtras = 90116;

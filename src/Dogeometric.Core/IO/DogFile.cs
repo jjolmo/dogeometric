@@ -267,6 +267,11 @@ public static class DogFile
                     w.WriteBoolean("closed", sp.Closed);
                     if (sp.LineClosed)
                         w.WriteBoolean("lineClosed", true);
+                    if (sp.Kind == SplineKind.DividerAnimation)
+                    {
+                        w.WriteNumber("maximum", sp.Maximum);
+                        w.WriteString("mode", sp.Mode.ToString());
+                    }
                     w.WriteEndObject();
                 }
                 w.WriteEndObject();
@@ -648,7 +653,9 @@ public static class DogFile
                     var flat = sj.GetProperty("points").EnumerateArray().Select(x => x.GetDouble()).ToArray();
                     var pts = Enumerable.Range(0, flat.Length / 3).Select(i => new Vec3(flat[3 * i], flat[3 * i + 1], flat[3 * i + 2])).ToList();
                     curve.Spline = new SplineData(kind, pts, sj.GetProperty("precision").GetInt32(), sj.GetProperty("parameter").GetDouble(), sj.GetProperty("closed").GetBoolean(),
-                        sj.TryGetProperty("lineClosed", out var lc) && lc.GetBoolean());
+                        sj.TryGetProperty("lineClosed", out var lc) && lc.GetBoolean(),
+                        sj.TryGetProperty("maximum", out var mx) ? mx.GetDouble() : 0,
+                        sj.TryGetProperty("mode", out var md) && Enum.TryParse<AnimationSteps>(md.GetString(), out var mode) ? mode : AnimationSteps.EqualMaximum);
                 }
                 curves.Add(curve);
             }

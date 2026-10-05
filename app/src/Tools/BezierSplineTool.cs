@@ -50,7 +50,13 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
         ? $"{Info.Menu}: click the first control point."
         : $"{Info.Menu}: click the next point; double-click or Return to finish, Esc removes the last point. F8/F9 close, F7 opens.";
 
-    public override void Activate() => View.ShowVcbValue(VcbValue);
+    public override void Activate()
+    {
+        View.ShowVcbValue(VcbValue);
+        // As BezierSpline does, the divider asks its steps before the first point.
+        if (kind == SplineKind.DividerAnimation)
+            Callable.From(ShowExtras).CallDeferred();
+    }
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
@@ -71,8 +77,12 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
         View.QueueOverlayRedraw();
     }
 
-    private List<Vec3> Curve(IReadOnlyList<Vec3> controls) =>
-        Splines.Compute(kind, controls, Setting.Precision, Setting.Parameter, _closed && controls.Count > 2);
+    private static double _animationMax = 20;
+    private static AnimationSteps _animationMode = AnimationSteps.EqualMaximum;
+
+    private List<Vec3> Curve(IReadOnlyList<Vec3> controls) => kind == SplineKind.DividerAnimation
+        ? Splines.DivideForAnimation(_closed && controls.Count > 2 ? [.. controls, controls[0]] : controls, _animationMode, Setting.Parameter, _animationMax)
+        : Splines.Compute(kind, controls, Setting.Precision, Setting.Parameter, _closed && controls.Count > 2);
 
     private void Finish()
     {
@@ -80,7 +90,8 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
             return;
         var toLocal = doc.Context.ToWorld.Inverse();
         var controls = _points.Select(toLocal.ApplyPoint).ToList();
-        doc.Operation(Info.Menu, e => Splines.Draw(e, new SplineData(kind, controls, Setting.Precision, Setting.Parameter, _closed, CloseMode == Closure.Line)));
+        doc.Operation(Info.Menu, e => Splines.Draw(e, new SplineData(kind, controls, Setting.Precision, Setting.Parameter, _closed, CloseMode == Closure.Line,
+            _animationMax, _animationMode)));
         _points.Clear();
         RefreshStatus();
         View.QueueOverlayRedraw();
@@ -101,9 +112,26 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
             parameter = new SpinBox { MinValue = 0.01, MaxValue = 100000, Step = kind == SplineKind.Segmentor ? 1 : 0.1, Value = Setting.Parameter, Suffix = kind == SplineKind.Segmentor ? "" : "mm" };
             grid.AddChild(parameter);
         }
+        OptionButton? mode = null;
+        SpinBox? maximum = null;
+        if (kind == SplineKind.DividerAnimation)
+        {
+            grid.AddChild(new Label { Text = "Mode" });
+            mode = new OptionButton();
+            foreach (var m in new[] { "Equal Step (minimum)", "Equal Step (maximum)", "Acceleration Min to Max", "Deceleration Max to Min",
+                         "Acceleration then deceleration Min - Max - Min", "Deceleration then Acceleration Max - Min - Max" })
+                mode.AddItem(m);
+            mode.Select((int)_animationMode);
+            grid.AddChild(mode);
+            grid.AddChild(new Label { Text = "Max step" });
+            maximum = new SpinBox { MinValue = 0.01, MaxValue = 100000, Step = 0.1, Value = _animationMax, Suffix = "mm" };
+            grid.AddChild(maximum);
+        }
         d.AddChild(grid);
         d.Confirmed += () =>
         {
+            if (mode != null && maximum != null)
+                (_animationMode, _animationMax) = ((AnimationSteps)mode.Selected, Math.Max(maximum.Value, parameter?.Value ?? 0));
             Setting = ((int)precision.Value, parameter?.Value ?? Setting.Parameter);
             View.ShowVcbValue(VcbValue);
             View.QueueOverlayRedraw();
@@ -390,7 +418,7 @@ public sealed class BezierEditTool : DrawingTool
             var closed = data.Closed && _controls.Count > 2;
             for (var i = 0; i + 1 < _controls.Count + (closed ? 1 : 0); i++)
                 DrawWorldLine(overlay, _controls[i], _controls[(i + 1) % _controls.Count], new Color(0.55f, 0.55f, 0.55f), 1, dashed: true);
-            var pts = Splines.Compute(data.Kind, _controls, data.Precision, data.Parameter, closed);
+            var pts = Splines.Points(data with { ControlPoints = _controls });
             for (var i = 0; i + 1 < pts.Count; i++)
                 DrawWorldLine(overlay, pts[i], pts[i + 1], new Color(0.1f, 0.2f, 0.9f), 2);
             for (var i = 0; i < _controls.Count; i++)

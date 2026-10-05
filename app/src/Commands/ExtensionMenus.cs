@@ -23,7 +23,7 @@ public static class ExtensionMenus
             BezierSpline curves
               Classic Bezier curve | {{S(SplineKind.ClassicBezier)}}
               Polyline | {{S(SplineKind.Polyline)}}
-              Polyline Divider for Animation | {{E.SplineDividerAnimation}}
+              Polyline Divider for Animation | {{S(SplineKind.DividerAnimation)}}
               Polyline Arc Corners | {{S(SplineKind.ArcCorners)}}
               Uniform B-Spline | {{S(SplineKind.UniformBSpline)}}
               Catmull Spline | {{S(SplineKind.CatmullSpline)}}
