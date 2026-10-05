@@ -91,8 +91,12 @@ public class StepImportTests
     {
         var result = Load("offset");
         Assert.Equal((1, 0), (result.Faces, result.SkippedFaces));
-        var area = MeshExtractor.Extract(result.Model).Sum(t => (t.B - t.A).Cross(t.C - t.A).Length / 2);
+        var triangles = MeshExtractor.Extract(result.Model);
+        var area = triangles.Sum(t => (t.B - t.A).Cross(t.C - t.A).Length / 2);
         // FreeCAD: 1551.54 mm².
         Assert.InRange(area, 1551.54 * 0.99, 1551.54 * 1.01);
+        // An open band: its two rims are open, but no edge inside is shared by more than two triangles.
+        var check = MeshCheck.Analyze(triangles);
+        Assert.Equal((0, 0), (check.NonManifoldEdges, check.MisorientedEdges));
     }
 }

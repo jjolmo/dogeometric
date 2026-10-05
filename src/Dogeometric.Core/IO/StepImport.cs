@@ -373,7 +373,7 @@ public static class StepImport
                     mapped.Add(q);
                     last = q;
                 }
-                mapped = SplitPoles(surface, mapped);
+                mapped = SplitPoles(surface, mapped.Select(q => Snap(surface, q)).ToList());
                 var du = mapped[^1].U - mapped[0].U;
                 var dv = mapped[^1].V - mapped[0].V;
                 if (surface.PeriodU > 0 && Math.Abs(du) > surface.PeriodU / 2 && Math.Abs(dv) < 1e-6 + Math.Abs(du))
@@ -438,6 +438,20 @@ public static class StepImport
             RemoveSlivers(corners, mesh);
             for (var i = 0; i < mesh.Count; i++)
                 output.Add(([corners[mesh[i].A], corners[mesh[i].B], corners[mesh[i].C]], new CurvedKey(id, i)));
+        }
+
+        /// <summary>Puts a point within a millionth of the parameter range of the surface's edge onto it, so boundaries lying
+        /// there (projected back approximately, as on offset surfaces) stay straight in parameters.</summary>
+        private static (double U, double V) Snap(Surface s, (double U, double V) q)
+        {
+            static double To(double x, double min, double max)
+            {
+                if (double.IsInfinity(min) || double.IsInfinity(max))
+                    return x;
+                var tolerance = 1e-6 * (max - min);
+                return Math.Abs(x - min) < tolerance ? min : Math.Abs(x - max) < tolerance ? max : x;
+            }
+            return (s.PeriodU > 0 ? q.U : To(q.U, s.UMin, s.UMax), To(q.V, s.VMin, s.VMax));
         }
 
         /// <summary>A loop point at a pole (a sphere's, a cone's apex) is a whole side in parameters: it becomes two points,
@@ -615,6 +629,9 @@ public static class StepImport
         /// the chord, so the boundary, shared with neighbouring faces, keeps its points.</summary>
         private static void Refine(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles)
         {
+            var known = new Dictionary<(double, double), int>();
+            for (var i = 0; i < points.Count; i++)
+                known.TryAdd(points[i], i);
             for (var round = 0; round < 12; round++)
             {
                 Flip(s, points, triangles);
@@ -649,8 +666,13 @@ public static class StepImport
                     if (list.Any(done.Contains))
                         continue;
                     var (p, q) = (points[edge.Item1], points[edge.Item2]);
-                    points.Add(((p.U + q.U) / 2, (p.V + q.V) / 2));
-                    var m = points.Count - 1;
+                    // An edge running over a vertex (left by a flat triangle) is split there, mending the T-junction.
+                    var mid = ((p.U + q.U) / 2, (p.V + q.V) / 2);
+                    if (!known.TryGetValue(mid, out var m))
+                    {
+                        points.Add(mid);
+                        known[mid] = m = points.Count - 1;
+                    }
                     foreach (var t in list)
                     {
                         done.Add(t);

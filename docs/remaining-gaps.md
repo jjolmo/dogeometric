@@ -11,9 +11,8 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 ## High impact
 
-| Gap | Why it matters for enclosures | Notes |
-|---|---|---|
-| STEP import: offset surfaces | One offset surface sample (a loft's side offset 2 mm) still comes in with 5 non-manifold edges near its boundary, where points are projected back onto the offset surface approximately. | Curved faces are now Delaunay on the surface, seams included: areas within 0.4 % of FreeCAD's on the test parts and 0.04 % on FreeCAD's sample parts (Schenkel, 409 faces with spheres through their poles; EngineBlock; PartDesignExample), all closed. |
+None left: STEP and IFC come in closed and checked against FreeCAD and ifcopenshell, and the mesh formats carry
+textures.
 
 ## Medium impact
 
@@ -44,6 +43,6 @@ DWG/DXF 3D export through ACadSharp (both checked against SketchUp 2021), DXF 3D
 against SketchUp both ways), FBX export (read by Godot's importer at true size; SketchUp's own FBX comes out 10× too
 big there), dotXSI export (same structure as SketchUp's), `.dog` previews
 saved with the file and shown in collections, Help › Welcome (templates, Open, recent files with previews), STEP import (analytic and
-B-spline surfaces, extrusions, revolutions, assemblies) and STEP colours both ways (AP214 styled items; only
+B-spline surfaces, extrusions, revolutions, offset surfaces, assemblies; Delaunay on the surface, closed and within 0.4 % of FreeCAD's areas) and STEP colours both ways (AP214 styled items; only
 checked against our own reader, as FreeCAD loads colours only with its GUI), IFC import (extrusions, face sets,
 faceted B-reps, mapped items, placements, colours, classified, openings cut from the walls they void; checked against ifcopenshell).
