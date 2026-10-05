@@ -127,7 +127,9 @@ public sealed class PushPullTool : DrawingTool
         var face = _face ?? _hover;
         if (face == null)
             return false;
-        Apply(doc, face, mm);
+        // The value goes the way the face is being pulled (or was, for the last one); a negative one reverses it.
+        var pulling = _face != null ? _distance : _lastDistance;
+        Apply(doc, face, pulling < 0 ? -mm : mm);
         return true;
     }
 
