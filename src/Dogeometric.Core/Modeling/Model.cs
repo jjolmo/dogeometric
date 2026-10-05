@@ -33,6 +33,8 @@ public sealed record StyleSettings
     public bool Endpoints { get; init; }
     public int EndpointLength { get; init; } = 9;
     public bool Jitter { get; init; }
+    /// <summary>Edges on tags with a line style are drawn dashed.</summary>
+    public bool Dashes { get; init; } = true;
     public EdgeColorMode EdgeColorMode { get; init; } = EdgeColorMode.AllSame;
     public Rgba EdgeColor { get; init; } = new(0, 0, 0);
 

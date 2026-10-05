@@ -355,4 +355,24 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Equal(new StyleSettings(), model.Style);
     }
+
+    [Fact]
+    public void Tag_dashes_survive_saving_and_undo()
+    {
+        var model = new Model();
+        var tag = model.GetOrAddTag("Hidden lines");
+        var doc = new Document(model);
+        doc.Undo.Begin("Dashes");
+        tag.Dashes = LineStyle.DashDot;
+        doc.Undo.Commit();
+        var path = Path.Combine(Path.GetTempPath(), $"dashes-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path);
+        File.Delete(path);
+        Assert.Equal(LineStyle.DashDot, back.Tags.Single(t => t.Name == "Hidden lines").Dashes);
+        Assert.True(back.Style.Dashes);
+        doc.Undo.Undo();
+        Assert.Equal(LineStyle.Solid, tag.Dashes);
+        Assert.Equal([12, 6, 1, 6], LineStyles.Pattern(LineStyles.Parse("dash dot")));
+    }
 }

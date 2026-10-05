@@ -31,6 +31,7 @@ public partial class StylesPanel : VBoxContainer
         p.Flag("Endpoints", s => s.Endpoints, (s, v) => s with { Endpoints = v });
         p.Number("Endpoint length", 1, 50, s => s.EndpointLength, (s, v) => s with { EndpointLength = v });
         p.Flag("Jitter", s => s.Jitter, (s, v) => s with { Jitter = v });
+        p.Flag("Dashes", s => s.Dashes, (s, v) => s with { Dashes = v });
         p.Choice("Color", ["All same", "By material", "By axis"], s => (int)s.EdgeColorMode, (s, v) => s with { EdgeColorMode = (EdgeColorMode)v });
         p.Colour("Edge color", s => s.EdgeColor, (s, c) => s with { EdgeColor = c });
         p.Section("Face Settings");

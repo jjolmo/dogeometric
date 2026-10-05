@@ -36,4 +36,45 @@ public sealed class Tag
     public string Name { get; set; } = "";
     public Rgba Color { get; set; } = new(200, 200, 200);
     public bool Visible { get; set; } = true;
+
+    /// <summary>Tags › Dashes: how this tag's edges are drawn when the style shows dashes.</summary>
+    public LineStyle Dashes { get; set; }
+}
+
+/// <summary>SketchUp's line styles for tags, in its order.</summary>
+public enum LineStyle
+{
+    Solid, ShortDash, Dash, Dot, DashDot, DashDoubleDot, DashTripleDot,
+    DoubleDashDot, DoubleDashDoubleDot, DoubleDashTripleDot, LongDashDash, LongDashDoubleDash,
+}
+
+public static class LineStyles
+{
+    public static readonly string[] Names =
+    [
+        "Solid Basic", "Short dash", "Dash", "Dot", "Dash dot", "Dash double-dot", "Dash triple-dot",
+        "Double-dash dot", "Double-dash double-dot", "Double-dash triple-dot", "Long-dash dash", "Long-dash double-dash",
+    ];
+
+    public static string Name(LineStyle s) => Names[(int)s];
+
+    public static LineStyle Parse(string? name) =>
+        Array.FindIndex(Names, n => n.Equals(name, StringComparison.OrdinalIgnoreCase)) is var i and >= 0 ? (LineStyle)i : LineStyle.Solid;
+
+    /// <summary>Alternating on and off lengths in screen pixels, as SketchUp 2021 draws them at 1 px wide; empty when solid.</summary>
+    public static int[] Pattern(LineStyle s) => s switch
+    {
+        LineStyle.ShortDash => [6, 6],
+        LineStyle.Dash => [12, 6],
+        LineStyle.Dot => [1, 6],
+        LineStyle.DashDot => [12, 6, 1, 6],
+        LineStyle.DashDoubleDot => [12, 6, 1, 6, 1, 6],
+        LineStyle.DashTripleDot => [12, 6, 1, 6, 1, 6, 1, 6],
+        LineStyle.DoubleDashDot => [12, 6, 12, 6, 1, 6],
+        LineStyle.DoubleDashDoubleDot => [12, 6, 12, 6, 1, 6, 1, 6],
+        LineStyle.DoubleDashTripleDot => [12, 6, 12, 6, 1, 6, 1, 6, 1, 6],
+        LineStyle.LongDashDash => [36, 10, 12, 10],
+        LineStyle.LongDashDoubleDash => [36, 10, 12, 10, 12, 10],
+        _ => [],
+    };
 }

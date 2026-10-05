@@ -121,7 +121,41 @@ public partial class TagsPanel : VBoxContainer
                     _visibilityChanged();
             };
             row.AddChild(color);
+            var dashes = new MenuButton { Icon = DashSample(tag.Dashes), FocusMode = FocusModeEnum.None, TooltipText = "Dashes: " + LineStyles.Name(tag.Dashes), Flat = false };
+            var popup = dashes.GetPopup();
+            for (var i = 0; i < LineStyles.Names.Length; i++)
+                popup.AddIconItem(DashSample((LineStyle)i), i == 0 ? "Default" : LineStyles.Names[i], i);
+            popup.IdPressed += id =>
+            {
+                doc.Undo.Begin("Tag Dashes");
+                tag.Dashes = (LineStyle)id;
+                doc.Undo.Commit();
+                _visibilityChanged();
+                Refresh();
+            };
+            row.AddChild(dashes);
             AddChild(row);
         }
+    }
+
+    private static readonly Dictionary<LineStyle, Texture2D> Samples = [];
+
+    /// <summary>A short stretch of the line style, at half its on-screen size, for the Dashes column.</summary>
+    private static Texture2D DashSample(LineStyle style)
+    {
+        if (Samples.TryGetValue(style, out var cached))
+            return cached;
+        const int width = 44;
+        var image = Image.CreateEmpty(width, 6, false, Image.Format.Rgba8);
+        var pattern = LineStyles.Pattern(style);
+        for (int x = 0, i = 0, left = pattern.Length > 0 ? pattern[0] : width; x < width; x++)
+        {
+            if (pattern.Length == 0 || i % 2 == 0)
+                image.SetPixel(x, 2, Colors.Black);
+            left -= 2;
+            while (pattern.Length > 0 && left <= 0)
+                left += pattern[i = (i + 1) % pattern.Length];
+        }
+        return Samples[style] = ImageTexture.CreateFromImage(image);
     }
 }

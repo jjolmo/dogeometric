@@ -49,7 +49,7 @@ public sealed class ModelRenderer
             m.SetShaderParameter("color", edge);
             m.SetShaderParameter("endpoint_px", (float)s.EndpointLength);
         }
-        var rebuild = old.Endpoints != s.Endpoints || old.Jitter != s.Jitter || old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
+        var rebuild = old.Dashes != s.Dashes || old.Endpoints != s.Endpoints || old.Jitter != s.Jitter || old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
             || s.EdgeColorMode != EdgeColorMode.AllSame && old.EdgeColor != s.EdgeColor;
         if (rebuild)
             ForgetMaterials();
@@ -262,6 +262,7 @@ public sealed class ModelRenderer
     /// <summary>Tags › Color by tag: a material standing for each tag's colour.</summary>
     private readonly Dictionary<Tag, Material> _tagMaterials = [];
     private bool _colorByTag;
+    private string _tagDashes = "";
     private Tag? _untagged;
 
     private Material? TagMaterial(Tag? tag)
@@ -281,6 +282,12 @@ public sealed class ModelRenderer
             changed = null;
         }
         _untagged = model.UntaggedTag;
+        var dashes = string.Join(",", model.Tags.Select(t => (int)t.Dashes));
+        if (_tagDashes != dashes)
+        {
+            _tagDashes = dashes;
+            changed = null;
+        }
         if (changed == null)
             _meshes.Clear();
         else
@@ -417,13 +424,23 @@ public sealed class ModelRenderer
 
         var lines = new List<Vector3>();
         var colors = new List<Color>();
+        var dashes = new List<Vector2>();
+        var starts = new List<float>();
+        var dashed = _style.Dashes && e.Edges.Any(x => x.Tag is { Dashes: not LineStyle.Solid });
         foreach (var edge in e.Edges)
         {
             // Soft, smooth and hidden edges are not drawn (SketchUp's default style).
             if ((edge.Flags & (EdgeFlags.Soft | EdgeFlags.Hidden)) != 0 || edge.Tag is { Visible: false })
                 continue;
-            lines.Add(Space.ToGodot(edge.Start.Position));
+            var start = Space.ToGodot(edge.Start.Position);
+            lines.Add(start);
             lines.Add(Space.ToGodot(edge.End.Position));
+            if (dashed)
+            {
+                var style = new Vector2((float)(edge.Tag?.Dashes ?? LineStyle.Solid), 0);
+                dashes.AddRange([style, style]);
+                starts.AddRange([start.X, start.Y, start.Z, 0, start.X, start.Y, start.Z, 0]);
+            }
             if (_style.EdgeColorMode != EdgeColorMode.AllSame)
             {
                 var c = EdgeColorOf(edge);
@@ -440,7 +457,14 @@ public sealed class ModelRenderer
             arrays[(int)Mesh.ArrayType.Vertex] = lines.ToArray();
             if (colors.Count > 0)
                 arrays[(int)Mesh.ArrayType.Color] = colors.ToArray();
-            edges.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
+            var format = (Mesh.ArrayFormat)0;
+            if (dashed)
+            {
+                arrays[(int)Mesh.ArrayType.TexUV] = dashes.ToArray();
+                arrays[(int)Mesh.ArrayType.Custom0] = starts.ToArray();
+                format = (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift);
+            }
+            edges.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays, flags: format);
             edges.SurfaceSetMaterial(0, _edgeMaterial);
         }
 

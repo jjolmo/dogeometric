@@ -120,6 +120,7 @@ public static class DogFile
                 w.WriteString("name", t.Name);
                 WriteColor(w, "color", t.Color);
                 w.WriteBoolean("visible", t.Visible);
+                w.WriteString("dashes", LineStyles.Name(t.Dashes));
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -250,6 +251,7 @@ public static class DogFile
         w.WriteBoolean("endpoints", s.Endpoints);
         w.WriteNumber("endpointLength", s.EndpointLength);
         w.WriteBoolean("jitter", s.Jitter);
+        w.WriteBoolean("dashes", s.Dashes);
         w.WriteString("edgeColorMode", s.EdgeColorMode.ToString());
         w.WriteString("edgeColor", RgbaText(s.EdgeColor));
         w.WriteString("frontColor", RgbaText(s.FrontColor));
@@ -278,6 +280,7 @@ public static class DogFile
             Endpoints = Bool("endpoints", d.Endpoints),
             EndpointLength = Int("endpointLength", d.EndpointLength),
             Jitter = Bool("jitter", d.Jitter),
+            Dashes = Bool("dashes", d.Dashes),
             EdgeColorMode = j.TryGetProperty("edgeColorMode", out var m) && Enum.TryParse<EdgeColorMode>(m.GetString(), out var mode) ? mode : d.EdgeColorMode,
             EdgeColor = ReadRgba(j, "edgeColor", d.EdgeColor),
             FrontColor = ReadRgba(j, "frontColor", d.FrontColor),
@@ -661,6 +664,7 @@ public static class DogFile
                 Name = t.GetProperty("name").GetString() ?? "",
                 Color = ReadColor(t.GetProperty("color")),
                 Visible = t.GetProperty("visible").GetBoolean(),
+                Dashes = t.TryGetProperty("dashes", out var dashes) ? LineStyles.Parse(dashes.GetString()) : LineStyle.Solid,
             });
         }
         if (model.Tags.Count == 0)
