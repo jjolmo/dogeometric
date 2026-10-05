@@ -39,6 +39,9 @@ public sealed class AppPreferences
     // Compatibility.
     public bool InvertWheelZoom { get; set; }
 
+    /// <summary>Preferences › Compatibility › Component/Group Highlighting: only the box, not the edges too.</summary>
+    public bool BoundingBoxOnly { get; set; }
+
     public bool ShowCenterPoints { get; set; }
 
     // Graphics.

@@ -140,6 +140,9 @@ public partial class PreferencesDialog : AcceptDialog
                 break;
 
             case "Compatibility":
+                Heading(box, "Component/Group Highlighting");
+                Check(box, "Bounding box only", "A selected group or component shows only its box, not its edges in blue.",
+                    p.BoundingBoxOnly, v => p.BoundingBoxOnly = v);
                 Heading(box, "Mouse Wheel Style");
                 Check(box, "Invert", "Rolling the wheel forward zooms out instead of in.", p.InvertWheelZoom, v => p.InvertWheelZoom = v);
                 break;

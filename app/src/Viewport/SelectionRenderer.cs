@@ -52,6 +52,9 @@ public sealed class SelectionRenderer
                     break;
                 case ComponentInstance inst:
                     AddBox(lines, CatmullClark.ShownBounds(inst.Definition.Entities), inst.Transform.Then(xf));
+                    // Its edges light up too, unless Preferences › Compatibility asks for the box only.
+                    if (!UI.AppPreferences.Current.BoundingBoxOnly)
+                        AddEdges(lines, inst.Definition.Entities, inst.Transform.Then(xf), budget: 20000);
                     break;
             }
         }
@@ -68,6 +71,24 @@ public sealed class SelectionRenderer
             AddBox(box, active.Definition.Entities.Bounds(), active.Transform.Then(parent));
             AddMesh(root, box, Mesh.PrimitiveType.Lines, _contextLines);
         }
+    }
+
+    /// <summary>The drawn edges inside a group, nested ones too, up to <paramref name="budget"/> lines for big models.</summary>
+    private static int AddEdges(List<Vector3> lines, Entities e, Transform xf, int budget)
+    {
+        foreach (var edge in e.Edges)
+        {
+            if (budget <= 0)
+                return 0;
+            if ((edge.Flags & (EdgeFlags.Soft | EdgeFlags.Hidden)) != 0 || edge.Tag is { Visible: false })
+                continue;
+            lines.Add(Space.ToGodot(xf.ApplyPoint(edge.Start.Position)));
+            lines.Add(Space.ToGodot(xf.ApplyPoint(edge.End.Position)));
+            budget--;
+        }
+        foreach (var inst in e.Instances.Where(i => !i.Hidden && i.Tag is not { Visible: false }))
+            budget = AddEdges(lines, inst.Definition.Entities, inst.Transform.Then(xf), budget);
+        return budget;
     }
 
     private static void AddBox(List<Vector3> lines, Bounds3 b, Transform xf)
