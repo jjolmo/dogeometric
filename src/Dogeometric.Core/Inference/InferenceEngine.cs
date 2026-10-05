@@ -125,6 +125,20 @@ public sealed class InferenceEngine
         return new InferenceResult(ray.At(1000), InferenceKind.None, "");
     }
 
+    /// <summary>Model Info › Units › Length snapping: a free point (on an axis, in a plane or on a face, not snapped to
+    /// geometry) slides along its line from <paramref name="from"/> to the nearest whole <paramref name="step"/>.</summary>
+    public static InferenceResult SnapLength(InferenceResult inf, Vec3 from, double step)
+    {
+        if (step <= 0 || inf.Kind is not (InferenceKind.OnAxis or InferenceKind.InPlane or InferenceKind.OnFace or InferenceKind.None))
+            return inf;
+        var d = inf.Point - from;
+        var length = d.Length;
+        if (length < Tolerance.Length)
+            return inf;
+        var rounded = Math.Round(length / step) * step;
+        return rounded <= 0 ? inf : inf with { Point = from + d / length * rounded };
+    }
+
     /// <summary>SketchUp's tooltip suffix for geometry inside another group or component ("Endpoint in Group").</summary>
     private static string InsideSuffix(PickHit hit, Entities context)
     {

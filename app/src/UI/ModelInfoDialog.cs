@@ -306,6 +306,45 @@ public partial class ModelInfoDialog : AcceptDialog
             _changed();
         };
         _pane.AddChild(sample);
+
+        var o = model.Options;
+        var snapRow = new HBoxContainer();
+        var lengthSnap = new CheckBox { Text = "Enable length snapping", ButtonPressed = o.LengthSnapping };
+        var lengthStep = new SpinBox { MinValue = 0.01, MaxValue = 10000, Step = 0.01, Value = o.LengthSnap, Suffix = "mm", Editable = o.LengthSnapping, CustomMinimumSize = new Vector2(130, 0) };
+        lengthSnap.Toggled += on =>
+        {
+            lengthStep.Editable = on;
+            Options("Units", m => m with { LengthSnapping = on });
+        };
+        lengthStep.ValueChanged += v => Options("Units", m => m with { LengthSnap = v });
+        snapRow.AddChild(lengthSnap);
+        snapRow.AddChild(lengthStep);
+        _pane.AddChild(snapRow);
+
+        _pane.AddChild(new HSeparator());
+        _pane.AddChild(new Label { Text = "Angle Units" });
+        var angles = Grid();
+        angles.AddChild(new Label { Text = "Precision" });
+        var anglePrecision = new OptionButton();
+        for (var i = 0; i <= 3; i++)
+            anglePrecision.AddItem(i == 0 ? "0" : "0." + new string('0', i), i);
+        anglePrecision.Select(Math.Clamp(o.AnglePrecision, 0, 3));
+        anglePrecision.ItemSelected += i => Options("Units", m => m with { AnglePrecision = (int)i });
+        angles.AddChild(anglePrecision);
+        var angleSnap = new CheckBox { Text = "Enable angle snapping", ButtonPressed = o.AngleSnapping };
+        var angleStep = new OptionButton { Disabled = !o.AngleSnapping };
+        double[] steps = [0.1, 0.5, 1, 5, 10, 15, 30, 45, 90];
+        foreach (var s in steps)
+            angleStep.AddItem(s.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        angleStep.Select(Math.Max(0, Array.IndexOf(steps, o.AngleSnap)));
+        angleSnap.Toggled += on =>
+        {
+            angleStep.Disabled = !on;
+            Options("Units", m => m with { AngleSnapping = on });
+        };
+        angleStep.ItemSelected += i => Options("Units", m => m with { AngleSnap = steps[i] });
+        angles.AddChild(angleSnap);
+        angles.AddChild(angleStep);
     }
 
     private static void Row(GridContainer grid, string label, string value)

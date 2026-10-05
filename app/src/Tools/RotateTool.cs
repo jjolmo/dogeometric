@@ -14,7 +14,8 @@ namespace Dogeometric.App.Tools;
 /// </summary>
 public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
 {
-    private const double SnapDegrees = 15;
+    private double SnapDegrees => View.Document?.Model.Options.AngleSnap ?? 15;
+    private bool Snapping => View.Document?.Model.Options.AngleSnapping ?? true;
 
     private Vec3? _center;
     private Vec3 _normal = Vec3.UnitZ;
@@ -37,7 +38,7 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
         _ => _copy ? "Click to set the rotated copy or enter angle." : "Click to set the rotation or enter angle.",
     };
 
-    public override string VcbValue => Angle() is { } a ? (a * 180 / Math.PI).ToString("0.#", CultureInfo.InvariantCulture) : "";
+    public override string VcbValue => Angle() is { } a ? (a * 180 / Math.PI).ToString("F" + (View.Document?.Model.Options.AnglePrecision ?? 1), CultureInfo.InvariantCulture) : "";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
@@ -102,7 +103,7 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
         var angle = Math.Atan2(s.Cross(d).Dot(_normal), s.Dot(d));
         var deg = angle * 180 / Math.PI;
         var snapped = Math.Round(deg / SnapDegrees) * SnapDegrees;
-        if (Math.Abs(deg - snapped) < 2 && inf.Kind is InferenceKind.InPlane or InferenceKind.None or InferenceKind.OnFace)
+        if (Snapping && Math.Abs(deg - snapped) < 2 && inf.Kind is InferenceKind.InPlane or InferenceKind.None or InferenceKind.OnFace)
             angle = snapped * Math.PI / 180;
         return angle;
     }

@@ -41,6 +41,15 @@ public sealed record ModelOptions
     public double FogEnd { get; init; } = 1;
     public Rgba? FogColor { get; init; }
 
+    /// <summary>Model Info › Units › Angle Units: decimals shown, and whether angles snap and every how many degrees.</summary>
+    public int AnglePrecision { get; init; } = 1;
+    public bool AngleSnapping { get; init; } = true;
+    public double AngleSnap { get; init; } = 15;
+
+    /// <summary>Model Info › Units › Length snapping: typed and dragged lengths round to this step when enabled.</summary>
+    public bool LengthSnapping { get; init; }
+    public double LengthSnap { get; init; } = 1;
+
     /// <summary>Tags panel › Color by tag: faces show their tag's colour (untagged ones their group's).</summary>
     public bool ColorByTag { get; init; }
 }

@@ -63,6 +63,11 @@ public static class DogFile
             w.WriteBoolean("componentAxes", model.Options.ShowComponentAxes);
             w.WriteBoolean("smoothTextures", model.Options.SmoothTextures);
             w.WriteBoolean("colorByTag", model.Options.ColorByTag);
+            w.WriteNumber("anglePrecision", model.Options.AnglePrecision);
+            w.WriteBoolean("angleSnapping", model.Options.AngleSnapping);
+            w.WriteNumber("angleSnap", model.Options.AngleSnap);
+            w.WriteBoolean("lengthSnapping", model.Options.LengthSnapping);
+            w.WriteNumber("lengthSnap", model.Options.LengthSnap);
             w.WriteNumber("fogStart", model.Options.FogStart);
             w.WriteNumber("fogEnd", model.Options.FogEnd);
             if (model.Options.FogColor is { } fog)
@@ -534,6 +539,11 @@ public static class DogFile
                 ShowComponentAxes = opts.GetProperty("componentAxes").GetBoolean(),
                 SmoothTextures = opts.GetProperty("smoothTextures").GetBoolean(),
                 ColorByTag = opts.TryGetProperty("colorByTag", out var cbt) && cbt.GetBoolean(),
+                AnglePrecision = opts.TryGetProperty("anglePrecision", out var ap) ? ap.GetInt32() : 1,
+                AngleSnapping = !opts.TryGetProperty("angleSnapping", out var asn) || asn.GetBoolean(),
+                AngleSnap = opts.TryGetProperty("angleSnap", out var asv) ? asv.GetDouble() : 15,
+                LengthSnapping = opts.TryGetProperty("lengthSnapping", out var lsn) && lsn.GetBoolean(),
+                LengthSnap = opts.TryGetProperty("lengthSnap", out var lsv) ? lsv.GetDouble() : 1,
                 FogStart = opts.TryGetProperty("fogStart", out var fs) ? fs.GetDouble() : 0,
                 FogEnd = opts.TryGetProperty("fogEnd", out var fe) ? fe.GetDouble() : 1,
                 FogColor = opts.TryGetProperty("fogColor", out var fc) && fc.GetString()!.Split(',') is [var fr, var fg, var fb]

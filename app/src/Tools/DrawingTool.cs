@@ -34,6 +34,8 @@ public abstract class DrawingTool : Tool
         Inference.Axes = doc.Model.Axes;
         Inference.Centers = View.CenterPoints();
         Current = Inference.Infer(new ViewProjection(View), Mouse.X, Mouse.Y, From, doc.Context.Entities, doc.Context.ToWorld);
+        if (From is { } from && doc.Model.Options is { LengthSnapping: true, LengthSnap: var step })
+            Current = InferenceEngine.SnapLength(Current, from, step);
         OnInferenceChanged();
         View.QueueOverlayRedraw();
     }

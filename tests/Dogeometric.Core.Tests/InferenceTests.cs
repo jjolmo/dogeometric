@@ -86,4 +86,14 @@ public class InferenceTests
         engine.Infer(view, 0, 0, null, e, Transform.Identity);
         Assert.NotEqual("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
     }
+
+    [Fact]
+    public void Length_snapping_rounds_free_points_but_not_snapped_ones()
+    {
+        var from = new Vec3(1, 1, 0);
+        var free = new InferenceResult(new Vec3(1 + 12.4, 1, 0), InferenceKind.OnAxis, "On Red Axis", from, Vec3.UnitX);
+        Assert.Equal(new Vec3(1 + 12.5, 1, 0), InferenceEngine.SnapLength(free, from, 2.5).Point);
+        var endpoint = new InferenceResult(new Vec3(13.4, 1, 0), InferenceKind.Endpoint, "Endpoint");
+        Assert.Same(endpoint, InferenceEngine.SnapLength(endpoint, from, 2.5));
+    }
 }
