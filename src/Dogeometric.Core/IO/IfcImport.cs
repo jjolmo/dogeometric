@@ -106,9 +106,17 @@ public static class IfcImport
             return new Result(model, elements, _skipped);
         }
 
-        /// <summary>IFCWALLSTANDARDCASE as IfcWallStandardCase: the Classifier's name when it knows the type.</summary>
+        private static readonly string[] OtherTypes =
+        [
+            "IfcWallStandardCase", "IfcSlabStandardCase", "IfcBeamStandardCase", "IfcColumnStandardCase", "IfcMemberStandardCase",
+            "IfcPlateStandardCase", "IfcDoorStandardCase", "IfcWindowStandardCase", "IfcWallElementedCase", "IfcSlabElementedCase",
+            "IfcFurnishingElement", "IfcFlowTerminal", "IfcFlowSegment", "IfcFlowFitting", "IfcFlowController", "IfcEnergyConversionDevice",
+            "IfcDistributionElement", "IfcDistributionFlowElement", "IfcBuildingElement", "IfcBuiltElement", "IfcCivilElement",
+        ];
+
+        /// <summary>The IFC type's name in its usual capitals (IFCWALLSTANDARDCASE is IfcWallStandardCase).</summary>
         private static string Type(string upper) =>
-            Classification.Types.FirstOrDefault(t => t.Name.Equals(upper, StringComparison.OrdinalIgnoreCase))?.Name
+            Classification.Types.Select(t => t.Name).Concat(OtherTypes).FirstOrDefault(t => t.Equals(upper, StringComparison.OrdinalIgnoreCase))
             ?? "Ifc" + string.Concat(upper.Length > 3 ? upper[3..4] + upper[4..].ToLowerInvariant() : "");
 
         private void ReadUnits()
