@@ -283,11 +283,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.3ds ; 3D Studio", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
-            dialog.AddOption("Units (STL, OBJ)", [.. MeshUnits.Select(u => u.Name)], 0);
+            dialog.AddOption("Units (STL, OBJ, 3DS)", [.. MeshUnits.Select(u => u.Name)], 0);
             dialog.AddOption("Use image as", ["Image", "Texture", "New Matched Photo"], 0);
             _importOptionsDialog = dialog;
         });
@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.wrl ; VRML", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.wrl ; VRML", "*.3ds ; 3D Studio", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -472,12 +472,15 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Core.IO.DxfImport.Load(path)
+                : System.IO.Path.GetExtension(path).Equals(".3ds", StringComparison.OrdinalIgnoreCase)
+                ? ThreeDs.Read(File.ReadAllBytes(path), System.IO.Path.GetFileNameWithoutExtension(path),
+                    MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o3 && o3.TryGetValue("Units (STL, OBJ, 3DS)", out var u3) ? (int)u3 : 0].Mm)
                 : System.IO.Path.GetExtension(path).Equals(".dwg", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Formats.CadFiles.LoadDwg(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".dae" or ".kmz"
                 ? Dogeometric.Core.IO.DaeImport.Load(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj"
-                ? Dogeometric.Core.IO.MeshImport.Load(path, MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o && o.TryGetValue("Units (STL, OBJ)", out var u) ? (int)u : 0].Mm)
+                ? Dogeometric.Core.IO.MeshImport.Load(path, MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o && o.TryGetValue("Units (STL, OBJ, 3DS)", out var u) ? (int)u : 0].Mm)
                 : Load(path);
             Merge(imported);
             Document.Undo.Clear();
@@ -514,6 +517,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options));
             if (step != null)
                 status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
+            return;
+        }
+        if (ext == ".3ds")
+        {
+            var objects = 0;
+            if (Write(path, (m, p) =>
+                {
+                    using var s = File.Create(p);
+                    objects = ThreeDs.Write(m, s, options);
+                }))
+                status.SetHint($"Exported {objects} 3DS objects");
             return;
         }
         if (ext == ".wrl")
