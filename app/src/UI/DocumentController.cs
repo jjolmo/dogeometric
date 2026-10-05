@@ -283,7 +283,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.3ds ; 3D Studio", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.3ds ; 3D Studio", "*.step, *.stp ; STEP", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
@@ -479,6 +479,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".skp" or ".dog")
             {
                 PlaceModel(path);
+                return;
+            }
+            if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".step" or ".stp")
+            {
+                var step = StepImport.Load(path);
+                Merge(step.Model);
+                Document.Undo.Clear();
+                Rebuild();
+                Changed?.Invoke();
+                var note = step.SkippedFaces > 0 ? $", {step.SkippedFaces} faces of unsupported kinds left out" : "";
+                status.SetHint($"Imported {step.Faces} STEP faces{note}");
                 return;
             }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
