@@ -122,6 +122,7 @@ public partial class ModelViewport : Control
 
         Tools = new ToolManager(this, new SelectTool());
         Tools.Changed += UpdateCursor;
+        Tools.Changed += QueueOverlayRedraw;
         SyncCamera();
     }
 
