@@ -69,6 +69,8 @@ public static class ContextMenu
             {
                 Item("Make Unique", () => doc.Operation("Make Unique", _ => Grouping.MakeUnique(doc.Model, inst)));
                 Item("Change Axes", () => view.Tools.Activate(new Tools.AxesTool(inst)));
+                // As SketchUp's Select › Instances: the copies in the context being edited.
+                Item("Select Instances", () => doc.Selection.Set(doc.Context.Entities.Instances.Where(i => i.Definition == inst.Definition).Cast<object>().ToList()));
             }
             var t = inst.Transform;
             var scaled = Math.Abs(t.X.Length - 1) > 1e-9 || Math.Abs(t.Y.Length - 1) > 1e-9 || Math.Abs(t.Z.Length - 1) > 1e-9;
