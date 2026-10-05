@@ -11,6 +11,22 @@ public static class ContextMenu
     public static void Show(Control host, Vector2 screenPosition, Document doc, ModelViewport view, Action<int> runCommand)
     {
         var menu = new PopupMenu();
+        var actions = Fill(menu, doc, view, runCommand, items: false);
+        menu.IdPressed += id =>
+        {
+            if (actions.TryGetValue((int)id, out var a))
+                a();
+        };
+        menu.PopupHide += menu.QueueFree;
+        host.AddChild(menu);
+        menu.Position = (Vector2I)(host.GetScreenPosition() + screenPosition);
+        menu.Popup();
+    }
+
+    /// <summary>The selection's menu items into <paramref name="menu"/>; with <paramref name="items"/> only those about
+    /// the selected entities, as Edit › Items lists them. Returns each item's action by id.</summary>
+    public static Dictionary<int, Action> Fill(PopupMenu menu, Document doc, ModelViewport view, Action<int> runCommand, bool items)
+    {
         var actions = new Dictionary<int, Action>();
         var next = 1;
         void Item(string label, Action action, bool enabled = true)
@@ -24,10 +40,13 @@ public static class ContextMenu
         var sel = doc.Selection.Items.ToList();
         var single = sel.Count == 1 ? sel[0] : null;
 
-        Item("Entity Info", () => { }, sel.Count > 0);
-        Item("Erase", () => runCommand(CommandIds.Delete), sel.Count > 0);
-        Item("Hide", () => runCommand(CommandIds.Hide), sel.Count > 0);
-        menu.AddSeparator();
+        if (!items)
+        {
+            Item("Entity Info", () => { }, sel.Count > 0);
+            Item("Erase", () => runCommand(CommandIds.Delete), sel.Count > 0);
+            Item("Hide", () => runCommand(CommandIds.Hide), sel.Count > 0);
+            menu.AddSeparator();
+        }
 
         if (single is ComponentInstance inst)
         {
@@ -49,7 +68,7 @@ public static class ContextMenu
             }
             menu.AddSeparator();
         }
-        if (sel.Count > 0)
+        if (sel.Count > 0 && !items)
         {
             Item("Make Group", () => runCommand(CommandIds.MakeGroup));
             Item("Make Component...", () => runCommand(CommandIds.MakeComponent));
@@ -89,8 +108,8 @@ public static class ContextMenu
             flip.AddItem(owner == null ? "Red Direction" : $"{owner} Red", 0);
             flip.AddItem(owner == null ? "Green Direction" : $"{owner} Green", 1);
             flip.AddItem(owner == null ? "Blue Direction" : $"{owner} Blue", 2);
-            var items = sel.ToList();
-            flip.IdPressed += id => doc.Operation("Flip Along", e => Transforming.Flip(e, items, (int)id, doc.Context.Path.Count == 0 ? doc.Model.Axes : Transform.Identity));
+            var flipped = sel.ToList();
+            flip.IdPressed += id => doc.Operation("Flip Along", e => Transforming.Flip(e, flipped, (int)id, doc.Context.Path.Count == 0 ? doc.Model.Axes : Transform.Identity));
             menu.AddSubmenuNodeItem("Flip Along", flip);
         }
         if (faces.Count > 0 || sel.OfType<ComponentInstance>().Any())
@@ -126,7 +145,7 @@ public static class ContextMenu
                 menu.AddSubmenuNodeItem("Texture", texture);
             }
         }
-        if (sel.Count > 0)
+        if (sel.Count > 0 && !items)
         {
             Item("Zoom Selection", () => ZoomSelection(doc, view));
             menu.AddSeparator();
@@ -153,18 +172,14 @@ public static class ContextMenu
             menu.AddSubmenuNodeItem("Select", select);
         }
 
-        if (sel.Count > 0)
+        if (sel.Count > 0 && !items)
             AddSelectionToys(menu, doc, sel);
-
-        menu.IdPressed += id =>
+        if (items && actions.Count == 0)
         {
-            if (actions.TryGetValue((int)id, out var a))
-                a();
-        };
-        menu.PopupHide += menu.QueueFree;
-        host.AddChild(menu);
-        menu.Position = (Vector2I)(host.GetScreenPosition() + screenPosition);
-        menu.Popup();
+            menu.AddItem("No Selection", 0);
+            menu.SetItemDisabled(0, true);
+        }
+        return actions;
     }
 
     /// <summary>Selection Toys' items, at the end of the menu as SketchUp lists extensions' items.</summary>

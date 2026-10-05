@@ -33,6 +33,12 @@ public static class MenuBuilder
             {
                 if (child.IsSeparator)
                     popup.AddSeparator();
+                else if (child.Children != null && registry.SubmenuBuilders.TryGetValue(child.Label, out var builder))
+                {
+                    if (!submenus.TryGetValue(child, out var sub))
+                        submenus[child] = sub = Built(builder);
+                    popup.AddSubmenuNodeItem(child.Label, sub);
+                }
                 else if (child.Children != null && registry.DynamicMenus.TryGetValue(child.Label, out var items))
                 {
                     if (!submenus.TryGetValue(child, out var sub))
@@ -90,6 +96,23 @@ public static class MenuBuilder
         };
         // Like SketchUp, the status bar shows the hovered command's description, then the tool hint again.
         popup.PopupHide += restoreHint;
+        return popup;
+    }
+
+    private static PopupMenu Built(Func<PopupMenu, Dictionary<int, Action>> builder)
+    {
+        var popup = new PopupMenu();
+        var actions = new Dictionary<int, Action>();
+        popup.AboutToPopup += () =>
+        {
+            popup.Clear(true);
+            actions = builder(popup);
+        };
+        popup.IdPressed += id =>
+        {
+            if (actions.TryGetValue((int)id, out var run))
+                run();
+        };
         return popup;
     }
 

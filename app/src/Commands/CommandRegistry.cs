@@ -234,6 +234,9 @@ public sealed class CommandRegistry
     /// itself shows when the list is empty.</summary>
     public Dictionary<int, Func<IEnumerable<DynamicItem>>> DynamicItems { get; } = [];
 
+    /// <summary>Submenus built entirely when they open (Edit › Items): each fills the menu and returns its actions by id.</summary>
+    public Dictionary<string, Func<PopupMenu, Dictionary<int, Action>>> SubmenuBuilders { get; } = [];
+
     /// <summary>Submenus filled when they open (Camera › Edit Matched Photo lists the photo scenes), by label.</summary>
     public Dictionary<string, Func<IEnumerable<(string Label, Action Run)>>> DynamicMenus { get; } = [];
 

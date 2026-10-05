@@ -1138,6 +1138,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
         _commands.Register(CommandIds.Revert, _document.Revert);
+        _commands.SubmenuBuilders["Items"] = menu => ContextMenu.Fill(menu, _document.Document, _viewport, id => _commands.Execute(id), items: true);
         _commands.DynamicItems[CommandIds.RecentFile] = () => AppPreferences.Current.RecentFiles
             .Select((p, i) => new DynamicItem($"{i + 1} {System.IO.Path.GetFileName(p)}", () => _document.OpenRecent(p)));
         _commands.Register(CommandIds.ZoomToPhoto, () =>

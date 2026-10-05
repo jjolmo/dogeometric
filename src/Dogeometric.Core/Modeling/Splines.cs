@@ -65,11 +65,8 @@ public static class Splines
         };
     }
 
-    /// <summary>
-    /// Polyline Divider for Animation (BezierSpline): the polyline cut into steps between <paramref name="min"/> and
-    /// <paramref name="max"/>, growing or shrinking evenly by <paramref name="mode"/>, so a camera moving one step per
-    /// frame along it speeds up or slows down.
-    /// </summary>
+    /// <summary>Polyline Divider for Animation: the polyline cut into steps from <paramref name="min"/> to <paramref name="max"/>
+    /// that grow or shrink evenly by <paramref name="mode"/>, so a camera taking one step a frame speeds up or slows down.</summary>
     public static List<Vec3> DivideForAnimation(IReadOnlyList<Vec3> pts, AnimationSteps mode, double min, double max)
     {
         var steps = AnimationStepLengths(Length(pts), mode, min, max);
