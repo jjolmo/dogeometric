@@ -120,6 +120,7 @@ public static class ExtensionMenus
               Show/Hide Camera Frustum Lines | {{E.CameraFrustumLines}}
               Show/Hide Camera Frustum Volume | {{E.CameraFrustumVolume}}
               Reset Camera | {{E.CameraReset}}
+              Select Camera Type
             Interact | {{E.Interact}}
             Sandbox
               Smoove | {{E.SandboxSmoove}}
