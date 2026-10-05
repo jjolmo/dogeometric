@@ -132,6 +132,36 @@ public class ExportTests
     }
 
     [Fact]
+    public void Obj_writes_textures_beside_it_with_texture_coordinates()
+    {
+        var model = new Model();
+        TestModels.Box(model.Entities, Vec3.Zero, new Vec3(100, 50, 20));
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "chip.png", Data = [1, 2, 3], WidthMm = 40, HeightMm = 20 } };
+        var top = model.Entities.Faces.Single(f => f.Normal.Z > 0.9);
+        top.FrontMaterial = chip;
+
+        var dir = Directory.CreateTempSubdirectory("dogeometric-obj").FullName;
+        var objPath = Path.Combine(dir, "box.obj");
+        ObjWriter.Write(MeshExtractor.Extract(model), objPath, swapYz: false);
+        var lines = File.ReadAllLines(objPath);
+
+        Assert.Contains("map_Kd box/chip.png", File.ReadAllLines(Path.Combine(dir, "box.mtl")));
+        Assert.Equal([1, 2, 3], File.ReadAllBytes(Path.Combine(dir, "box", "chip.png")));
+        var v = lines.Where(l => l.StartsWith("v ")).Select(l => l[2..].Split(' ').Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray()).ToList();
+        var vt = lines.Where(l => l.StartsWith("vt ")).Select(l => l[3..].Split(' ').Select(x => double.Parse(x, CultureInfo.InvariantCulture)).ToArray()).ToList();
+        var textured = lines.Where(l => l.StartsWith("f ") && l.Contains('/')).ToList();
+        Assert.Equal(2, textured.Count);
+        // Each corner's texture coordinates are the ones the face shows at that point.
+        foreach (var corner in textured.SelectMany(l => l[2..].Split(' ')))
+        {
+            var (pi, ti) = (int.Parse(corner.Split('/')[0], CultureInfo.InvariantCulture) - 1, int.Parse(corner.Split('/')[1], CultureInfo.InvariantCulture) - 1);
+            var (u, w) = Texturing.Uv(top, false, new Vec3(v[pi][0], v[pi][1], v[pi][2]), chip);
+            Assert.Equal(u, vt[ti][0], 6);
+            Assert.Equal(w, vt[ti][1], 6);
+        }
+    }
+
+    [Fact]
     public void Glb_is_structurally_valid()
     {
         var model = new Model();
@@ -163,6 +193,50 @@ public class ExportTests
         Assert.Equal(-2, min[2], 5);
         foreach (var view in root.GetProperty("bufferViews").EnumerateArray())
             Assert.True(view.GetProperty("byteOffset").GetInt32() + view.GetProperty("byteLength").GetInt32() <= binLength);
+    }
+
+    [Fact]
+    public void Glb_embeds_textures_with_coordinates_from_the_picture_s_top()
+    {
+        var model = new Model();
+        TestModels.Box(model.Entities, Vec3.Zero, new Vec3(100, 50, 20));
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "chip.png", Data = png, WidthMm = 40, HeightMm = 20 } };
+        var top = model.Entities.Faces.Single(f => f.Normal.Z > 0.9);
+        top.FrontMaterial = chip;
+        using var ms = new MemoryStream();
+        GltfWriter.WriteGlb(MeshExtractor.Extract(model), ms);
+        var data = ms.ToArray();
+        var jsonLength = (int)BitConverter.ToUInt32(data, 12);
+        using var json = JsonDocument.Parse(Encoding.UTF8.GetString(data, 20, jsonLength));
+        var root = json.RootElement;
+        var bin = 28 + jsonLength;
+
+        var material = root.GetProperty("materials").EnumerateArray().Single(m => m.GetProperty("name").GetString() == "Chip");
+        var texture = material.GetProperty("pbrMetallicRoughness").GetProperty("baseColorTexture").GetProperty("index").GetInt32();
+        var image = root.GetProperty("images")[root.GetProperty("textures")[texture].GetProperty("source").GetInt32()];
+        Assert.Equal("image/png", image.GetProperty("mimeType").GetString());
+        var view = root.GetProperty("bufferViews")[image.GetProperty("bufferView").GetInt32()];
+        Assert.Equal(png, data.AsSpan(bin + view.GetProperty("byteOffset").GetInt32(), view.GetProperty("byteLength").GetInt32()).ToArray());
+
+        var primitive = root.GetProperty("meshes")[0].GetProperty("primitives").EnumerateArray()
+            .Single(p => p.GetProperty("material").GetInt32() == root.GetProperty("materials").EnumerateArray().ToList().FindIndex(m => m.GetProperty("name").GetString() == "Chip"));
+        float Read(int accessor, int item, int component)
+        {
+            var a = root.GetProperty("accessors")[accessor];
+            var v = root.GetProperty("bufferViews")[a.GetProperty("bufferView").GetInt32()];
+            var size = a.GetProperty("type").GetString() == "VEC2" ? 2 : 3;
+            return BitConverter.ToSingle(data, bin + v.GetProperty("byteOffset").GetInt32() + (item * size + component) * 4);
+        }
+        var (pos, uv) = (primitive.GetProperty("attributes").GetProperty("POSITION").GetInt32(), primitive.GetProperty("attributes").GetProperty("TEXCOORD_0").GetInt32());
+        for (var i = 0; i < 6; i++)
+        {
+            // glTF (x, y, z) m = model (x, -z, y) mm.
+            var p = new Vec3(Read(pos, i, 0) * 1000, -Read(pos, i, 2) * 1000, Read(pos, i, 1) * 1000);
+            var (u, v) = Texturing.Uv(top, false, p, chip);
+            Assert.Equal(u, Read(uv, i, 0), 4);
+            Assert.Equal(1 - v, Read(uv, i, 1), 4);
+        }
     }
 
     [Fact]

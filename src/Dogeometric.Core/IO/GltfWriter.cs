@@ -7,7 +7,8 @@ namespace Dogeometric.Core.IO;
 
 /// <summary>
 /// glTF 2.0 binary (.glb) export. glTF is Y-up and in metres, so model (x, y, z) mm becomes (x, z, -y) / 1000.
-/// One primitive per material, flat normals, double-sided materials (SketchUp faces show both sides).
+/// One primitive per material, flat normals, double-sided materials (SketchUp faces show both sides); textures are
+/// embedded in the binary chunk.
 /// </summary>
 public static class GltfWriter
 {
@@ -21,6 +22,7 @@ public static class GltfWriter
         var accessors = new List<object>();
         var bufferViews = new List<object>();
         var primitives = new List<object>();
+        var textured = materials.Select(m => m?.Texture is { Data.Length: > 0 } && groups.First(g => g.Key == m).All(t => t.Uv != null)).ToList();
 
         foreach (var g in groups)
         {
@@ -66,13 +68,45 @@ public static class GltfWriter
             accessors.Add(new { bufferView = posView, componentType = 5126, count, type = "VEC3", min, max });
             var nAccessor = accessors.Count;
             accessors.Add(new { bufferView = nView, componentType = 5126, count, type = "VEC3" });
+            var attributes = new Dictionary<string, int> { ["POSITION"] = posAccessor, ["NORMAL"] = nAccessor };
+
+            if (textured[materials.IndexOf(g.Key)])
+            {
+                // glTF's texture space starts at the picture's top-left, SketchUp's at its bottom-left.
+                var uvOffset = (int)bin.Position;
+                foreach (var t in tris)
+                    foreach (var (u, v) in new[] { t.Uv!.Value.A, t.Uv.Value.B, t.Uv.Value.C })
+                    {
+                        bw.Write((float)u);
+                        bw.Write((float)(1 - v));
+                    }
+                attributes["TEXCOORD_0"] = accessors.Count;
+                accessors.Add(new { bufferView = bufferViews.Count, componentType = 5126, count, type = "VEC2" });
+                bufferViews.Add(new { buffer = 0, byteOffset = uvOffset, byteLength = count * 8, target = 34962 });
+            }
 
             primitives.Add(new
             {
-                attributes = new Dictionary<string, int> { ["POSITION"] = posAccessor, ["NORMAL"] = nAccessor },
+                attributes,
                 material = materials.IndexOf(g.Key),
                 mode = 4,
             });
+        }
+
+        var images = new List<object>();
+        var textureIndex = new Dictionary<int, int>();
+        for (var i = 0; i < materials.Count; i++)
+        {
+            if (!textured[i])
+                continue;
+            var data = materials[i]!.Texture!.Data;
+            while (bin.Position % 4 != 0)
+                bw.Write((byte)0);
+            var offset = (int)bin.Position;
+            bw.Write(data);
+            textureIndex[i] = images.Count;
+            images.Add(new { bufferView = bufferViews.Count, mimeType = data is [0xFF, 0xD8, ..] ? "image/jpeg" : "image/png" });
+            bufferViews.Add(new { buffer = 0, byteOffset = offset, byteLength = data.Length });
         }
 
         var gltf = new Dictionary<string, object>
@@ -82,11 +116,17 @@ public static class GltfWriter
             ["scenes"] = new[] { new { nodes = new[] { 0 } } },
             ["nodes"] = new[] { new { mesh = 0, name = "Model" } },
             ["meshes"] = new[] { new { primitives } },
-            ["materials"] = materials.Select(MaterialJson).ToArray(),
+            ["materials"] = materials.Select((m, i) => MaterialJson(m, textureIndex.TryGetValue(i, out var t) ? t : null)).ToArray(),
             ["accessors"] = accessors,
             ["bufferViews"] = bufferViews,
             ["buffers"] = new[] { new { byteLength = (int)bin.Length } },
         };
+        if (images.Count > 0)
+        {
+            gltf["images"] = images;
+            gltf["samplers"] = new[] { new { wrapS = 10497, wrapT = 10497 } };
+            gltf["textures"] = images.Select((_, i) => new { sampler = 0, source = i }).ToArray();
+        }
         if (triangles.Count == 0)
         {
             // A mesh needs at least one primitive; an empty export is a scene with one empty node.
@@ -119,19 +159,23 @@ public static class GltfWriter
         }
     }
 
-    private static object MaterialJson(Material? m)
+    private static object MaterialJson(Material? m, int? texture)
     {
         var c = m?.Color ?? Rgba.DefaultFront;
         var opacity = m?.Opacity ?? 1;
+        var pbr = new Dictionary<string, object>
+        {
+            // A picture carries its own colours.
+            ["baseColorFactor"] = texture != null ? new[] { 1.0, 1.0, 1.0, opacity } : new[] { SrgbToLinear(c.R), SrgbToLinear(c.G), SrgbToLinear(c.B), opacity },
+            ["metallicFactor"] = 0.0,
+            ["roughnessFactor"] = 1.0,
+        };
+        if (texture != null)
+            pbr["baseColorTexture"] = new { index = texture.Value };
         return new Dictionary<string, object>
         {
             ["name"] = m?.Name ?? "Default",
-            ["pbrMetallicRoughness"] = new
-            {
-                baseColorFactor = new[] { SrgbToLinear(c.R), SrgbToLinear(c.G), SrgbToLinear(c.B), opacity },
-                metallicFactor = 0.0,
-                roughnessFactor = 1.0,
-            },
+            ["pbrMetallicRoughness"] = pbr,
             ["alphaMode"] = opacity < 1 ? "BLEND" : "OPAQUE",
             ["doubleSided"] = true,
         };

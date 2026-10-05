@@ -15,7 +15,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 |---|---|---|
 | STEP import: offset surfaces | One offset surface sample (a loft's side offset 2 mm) still comes in with 5 non-manifold edges near its boundary, where points are projected back onto the offset surface approximately. | Curved faces are now Delaunay on the surface, seams included: areas within 0.4 % of FreeCAD's on the test parts and 0.04 % on FreeCAD's sample parts (Schenkel, 409 faces with spheres through their poles; EngineBlock; PartDesignExample), all closed. |
 | Import details | IFC boolean cuts (openings clipped from walls) are not applied. Components come in as components from COLLADA, KMZ, DWG, DXF, 3DS (as groups), STEP and IFC. | |
-| Textures in mesh formats | COLLADA and KMZ carry textures both ways (pictures beside the .dae or inside the .kmz, each face's placement kept); OBJ, glTF, FBX, 3DS and VRML exports and OBJ/3DS imports still leave them out. | Exported triangles now carry texture coordinates, so each writer only has to add its own image references. |
+| Textures in mesh formats | COLLADA and KMZ carry textures both ways (pictures beside the .dae or inside the .kmz, each face's placement kept), OBJ exports them beside the file and glTF embeds them (checked with Khronos' validator); FBX, 3DS and VRML exports and 3DS import still leave them out. | Exported triangles now carry texture coordinates, so each writer only has to add its own image references. |
 
 ## Medium impact
 
