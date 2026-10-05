@@ -1199,6 +1199,7 @@ public partial class MainWindow : Control
             ("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), false), ("Outliner", _outliner, false),
         })
             _panels[name] = TraySection.Create(name, panel, expanded);
+        _scenes.ShowPanel = () => _panels["Scenes"].Expand();
         LayoutTrays();
     }
 

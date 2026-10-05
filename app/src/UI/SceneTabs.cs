@@ -193,27 +193,66 @@ public partial class SceneTabs : HBoxContainer
         _player = null;
     }
 
+    /// <summary>Asks for the current scene's new name (Scene › Rename).</summary>
+    public void RenameCurrent()
+    {
+        var scenes = _doc().Model.Scenes;
+        if (_current < 0 || _current >= scenes.Count)
+            return;
+        var scene = scenes[_current];
+        var d = new ConfirmationDialog { Title = "Rename Scene", Theme = UI.LightTheme.Create() };
+        var name = new LineEdit { Text = scene.Name, CustomMinimumSize = new Vector2(260, 0) };
+        d.AddChild(name);
+        d.RegisterTextEnter(name);
+        d.Confirmed += () =>
+        {
+            if (name.Text.Trim() is { Length: > 0 } t)
+            {
+                scene.Name = t;
+                Refresh();
+            }
+            d.QueueFree();
+        };
+        d.Canceled += d.QueueFree;
+        AddChild(d);
+        d.PopupCentered();
+        name.GrabFocus();
+        name.SelectAll();
+    }
+
+    /// <summary>Scenes… in the tab menu: shows the Scenes panel.</summary>
+    public Action ShowPanel { get; set; } = () => { };
+
     private void Menu(int index, Vector2 at)
     {
         var menu = new PopupMenu();
-        menu.AddItem("Update", 0);
-        menu.AddItem("Add...", 1);
-        menu.AddItem("Delete", 2);
+        var count = _doc().Model.Scenes.Count;
+        (string Label, Action Run, bool Enabled)[] items =
+        [
+            ("Move Left", () => Move(-1), index > 0),
+            ("Move Right", () => Move(1), index < count - 1),
+            ("Add...", Add, true),
+            ("Update", UpdateCurrent, true),
+            ("Rename", RenameCurrent, true),
+            ("Delete", DeleteCurrent, true),
+            ("Play Animation", () =>
+            {
+                if (Playing)
+                    Stop();
+                else
+                    Play();
+            }, true),
+            ("Scenes...", ShowPanel, true),
+        ];
+        for (var i = 0; i < items.Length; i++)
+        {
+            menu.AddItem(items[i].Label, i);
+            menu.SetItemDisabled(i, !items[i].Enabled);
+        }
         menu.IdPressed += id =>
         {
             _current = index;
-            switch (id)
-            {
-                case 0:
-                    UpdateCurrent();
-                    break;
-                case 1:
-                    Add();
-                    break;
-                case 2:
-                    DeleteCurrent();
-                    break;
-            }
+            items[id].Run();
             menu.QueueFree();
         };
         AddChild(menu);

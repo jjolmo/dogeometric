@@ -34,6 +34,14 @@ public partial class TraySection : VBoxContainer
         return s;
     }
 
+    /// <summary>Opens the section (and scrolls the tray to it).</summary>
+    public void Expand()
+    {
+        if (!_body.Visible)
+            Toggle(Name);
+        Callable.From(() => GetParent()?.GetParent<ScrollContainer>()?.EnsureControlVisible(this)).CallDeferred();
+    }
+
     private void Toggle(string title)
     {
         _body.Visible = !_body.Visible;
