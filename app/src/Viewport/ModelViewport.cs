@@ -362,6 +362,7 @@ public partial class ModelViewport : Control
             _camera.Projection = Camera3D.ProjectionType.Orthogonal;
             _camera.Size = (float)(Camera.OrthoHeight * Space.MetersPerUnit);
             _camera.Near = 0.01f;
+            Axes?.SetParallelScale(Camera.OrthoHeight, Camera.FovDegrees);
         }
         // Godot builds the frustum in single precision: a far/near ratio much past 1e6 makes it degenerate and every
         // object gets culled (the "create_frustum_points" errors), so the far plane follows the near one.

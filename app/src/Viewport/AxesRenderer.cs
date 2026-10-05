@@ -19,6 +19,11 @@ public partial class AxesRenderer : MeshInstance3D
 
     public override void _ExitTree() => UI.AppPreferences.Changed -= Build;
 
+    /// <summary>Parallel views: dashes sized as a perspective view of the same scale would show them.</summary>
+    public void SetParallelScale(double orthoHeightMm, double fovDegrees) =>
+        ((ShaderMaterial)MaterialOverride).SetShaderParameter("parallel_depth",
+            (float)(orthoHeightMm * Space.MetersPerUnit / 2 / Math.Tan(fovDegrees * Math.PI / 360)));
+
     /// <summary>The axes in Preferences › Accessibility's colours, a little darker as SketchUp 2021 draws them.</summary>
     private void Build()
     {
@@ -32,14 +37,22 @@ public partial class AxesRenderer : MeshInstance3D
         Mesh = mesh;
     }
 
+    // Pieces growing tenfold from the origin: a line with an end beyond the far plane is dropped by some rasterisers
+    // (software Vulkan, and parallel views keep the far plane at 10 km), so each piece clips on its own.
+    private static readonly double[] Steps = [0, 1_000, 10_000, 100_000, HalfLengthMm];
+
     private static void AddAxis(ImmediateMesh mesh, Vec3 axis, Color color)
     {
-        var end = (float)(HalfLengthMm * Space.MetersPerUnit);
-        AddVertex(mesh, Vec3.Zero, color, 0);
-        AddVertex(mesh, axis * HalfLengthMm, color, end);
-        // Negative half: UV.x carries the negative distance so the shader can dash it.
-        AddVertex(mesh, Vec3.Zero, color, -0f);
-        AddVertex(mesh, -axis * HalfLengthMm, color, -end);
+        for (var i = 0; i + 1 < Steps.Length; i++)
+        {
+            var (a, b) = (Steps[i], Steps[i + 1]);
+            var (ua, ub) = ((float)(a * Space.MetersPerUnit), (float)(b * Space.MetersPerUnit));
+            AddVertex(mesh, axis * a, color, ua);
+            AddVertex(mesh, axis * b, color, ub);
+            // Negative half: UV.x carries the negative distance so the shader can dash it.
+            AddVertex(mesh, -axis * a, color, -ua);
+            AddVertex(mesh, -axis * b, color, -ub);
+        }
     }
 
     private static void AddVertex(ImmediateMesh mesh, Vec3 p, Color color, float u)
