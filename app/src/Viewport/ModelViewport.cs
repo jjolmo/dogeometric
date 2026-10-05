@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Dogeometric.App.Tools;
 using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Modeling;
@@ -454,11 +455,11 @@ public partial class ModelViewport : Control
         var dir = Camera.Direction;
         var flat = new Vec3(dir.X, dir.Y, 0);
         double horizonUv = dir.Z > 0 ? 1.5 : -0.5;
-        if (!flat.IsZero(1e-9) && Size.Y > 0)
+        if (!flat.IsZero(1e-9) && _subViewport.Size.Y > 0)
         {
             var far = Camera.Eye + flat.Normalized() * 1e9;
             if (ToScreen(far) is { } screen)
-                horizonUv = screen.Y / Size.Y;
+                horizonUv = screen.Y / _subViewport.Size.Y;
         }
         _skyMaterial.SetShaderParameter("horizon_uv", (float)horizonUv);
     }
@@ -504,6 +505,42 @@ public partial class ModelViewport : Control
     /// <summary>The view as drawn, with its annotations and watermarks (exports and printing show them, as in SketchUp).</summary>
     public Image Snapshot() => _subViewport.GetTexture().GetImage();
 
+    /// <summary>
+    /// File › Export › 2D Graphic options: the view drawn at <paramref name="size"/> pixels (same camera, its height
+    /// kept), with or without anti-aliasing and with the background left transparent.
+    /// </summary>
+    public async Task<Image> RenderImage(Vector2I size, bool antialias, bool transparent)
+    {
+        var container = (SubViewportContainer)_subViewport.GetParent();
+        var msaa = _subViewport.Msaa3D;
+        var background = _environment!.BackgroundMode;
+        var clear = _environment.BackgroundColor;
+        container.Stretch = false;
+        _subViewport.Size = size;
+        _subViewport.Msaa3D = antialias ? Godot.Viewport.Msaa.Msaa4X : Godot.Viewport.Msaa.Disabled;
+        if (transparent)
+        {
+            _subViewport.TransparentBg = true;
+            _environment.BackgroundMode = Godot.Environment.BGMode.ClearColor;
+            _environment.BackgroundColor = new Color(0, 0, 0, 0);
+        }
+        UpdateHorizon();
+        UpdateWatermarks();
+        QueueOverlayRedraw();
+        for (var i = 0; i < 2; i++)
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        var image = _subViewport.GetTexture().GetImage();
+        _subViewport.Msaa3D = msaa;
+        _subViewport.TransparentBg = false;
+        _environment.BackgroundMode = background;
+        _environment.BackgroundColor = clear;
+        container.Stretch = true;
+        UpdateHorizon();
+        UpdateWatermarks();
+        QueueOverlayRedraw();
+        return image;
+    }
+
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
 
@@ -545,7 +582,7 @@ public partial class ModelViewport : Control
     {
         if (_watermarkFront == null)
             return;
-        var (back, front) = WatermarkCompositor.Compose(_style, (Vector2I)Size);
+        var (back, front) = WatermarkCompositor.Compose(_style, _subViewport.Size);
         _skyMaterial.SetShaderParameter("has_watermarks", back != null);
         _skyMaterial.SetShaderParameter("watermarks", back != null ? ImageTexture.CreateFromImage(back) : null);
         _watermarkFront.Texture = front != null ? ImageTexture.CreateFromImage(front) : null;

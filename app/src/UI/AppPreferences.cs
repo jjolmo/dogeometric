@@ -36,6 +36,14 @@ public sealed class AppPreferences
     /// <summary>Preferences › Drawing: Push/Pull ignores a face selected before the tool starts.</summary>
     public bool DisablePushPullPrePick { get; set; }
 
+    /// <summary>File › Export › 2D Graphic › Options for pictures, remembered between exports.</summary>
+    public bool ExportUseViewSize { get; set; } = true;
+    public int ExportWidth { get; set; } = 1920;
+    public int ExportHeight { get; set; } = 1080;
+    public bool ExportAntialias { get; set; } = true;
+    public bool ExportTransparent { get; set; }
+    public double ExportJpegQuality { get; set; } = 0.92;
+
     /// <summary>The Section Plane tool asks for a name and symbol on placing one (until "don't ask again").</summary>
     public bool AskSectionName { get; set; } = true;
 

@@ -382,11 +382,21 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             }
             else
             {
-                var image = viewport.Snapshot();
-                error = ext is ".jpg" or ".jpeg" ? image.SaveJpg(path, 0.92f) : image.SavePng(ext == ".png" ? path : path + ".png");
+                var png = ext is not (".jpg" or ".jpeg");
+                ExportImageDialog.Show(host, (Vector2I)viewport.Size, png, () => ExportImage(png ? (ext == ".png" ? path : path + ".png") : path, png));
+                return;
             }
             status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
         });
+
+    private async void ExportImage(string path, bool png)
+    {
+        var p = AppPreferences.Current;
+        var size = p.ExportUseViewSize ? (Vector2I)viewport.Size : new Vector2I(p.ExportWidth, p.ExportHeight);
+        var image = await viewport.RenderImage(size, p.ExportAntialias, png && p.ExportTransparent);
+        var error = png ? image.SavePng(path) : image.SaveJpg(path, (float)p.ExportJpegQuality);
+        status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
+    }
 
     /// <summary>File › Export › Section Slice: the active section's cut as a full-scale DXF.</summary>
     public void ShowExportSectionSlice()
