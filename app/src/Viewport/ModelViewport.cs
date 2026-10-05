@@ -385,6 +385,9 @@ public partial class ModelViewport : Control
     public CameraState? LockedCamera { get; set; }
 
     /// <summary>Advanced Camera Tools: the frame's width over height, shown with bars outside it; null for none.</summary>
+    /// <summary>Advanced Camera Tools' camera chosen with Select Camera Type (its frame and sensor), or null.</summary>
+    public Core.View.CameraType? CameraType { get; set; }
+
     public double? FrameAspect
     {
         get => _frameAspect;

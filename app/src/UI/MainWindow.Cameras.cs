@@ -8,41 +8,48 @@ namespace Dogeometric.App.UI;
 /// <summary>Tools › Advanced Camera Tools: cameras placed in the model, looked through, locked, shown or hidden.</summary>
 public partial class MainWindow
 {
-    /// <summary>Select Camera Type: frame proportions of common film, video and photo cameras.</summary>
-    private static readonly (string Group, (string Name, double Aspect)[] Types)[] CameraTypes =
-    [
-        ("16mm", [("16mm Camera Aperture", 1.37), ("16mm Super 16 Camera Aperture", 1.66), ("16mm Super 16 HDTV 16:9", 16.0 / 9)]),
-        ("35mm", [("35mm 1.66 Projection Aperture", 1.66), ("35mm 1.85 Projection Aperture", 1.85), ("35mm 2.40 Anamorphic Projection", 2.40),
-            ("35mm 4-Perf 1.33 Camera Aperture", 1.33), ("35mm full 1.37 Projection Aperture", 1.37)]),
-        ("65mm", [("65mm Camera Aperture", 2.28), ("65mm Projection Aperture", 2.2)]),
-        ("Digital", [("1/1.7 Sensor 4:3", 4.0 / 3), ("1/2 Sensor 16:9", 16.0 / 9), ("1/2.5 Sensor 4:3", 4.0 / 3), ("2/3 Video 2.40 Extracted area", 2.4)]),
-        ("IMAX", [("IMAX 1.85 Safe", 1.85), ("IMAX 2.39 Safe", 2.39), ("IMAX Camera Aperture", 1.43)]),
-        ("Photography", [("35mm SLR / Full Frame DSLR", 1.5), ("Four Thirds System", 4.0 / 3), ("Large Format 4x5", 1.25),
-            ("Medium Format 6x4.5", 4.0 / 3), ("Medium Format 6x6", 1), ("Medium Format 6x7", 7.0 / 6)]),
-    ];
-
     private void RegisterCameras()
     {
         var v = _viewport;
         _commands.SubmenuBuilders["Select Camera Type"] = menu =>
         {
+            // Categories nest on "/" ("Digital/RED®"); within one, sub-categories follow its own cameras, by name.
             var actions = new Dictionary<int, Action>();
-            foreach (var (group, types) in CameraTypes)
+            var menus = new Dictionary<string, PopupMenu> { [""] = menu };
+            PopupMenu MenuFor(string path)
             {
+                if (menus.TryGetValue(path, out var found))
+                    return found;
+                var cut = path.LastIndexOf('/');
+                var parent = MenuFor(cut < 0 ? "" : path[..cut]);
                 var sub = new PopupMenu();
-                foreach (var (name, aspect) in types)
+                sub.IdPressed += i =>
+                {
+                    if (actions.TryGetValue((int)i, out var run))
+                        run();
+                };
+                parent.AddSubmenuNodeItem(cut < 0 ? path : path[(cut + 1)..], sub);
+                return menus[path] = sub;
+            }
+            var order = new[] { "16mm", "35mm", "65mm", "Digital", "IMAX©", "Photography" };
+            var categories = CameraTypes.All.Select(c => c.Category).Distinct()
+                .OrderBy(c => Array.IndexOf(order, c.Split('/')[0]))
+                .ThenBy(c => c.Contains('/') ? 1 : 0)
+                .ThenBy(c => c, StringComparer.Ordinal);
+            foreach (var category in categories)
+            {
+                var sub = MenuFor(category);
+                foreach (var type in CameraTypes.All.Where(c => c.Category == category).OrderBy(c => c.Name, StringComparer.Ordinal))
                 {
                     var id = actions.Count + 1;
-                    sub.AddRadioCheckItem(name, id);
-                    sub.SetItemChecked(sub.ItemCount - 1, v.FrameAspect is { } a && Math.Abs(a - aspect) < 1e-9);
-                    actions[id] = () => v.FrameAspect = aspect;
-                    sub.IdPressed += i =>
+                    sub.AddRadioCheckItem(type.Name, id);
+                    sub.SetItemChecked(sub.ItemCount - 1, v.CameraType == type);
+                    actions[id] = () =>
                     {
-                        if (i == id)
-                            actions[id]();
+                        v.CameraType = type;
+                        v.FrameAspect = type.Aspect;
                     };
                 }
-                menu.AddSubmenuNodeItem(group, sub);
             }
             return actions;
         };
