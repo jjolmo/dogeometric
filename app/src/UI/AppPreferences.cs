@@ -30,6 +30,12 @@ public sealed class AppPreferences
     /// <summary>The Line tool keeps drawing from the end of the last line until Esc or a closed face.</summary>
     public bool ContinueLineDrawing { get; set; } = true;
 
+    /// <summary>Preferences › Drawing: a cross of axis-coloured lines through the cursor while drawing.</summary>
+    public bool DisplayCrosshairs { get; set; }
+
+    /// <summary>Preferences › Drawing: Push/Pull ignores a face selected before the tool starts.</summary>
+    public bool DisablePushPullPrePick { get; set; }
+
     // Compatibility.
     public bool InvertWheelZoom { get; set; }
 

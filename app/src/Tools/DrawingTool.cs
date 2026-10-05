@@ -161,6 +161,13 @@ public abstract class DrawingTool : Tool
     {
         if (Current is not { } inf || View.ToScreen(inf.Point) is not { } p)
             return;
+        if (UI.AppPreferences.Current.DisplayCrosshairs)
+        {
+            // Preferences › Drawing › Display crosshairs: short axis-coloured lines through the point.
+            var size = View.Camera.Distance * 0.06;
+            foreach (var axis in new[] { Red, Green, Blue })
+                DrawWorldLine(overlay, inf.Point - axis * size, inf.Point + axis * size, AxisColor(axis), 1);
+        }
 
         if (inf is { Kind: InferenceKind.OnAxis, AxisFrom: { } from, AxisDirection: { } dir })
             DrawWorldLine(overlay, from, inf.Point, AxisColor(dir), 1, dashed: true);

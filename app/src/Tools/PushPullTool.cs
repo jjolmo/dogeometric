@@ -80,7 +80,10 @@ public sealed class PushPullTool : DrawingTool
 
         if (_face == null)
         {
-            var face = FaceUnderCursor(position);
+            // Pre-pick: with one face selected beforehand, a click anywhere push/pulls that face.
+            var picked = UI.AppPreferences.Current.DisablePushPullPrePick ? null
+                : doc.Selection.Items.Count == 1 && doc.Selection.Items.First() is Face only && doc.Context.Entities.Faces.Contains(only) ? only : null;
+            var face = picked ?? FaceUnderCursor(position);
             if (face == null)
                 return;
             if (doubleClick && _lastDistance != 0)

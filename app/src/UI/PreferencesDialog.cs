@@ -133,6 +133,10 @@ public partial class PreferencesDialog : AcceptDialog
                 Heading(box, "Miscellaneous");
                 Check(box, "Continue line drawing", "The Line tool keeps drawing from the end of the last line until Esc or a closed face.",
                     p.ContinueLineDrawing, v => p.ContinueLineDrawing = v);
+                Check(box, "Display crosshairs", "Drawing tools show lines along the red, green and blue axes through the cursor.",
+                    p.DisplayCrosshairs, v => p.DisplayCrosshairs = v);
+                Check(box, "Disable pre-pick on Push/Pull Tool", "Push/Pull always works on the face clicked, never on one selected beforehand.",
+                    p.DisablePushPullPrePick, v => p.DisablePushPullPrePick = v);
                 break;
 
             case "Compatibility":
