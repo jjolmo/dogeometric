@@ -340,7 +340,8 @@ public partial class MainWindow : Control
         _commands.Register(ExtensionIds.SandboxStamp, () => _viewport.Tools.Activate(new StampTool()), () => _viewport.Tools.Active is StampTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxDrape, "Drape", "Drape the selected edges onto a surface below them.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxDrape, () => _viewport.Tools.Activate(new DrapeTool()), () => _viewport.Tools.Active is DrapeTool);
-        Launcher(ExtensionIds.SurfaceGeneric, "Generic Tools on Surface", "Start any tool and keep it persistent during session", Toolbars.ToolsOnSurface);
+        _commands.AddToMenu("Tools", ExtensionIds.SurfaceGeneric, "Generic Tools on Surface", "Start any tool and keep it persistent during session", submenu: "Fredo6 Collection");
+        _commands.Register(ExtensionIds.SurfaceGeneric, GenericToolsOnSurface);
         foreach (var shape in Enum.GetValues<SurfaceShape>())
         {
             var id = ExtensionIds.SurfaceShape(shape);
@@ -592,6 +593,62 @@ public partial class MainWindow : Control
         _scenes.Go(_document.Model.Scenes.Count - 1, instant: true);
         _viewport.Tools.Activate(new MatchPhotoTool(scene));
     });
+
+    private Window? _surfacePalette;
+    private int _surfaceLast = ExtensionIds.SurfaceShape(SurfaceShape.Line);
+
+    /// <summary>Tools on Surface's Generic tool: a palette of its tools that stays while one of them is in use, starting
+    /// with the one last chosen this session.</summary>
+    private void GenericToolsOnSurface()
+    {
+        _commands.Execute(_surfaceLast);
+        if (_surfacePalette != null)
+            return;
+        var tools = Toolbars.ToolsOnSurface.Where(t => t != ExtensionIds.SurfaceGeneric).ToList();
+        var w = new Window { Title = "Tools on Surface", Transient = true, Unresizable = true, Unfocusable = true, Theme = LightTheme.Create(), WrapControls = true };
+        var panel = new PanelContainer();
+        panel.AddThemeStyleboxOverride("panel", LightTheme.Box(Colors.White, 4, 4));
+        var row = new HBoxContainer();
+        var buttons = new Dictionary<int, Button>();
+        foreach (var id in tools)
+        {
+            var b = new Button { ToggleMode = true, FocusMode = Control.FocusModeEnum.None, TooltipText = _commands.Get(id).Label };
+            if (Toolbars.Icons.TryGetValue(id, out var icon) && ResourceLoader.Exists($"res://icons/{icon}.svg"))
+                b.Icon = GD.Load<Texture2D>($"res://icons/{icon}.svg");
+            b.Pressed += () => _commands.Execute(id);
+            buttons[id] = b;
+            row.AddChild(b);
+        }
+        panel.AddChild(row);
+        w.AddChild(panel);
+        void Sync()
+        {
+            var active = _viewport.Tools.Active.CommandId;
+            if (!buttons.ContainsKey(active))
+            {
+                Close();
+                return;
+            }
+            _surfaceLast = active;
+            foreach (var (id, b) in buttons)
+                b.SetPressedNoSignal(id == active);
+        }
+        void Close()
+        {
+            _viewport.Tools.Changed -= Sync;
+            _surfacePalette = null;
+            w.QueueFree();
+        }
+        _viewport.Tools.Changed += Sync;
+        w.CloseRequested += Close;
+        GetTree().Root.AddChild(w);
+        var main = GetWindow();
+        w.Position = main.Position + new Vector2I(Math.Max(main.Size.X - 620, 0), 140);
+        w.Show();
+        w.ResetSize();
+        _surfacePalette = w;
+        Sync();
+    }
 
     /// <summary>Fredo6's Quick Launcher: the button lists its toolbar's tools at the cursor, to start one.</summary>
     private void Launcher(int id, string label, string tip, int[] tools)
