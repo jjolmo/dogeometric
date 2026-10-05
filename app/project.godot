@@ -5,7 +5,7 @@ config_version=5
 [application]
 
 config/name="Dogeometric"
-config/version="0.2.0"
+config/version="0.3.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.png"
@@ -29,6 +29,8 @@ project/assembly_name="Dogeometric"
 project/solution_directory=".."
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
 
 anti_aliasing/quality/msaa_3d=2
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3

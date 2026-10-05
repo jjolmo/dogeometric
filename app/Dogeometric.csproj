@@ -9,6 +9,16 @@
     <!-- Run on whatever newer .NET runtime is installed (a machine may only have .NET 10). -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
+  <!-- Manifold's native library goes out beside the assemblies of the platform being exported, where the solids
+       code looks for it (and where the macOS export signs it). Built by tools/native/build-manifold.sh. -->
+  <PropertyGroup>
+    <NativeFolder Condition="$(RuntimeIdentifier.StartsWith('win'))">win-x64</NativeFolder>
+    <NativeFolder Condition="$(RuntimeIdentifier.StartsWith('linux'))">linux-x64</NativeFolder>
+    <NativeFolder Condition="$(RuntimeIdentifier.StartsWith('osx'))">osx</NativeFolder>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(NativeFolder)' != ''">
+    <None Include="native/$(NativeFolder)/*" Link="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../src/Dogeometric.Core/Dogeometric.Core.csproj" />
     <ProjectReference Include="../src/Dogeometric.Formats/Dogeometric.Formats.csproj" />

@@ -1,0 +1,141 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.7.1
+  MANIFOLD_TAG: v3.2.1
+  DOTNET_NOLOGO: true
+
+jobs:
+  # Manifold's C API, built on each platform (macOS as one universal library).
+  native:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-22.04, rid: linux-x64 }
+          - { os: windows-2022, rid: win-x64 }
+          - { os: macos-14, rid: osx }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: app/native/${{ matrix.rid }}
+          key: manifold-${{ env.MANIFOLD_TAG }}-${{ matrix.rid }}-${{ hashFiles('tools/native/build-manifold.sh') }}
+      - name: Install Ninja
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Install Ninja
+        if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'macOS'
+        run: brew install ninja
+      - name: Build Manifold
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: tools/native/build-manifold.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: app/native/${{ matrix.rid }}
+
+  test:
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, rid: linux-x64 }
+          - { os: windows-2022, rid: win-x64 }
+          - { os: macos-14, rid: osx }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: app/native/${{ matrix.rid }}
+      - run: dotnet test tests/Dogeometric.Core.Tests -c Release
+      - run: dotnet test tests/Dogeometric.Formats.Tests -c Release
+      - run: dotnet test tests/Dogeometric.Scripting.Tests -c Release
+      - run: dotnet test tests/Dogeometric.Solids.Tests -c Release
+
+  # Godot exports all three platforms from Linux; a v* tag publishes them as a GitHub release.
+  package:
+    needs: [native, test]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: artifacts
+      - name: Place native libraries
+        run: |
+          for rid in linux-x64 win-x64 osx; do
+            mkdir -p app/native/$rid
+            cp -a artifacts/native-$rid/. app/native/$rid/
+          done
+          ls -R app/native
+      - uses: actions/cache@v4
+        id: godot
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-mono-desktop
+      - name: Download Godot and its export templates
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          dest=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz templates/version.txt templates/linux_release.x86_64 templates/linux_debug.x86_64 \
+            templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/macos.zip -d "$dest"
+          rm templates.tpz
+      - name: Check the tag matches the project version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(sed -n 's/^config\/version="\(.*\)"/\1/p' app/project.godot)
+          [ "v$version" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} but app/project.godot says $version"; exit 1; }
+      - name: Export Linux, Windows and macOS
+        run: |
+          export GODOT=$(ls ~/godot/Godot_v*_mono_linux_x86_64/Godot_v*_mono_linux.x86_64)
+          scripts/release.sh linux windows macos
+          cd dist && for f in *.tar.gz *.zip *.AppImage; do sha256sum "$f" > "$f.sha256"; done && ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dogeometric-packages
+          retention-days: 14
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.sha256
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.sha256

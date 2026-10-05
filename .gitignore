@@ -1,7 +1,8 @@
 # Godot
 .godot/
 *.import
-export_presets.cfg
+# The export presets live in scripts/export_presets.cfg; scripts/release.sh copies them here.
+/app/export_presets.cfg
 
 # .NET
 bin/

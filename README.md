@@ -31,7 +31,7 @@ dotnet build Dogeometric.sln
 
 Tests: `dotnet test tests/Dogeometric.Core.Tests` (also `Dogeometric.Formats.Tests`, `Dogeometric.Solids.Tests` and `Dogeometric.Scripting.Tests`).
 
-Linux release: `scripts/release-linux.sh` (needs Godot's .NET export templates and `tools/native/build-manifold.sh` run once).
+Releases: `scripts/release.sh [linux] [windows] [macos]` (needs Godot's .NET export templates and `tools/native/build-manifold.sh` run on each platform); GitHub Actions builds all three on every `v*` tag.
 
 ## Decisions
 
