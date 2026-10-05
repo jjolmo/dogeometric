@@ -485,7 +485,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             }
             if (System.IO.Path.GetExtension(path).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
             {
-                var ifc = IfcImport.Load(path);
+                var ifc = IfcImport.Load(path, Dogeometric.Solids.SolidTools.CutOpenings);
                 Merge(ifc.Model);
                 Document.Undo.Clear();
                 Rebuild();

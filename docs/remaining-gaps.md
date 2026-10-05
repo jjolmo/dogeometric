@@ -14,8 +14,6 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
 | STEP import: offset surfaces | One offset surface sample (a loft's side offset 2 mm) still comes in with 5 non-manifold edges near its boundary, where points are projected back onto the offset surface approximately. | Curved faces are now Delaunay on the surface, seams included: areas within 0.4 % of FreeCAD's on the test parts and 0.04 % on FreeCAD's sample parts (Schenkel, 409 faces with spheres through their poles; EngineBlock; PartDesignExample), all closed. |
-| Import details | IFC boolean cuts (openings clipped from walls) are not applied. Components come in as components from COLLADA, KMZ, DWG, DXF, 3DS (as groups), STEP and IFC. | |
-| Textures in mesh formats | COLLADA and KMZ carry textures both ways (pictures beside the .dae or inside the .kmz, each face's placement kept), OBJ exports them beside the file, glTF embeds them (checked with Khronos' validator) 3DS carries them both ways under 8.3 names, and FBX and VRML export them too (read back by assimp and VTK); dotXSI still leaves them out. | Exported triangles now carry texture coordinates, so each writer only has to add its own image references. |
 
 ## Medium impact
 
@@ -29,6 +27,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Notes |
 |---|---|
 | Fredo6 Donation, Plugin Information, Check for Update and LibFredo6 Settings | Payment pages and plugin services with no use in a native rebuild. About, Video and Documentation entries are there. |
+| dotXSI textures | dotXSI goes out untextured; COLLADA, KMZ, 3DS carry textures both ways and OBJ, glTF, FBX and VRML export them (checked with Khronos' validator, assimp and VTK). |
 | Advanced Camera Tools sub-categories | All 93 cameras are there; RED Mysterium sits under RED® (as in SketchUp's CSV). |
 
 ## Closed in this round (for reference)
@@ -47,4 +46,4 @@ big there), dotXSI export (same structure as SketchUp's), `.dog` previews
 saved with the file and shown in collections, Help › Welcome (templates, Open, recent files with previews), STEP import (analytic and
 B-spline surfaces, extrusions, revolutions, assemblies) and STEP colours both ways (AP214 styled items; only
 checked against our own reader, as FreeCAD loads colours only with its GUI), IFC import (extrusions, face sets,
-faceted B-reps, mapped items, placements, colours, classified; checked against ifcopenshell).
+faceted B-reps, mapped items, placements, colours, classified, openings cut from the walls they void; checked against ifcopenshell).

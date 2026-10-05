@@ -95,4 +95,19 @@ public class SolidToolsTests
         var shell = SolidTools.OuterShell(m2, m2.Entities, [h2, o2]);
         Assert.Equal(1_000_000 + 8_000, Volume(shell), 0);
     }
+
+    [Fact]
+    public void Ifc_openings_are_cut_from_the_walls_they_void()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Data", "ifc", "openings.ifc");
+        var cut = IfcImport.Load(path, SolidTools.CutOpenings).Model;
+        var closed = IfcImport.Load(path).Model;
+
+        var check = MeshCheck.Analyze(MeshExtractor.Extract(cut));
+        Assert.True(check.IsWatertight);
+        // ifcopenshell: 4 × 2.5 × 0.2 m less the window (1 × 1.2) and the door (0.9 × 2.1 within the wall).
+        Assert.Equal(1.382e9, check.Volume, 1.382e9 * 1e-6);
+        Assert.Equal(2.0e9, MeshCheck.Analyze(MeshExtractor.Extract(closed)).Volume, 2.0e9 * 1e-6);
+        Assert.Equal("IfcWall", Assert.Single(cut.Definitions).IfcType);
+    }
 }

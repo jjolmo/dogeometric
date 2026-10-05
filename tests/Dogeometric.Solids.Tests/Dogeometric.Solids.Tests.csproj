@@ -16,6 +16,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Dogeometric.Solids/Dogeometric.Solids.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../Dogeometric.Core.Tests/Data/ifc/openings.ifc" Link="Data/ifc/openings.ifc" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
   <!-- Manifold's native library, as the app ships it. -->
   <ItemGroup>
     <None Include="../../app/native/linux-x64/libmanifold*" CopyToOutputDirectory="Always" LinkBase="native" />

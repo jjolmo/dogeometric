@@ -4,16 +4,22 @@ using Dogeometric.Core.Modeling;
 namespace Dogeometric.Core.IO;
 
 /// <summary>File › Import of IFC (2x3 and 4): each building element becomes a group classified with its IFC type, from
-/// extrusions, face sets, faceted B-reps and mapped items, placed through its local placements, with surface colours.</summary>
+/// extrusions, face sets, faceted B-reps and mapped items, placed through its local placements, with surface colours
+/// and the openings that void it cut away.</summary>
 public static class IfcImport
 {
     public sealed record Result(Model Model, int Elements, int SkippedItems);
 
-    public static Result Load(string path) => Read(File.ReadAllText(path), Path.GetFileNameWithoutExtension(path));
+    /// <summary>An element's body polygons (with their paint) minus closed opening volumes, both in the element's own
+    /// coordinates; null leaves the body as it was.</summary>
+    public delegate List<(List<Vec3> Points, object? Key)>? OpeningCutter(List<(List<Vec3> Points, object? Key)> body, IReadOnlyList<List<List<Vec3>>> openings);
 
-    public static Result Read(string text, string name) => new Reader(StepParser.Parse(text)).Build(name);
+    /// <param name="cut">Subtracts openings (the solids library's booleans); without it walls keep their openings closed.</param>
+    public static Result Load(string path, OpeningCutter? cut = null) => Read(File.ReadAllText(path), Path.GetFileNameWithoutExtension(path), cut);
 
-    private sealed class Reader(Dictionary<int, StepParser.Entity> data)
+    public static Result Read(string text, string name, OpeningCutter? cut = null) => new Reader(StepParser.Parse(text), cut).Build(name);
+
+    private sealed class Reader(Dictionary<int, StepParser.Entity> data, OpeningCutter? cut)
     {
         private double _scale = 1;
         private int _skipped;
@@ -73,22 +79,23 @@ public static class IfcImport
             ReadColours();
             var model = new Model();
             var elements = 0;
+            // IfcRelVoidsElement: the building element (argument 4) and the opening cut from it (argument 5).
+            var voids = data.Values.Where(e => e.Type == "IFCRELVOIDSELEMENT" && e.Args.Count > 5 && e.Args[4] is StepParser.Ref && e.Args[5] is StepParser.Ref)
+                .GroupBy(e => ((StepParser.Ref)e.Args[4]!).Id).ToDictionary(g => g.Key, g => g.Select(e => E(e.Args[5])).ToList());
             foreach (var e in data.Values.OrderBy(x => x.Id))
             {
-                // Products: placement then a product definition shape in arguments 5 and 6.
-                if (e.Args.Count < 7 || e.Args[6] is not StepParser.Ref shapeRef || !data.TryGetValue(shapeRef.Id, out var shape)
-                    || shape.Type != "IFCPRODUCTDEFINITIONSHAPE"
-                    || e.Type is "IFCSITE" or "IFCBUILDING" or "IFCBUILDINGSTOREY" or "IFCSPACE" or "IFCOPENINGELEMENT" or "IFCANNOTATION" or "IFCGRID")
+                if (e.Type is "IFCSITE" or "IFCBUILDING" or "IFCBUILDINGSTOREY" or "IFCSPACE" or "IFCOPENINGELEMENT" or "IFCANNOTATION" or "IFCGRID"
+                    || Body(e) is not { Count: > 0 } polygons)
                     continue;
-                var polygons = new List<(List<Vec3> Points, object? Key)>();
-                var representations = ((List<object?>)shape.Args[2]!).Select(E).ToList();
-                var body = representations.FirstOrDefault(r => r.Args[1] as string == "Body") ?? representations.FirstOrDefault(r => r.Args[1] as string != "Axis" && r.Args[1] as string != "Box");
-                if (body == null)
-                    continue;
-                foreach (var item in ((List<object?>)body.Args[3]!).Select(E))
-                    Item(item, Transform.Identity, null, polygons, 0);
-                if (polygons.Count == 0)
-                    continue;
+                if (cut != null && voids.TryGetValue(e.Id, out var openings))
+                {
+                    var toLocal = Placement(e.Args[5]).Inverse();
+                    var volumes = openings.Select(o => (Placement: Placement(o.Args[5]).Then(toLocal), Polygons: Body(o)))
+                        .Where(o => o.Polygons is { Count: > 0 })
+                        .Select(o => o.Polygons!.Select(p => p.Points.Select(o.Placement.ApplyPoint).ToList()).ToList()).ToList();
+                    if (volumes.Count > 0 && cut(polygons, volumes) is { } cutAway)
+                        polygons = cutAway;
+                }
                 var label = e.Args[2] is string n && n.Length > 0 ? n : Type(e.Type);
                 var def = new ComponentDefinition { Name = label, IsGroup = true, IfcType = Type(e.Type) };
                 foreach (var (face, key, _) in MeshImport.AddMerged(def.Entities, polygons))
@@ -104,6 +111,22 @@ public static class IfcImport
             if (elements == 0)
                 throw new InvalidDataException($"no building elements with geometry in {name}");
             return new Result(model, elements, _skipped);
+        }
+
+        /// <summary>A product's body polygons in its own coordinates (its placement is argument 5, its shape argument 6).</summary>
+        private List<(List<Vec3> Points, object? Key)>? Body(StepParser.Entity product)
+        {
+            if (product.Args.Count < 7 || product.Args[6] is not StepParser.Ref shapeRef || !data.TryGetValue(shapeRef.Id, out var shape)
+                || shape.Type != "IFCPRODUCTDEFINITIONSHAPE")
+                return null;
+            var representations = ((List<object?>)shape.Args[2]!).Select(E).ToList();
+            var body = representations.FirstOrDefault(r => r.Args[1] as string == "Body") ?? representations.FirstOrDefault(r => r.Args[1] as string != "Axis" && r.Args[1] as string != "Box");
+            if (body == null)
+                return null;
+            var polygons = new List<(List<Vec3> Points, object? Key)>();
+            foreach (var item in ((List<object?>)body.Args[3]!).Select(E))
+                Item(item, Transform.Identity, null, polygons, 0);
+            return polygons;
         }
 
         private static readonly string[] OtherTypes =

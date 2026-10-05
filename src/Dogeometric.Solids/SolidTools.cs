@@ -65,6 +65,78 @@ public static class SolidTools
         return results;
     }
 
+    /// <summary>
+    /// IFC openings (<see cref="IfcImport.OpeningCutter"/>): the body minus each closed opening volume, as triangles
+    /// keeping the paint of the body face in their plane; the reveals take the body's most used paint. Null when the
+    /// body is not a closed solid or no opening is.
+    /// </summary>
+    public static List<(List<Vec3> Points, object? Key)>? CutOpenings(List<(List<Vec3> Points, object? Key)> body, IReadOnlyList<List<List<Vec3>>> openings)
+    {
+        static List<Triangle> Triangles(IEnumerable<List<Vec3>> polygons)
+        {
+            var result = new List<Triangle>();
+            foreach (var p in polygons)
+            {
+                var idx = Polygon.Triangulate(p);
+                for (var i = 0; i + 2 < idx.Count; i += 3)
+                    result.Add(new Triangle(p[idx[i]], p[idx[i + 1]], p[idx[i + 2]], null));
+            }
+            return result;
+        }
+
+        Solid solid;
+        try
+        {
+            solid = Solid.FromTriangles(Triangles(body.Select(b => b.Points)));
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        try
+        {
+            var cut = false;
+            foreach (var opening in openings)
+            {
+                Solid hole;
+                try
+                {
+                    hole = Solid.FromTriangles(Triangles(opening));
+                }
+                catch (InvalidOperationException)
+                {
+                    continue;
+                }
+                using (hole)
+                {
+                    var next = solid.Subtract(hole);
+                    solid.Dispose();
+                    solid = next;
+                    cut = true;
+                }
+            }
+            if (!cut)
+                return null;
+            var planes = body.Where(b => b.Points.Count >= 3).Select(b => (Normal: Polygon.Normal(b.Points), b.Points, b.Key))
+                .Where(b => !b.Normal.IsZero(1e-12)).Select(b => (b.Normal, D: b.Normal.Dot(b.Points[0]), b.Key)).ToList();
+            var fallback = body.GroupBy(b => b.Key).OrderByDescending(g => g.Count()).First().Key;
+            var (positions, tris) = solid.ToMesh();
+            var result = new List<(List<Vec3> Points, object? Key)>();
+            for (var i = 0; i + 2 < tris.Count; i += 3)
+            {
+                List<Vec3> t = [positions[tris[i]], positions[tris[i + 1]], positions[tris[i + 2]]];
+                var n = Polygon.Normal(t);
+                var source = planes.FirstOrDefault(p => p.Normal.Dot(n) > 1 - 1e-6 && Math.Abs(p.D - n.Dot(t[0])) < 1e-3);
+                result.Add((t, source.Normal.IsZero(1e-12) ? fallback : source.Key));
+            }
+            return result;
+        }
+        finally
+        {
+            solid.Dispose();
+        }
+    }
+
     /// <summary>True when the group/component is a closed manifold volume (SketchUp's "Solid Group").</summary>
     public static bool IsSolid(ComponentInstance i) => MeshCheck.Analyze(MeshExtractor.ExtractInstance(i)).IsWatertight;
 
