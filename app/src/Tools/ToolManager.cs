@@ -35,6 +35,7 @@ public sealed class ToolManager
         // The Measurements box starts from the new tool's value, not the last one's (activation may set its own).
         _view.ShowVcbValue(tool.VcbValue);
         tool.Activate();
+        Diagnostics.Journal.Log("tool", tool.GetType().Name);
         NotifyChanged();
     }
 

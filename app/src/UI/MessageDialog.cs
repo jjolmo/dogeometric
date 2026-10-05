@@ -7,6 +7,7 @@ public static class MessageDialog
 {
     public static AcceptDialog Show(Node parent, string title, string text, Vector2I? size = null)
     {
+        Diagnostics.Journal.Log("alert", $"{title}: {text}");
         var d = new AcceptDialog { Title = title, Theme = LightTheme.Create() };
         var body = new RichTextLabel
         {

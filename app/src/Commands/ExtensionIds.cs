@@ -144,4 +144,7 @@ public static class OwnIds
     public const int ShadowDate = 95008;
     public const int ShadowTime = 95009;
     public const int TagsPanel = 95007;
+
+    /// <summary>Help › Report a Problem.</summary>
+    public const int ReportProblem = 95010;
 }

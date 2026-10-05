@@ -37,6 +37,7 @@ public partial class MainWindow : Control
 
     public override void _Ready()
     {
+        Diagnostics.Journal.Start();
         GetWindow().Title = "Untitled - Dogeometric";
         _commands = new CommandRegistry("res://data/sketchup_commands.json");
         Theme = LightTheme.Create();
@@ -143,6 +144,11 @@ public partial class MainWindow : Control
             _status.SetHint($"Generated report: {rows.Count} entities");
         }));
         ExtensionMenus.Apply(_commands);
+
+        _commands.AddToMenu("Help", OwnIds.ReportProblem, "Report a Problem...",
+            "Mark what looks wrong on a picture of the window and save it with the steps that led there and the model.", after: "Contact Us");
+        _commands.Register(OwnIds.ReportProblem, () => Diagnostics.ProblemReport.Show(this, _viewport, _document.Document, _document.Path));
+        _commands.AddDefaultShortcut("F12", OwnIds.ReportProblem);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
         _commands.AddDefaultShortcut("Shift+S", CommandIds.HideRestOfModel);
@@ -1263,6 +1269,10 @@ public partial class MainWindow : Control
     private void HookDocument()
     {
         var doc = _document.Document;
+        doc.Undo.Changed += () => Diagnostics.Journal.Log("model", $"after '{doc.Undo.UndoName ?? "-"}' (revision {doc.Undo.Revision}): " +
+            $"{doc.Context.Entities.Faces.Count} faces, {doc.Context.Entities.Edges.Count} edges, {doc.Context.Entities.Instances.Count} groups/components here");
+        doc.Selection.Changed += () => Diagnostics.Journal.Log("select", doc.Selection.Items.Count == 0 ? "nothing"
+            : $"{doc.Selection.Items.Count} item(s), first {Diagnostics.Describe.Entity(doc.Selection.Items.First(), doc.Context.Path)}");
         doc.Selection.Changed += _entityInfo.Refresh;
         doc.Selection.Changed += () => _refreshSubdInfo();
         doc.Selection.Changed += () => _refreshTagList();

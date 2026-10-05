@@ -841,6 +841,12 @@ public partial class ModelViewport : Control
 
     private void HandleMouseButton(InputEventMouseButton mb)
     {
+        if (mb.ButtonIndex is MouseButton.Left or MouseButton.Right or MouseButton.Middle && (mb.Pressed || mb.ButtonIndex == MouseButton.Left))
+        {
+            var keys = $"{(mb.ShiftPressed ? "Shift+" : "")}{(mb.CtrlPressed ? "Ctrl+" : "")}{(mb.AltPressed ? "Alt+" : "")}";
+            Diagnostics.Journal.Log("mouse", $"{(mb.Pressed ? mb.DoubleClick ? "double-click" : "press" : "release")} {keys}{mb.ButtonIndex} at ({mb.Position.X:0},{mb.Position.Y:0}) " +
+                $"with {Tools.Active.GetType().Name} on {Diagnostics.Describe.Hit(Pick(mb.Position))}");
+        }
         if (mb.Pressed)
             GrabFocus();
 
@@ -940,7 +946,9 @@ public partial class ModelViewport : Control
             case Key.Enter or Key.KpEnter:
                 var text = VcbTyping;
                 VcbTyping = "";
-                if (!Tools.Active.ApplyVcb(text))
+                var applied = Tools.Active.ApplyVcb(text);
+                Diagnostics.Journal.Log("typed", $"'{text}' in {Tools.Active.VcbLabel} with {Tools.Active.GetType().Name}: {(applied ? "applied" : "rejected")}");
+                if (!applied)
                     OS.Alert($"Invalid value: {text}", "Measurements");
                 VcbTextChanged?.Invoke(Tools.Active.VcbValue);
                 return true;

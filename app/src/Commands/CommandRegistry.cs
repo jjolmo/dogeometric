@@ -301,6 +301,7 @@ public sealed class CommandRegistry
     {
         if (!_commands.TryGetValue(id, out var cmd) || cmd.Execute == null)
             return false;
+        Diagnostics.Journal.Log("command", cmd.MenuPath.Length > 0 ? cmd.MenuPath : cmd.Label.Length > 0 ? cmd.Label : id.ToString());
         cmd.Execute();
         return true;
     }
