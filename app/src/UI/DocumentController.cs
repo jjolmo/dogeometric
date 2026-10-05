@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.wrl ; VRML", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -514,6 +514,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options));
             if (step != null)
                 status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
+            return;
+        }
+        if (ext == ".wrl")
+        {
+            var faces = 0;
+            if (Write(path, (m, p) =>
+                {
+                    using var w = new System.IO.StreamWriter(p);
+                    faces = VrmlWriter.Write(m, w, viewport.Camera.Save(), options);
+                }))
+                status.SetHint($"Exported {faces} faces");
             return;
         }
         if (ext is ".dwg" or ".dxf")
