@@ -72,7 +72,7 @@ public partial class ScenesPanel : VBoxContainer
         AddChild(new Label { Text = "Properties to save:" });
         foreach (var (label, flag) in new[]
         {
-            ("Camera Location", SceneProperties.Camera), ("Visible Tags", SceneProperties.VisibleTags),
+            ("Camera Location", SceneProperties.Camera), ("Hidden Geometry", SceneProperties.HiddenGeometry), ("Visible Tags", SceneProperties.VisibleTags),
             ("Active Section Planes", SceneProperties.ActiveSections), ("Style and Fog", SceneProperties.StyleAndFog),
             ("Shadow Settings", SceneProperties.Shadows), ("Axes Location", SceneProperties.Axes),
         })

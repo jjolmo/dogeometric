@@ -213,6 +213,26 @@ public static class DogFile
                     w.WriteEndArray();
                 }
                 w.WriteNumber("activeSection", s.ActiveSection is { } section ? model.Entities.SectionPlanes.IndexOf(section) : -1);
+                if (s.Hidden.Count > 0)
+                {
+                    // Each hidden entity as [owner (-1 the model, else a definition), kind (0 instance, 1 face, 2 edge), index].
+                    w.WriteStartArray("hidden");
+                    for (var owner = -1; owner < model.Definitions.Count; owner++)
+                    {
+                        var e = owner < 0 ? model.Entities : model.Definitions[owner].Entities;
+                        foreach (var (list, kind) in new (System.Collections.IList, int)[] { (e.Instances, 0), (e.Faces, 1), (e.Edges, 2) })
+                            for (var i = 0; i < list.Count; i++)
+                                if (s.Hidden.Contains(list[i]!))
+                                {
+                                    w.WriteStartArray();
+                                    w.WriteNumberValue(owner);
+                                    w.WriteNumberValue(kind);
+                                    w.WriteNumberValue(i);
+                                    w.WriteEndArray();
+                                }
+                    }
+                    w.WriteEndArray();
+                }
                 if (s.Photo is { } p)
                 {
                     w.WriteStartObject("photo");
@@ -917,6 +937,17 @@ public static class DogFile
                 scene.Axes = Transform.FromColumnMajor(sceneAxes.EnumerateArray().Select(x => x.GetDouble()).ToArray());
             if (s.TryGetProperty("activeSection", out var sceneSection) && sceneSection.GetInt32() is var si && si >= 0 && si < model.Entities.SectionPlanes.Count)
                 scene.ActiveSection = model.Entities.SectionPlanes[si];
+            if (s.TryGetProperty("hidden", out var hidden))
+                foreach (var h in hidden.EnumerateArray())
+                {
+                    var (owner, kind, index) = (h[0].GetInt32(), h[1].GetInt32(), h[2].GetInt32());
+                    if (owner >= model.Definitions.Count)
+                        continue;
+                    var e = owner < 0 ? model.Entities : model.Definitions[owner].Entities;
+                    System.Collections.IList list = kind switch { 0 => e.Instances, 1 => e.Faces, _ => e.Edges };
+                    if (index >= 0 && index < list.Count)
+                        scene.Hidden.Add(list[index]!);
+                }
             if (s.TryGetProperty("photo", out var pj))
             {
                 var l = pj.GetProperty("lines").EnumerateArray().Select(x => x.GetDouble()).ToArray();

@@ -25,6 +25,9 @@ public sealed class Scene
     /// <summary>The top level's active section cut (null: none), when <see cref="SceneProperties.ActiveSections"/> is saved.</summary>
     public SectionPlane? ActiveSection { get; set; }
 
+    /// <summary>The hidden groups, components, faces and edges, when <see cref="SceneProperties.HiddenGeometry"/> is saved.</summary>
+    public HashSet<object> Hidden { get; } = new(ReferenceEqualityComparer.Instance);
+
     /// <summary>The photo this scene's camera was matched to (Camera › Match New Photo).</summary>
     public MatchedPhoto? Photo { get; set; }
 
@@ -41,6 +44,14 @@ public sealed class Scene
         Shadows = Saves.HasFlag(SceneProperties.Shadows) ? model.Shadows : null;
         Axes = Saves.HasFlag(SceneProperties.Axes) ? model.Axes : null;
         ActiveSection = model.Entities.ActiveSection;
+        Hidden.Clear();
+        if (Saves.HasFlag(SceneProperties.HiddenGeometry))
+            foreach (var e in model.AllEntities)
+            {
+                Hidden.UnionWith(e.Instances.Where(i => i.Hidden));
+                Hidden.UnionWith(e.Faces.Where(f => f.Hidden));
+                Hidden.UnionWith(e.Edges.Where(x => (x.Flags & EdgeFlags.Hidden) != 0));
+            }
     }
 
     /// <summary>Showing the scene: puts back what it saves (the camera is the caller's, to animate it).</summary>
@@ -57,6 +68,16 @@ public sealed class Scene
             model.Axes = axes;
         if (Saves.HasFlag(SceneProperties.ActiveSections))
             model.Entities.ActiveSection = ActiveSection is { } a && model.Entities.SectionPlanes.Contains(a) ? a : null;
+        if (Saves.HasFlag(SceneProperties.HiddenGeometry))
+            foreach (var e in model.AllEntities)
+            {
+                foreach (var i in e.Instances)
+                    i.Hidden = Hidden.Contains(i);
+                foreach (var f in e.Faces)
+                    f.Hidden = Hidden.Contains(f);
+                foreach (var x in e.Edges)
+                    x.Flags = Hidden.Contains(x) ? x.Flags | EdgeFlags.Hidden : x.Flags & ~EdgeFlags.Hidden;
+            }
     }
 }
 
@@ -71,7 +92,8 @@ public enum SceneProperties
     StyleAndFog = 8,
     Shadows = 16,
     Axes = 32,
-    All = Camera | VisibleTags | ActiveSections | StyleAndFog | Shadows | Axes,
+    HiddenGeometry = 64,
+    All = Camera | VisibleTags | ActiveSections | StyleAndFog | Shadows | Axes | HiddenGeometry,
 }
 
 /// <summary>View › Face Style.</summary>
