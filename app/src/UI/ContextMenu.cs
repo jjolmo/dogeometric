@@ -247,13 +247,32 @@ public static class ContextMenu
             {
                 var texture = new PopupMenu();
                 texture.AddItem("Position", 1);
+                texture.AddItem("Reset Position", 3);
+                texture.AddItem("Make Unique Texture", 4);
                 texture.AddItem("Edit Texture Image...", 2);
                 texture.IdPressed += id =>
                 {
-                    if (id == 1)
-                        view.Tools.Activate(new Tools.TexturePositionTool(face, back));
-                    else
-                        runCommand(Commands.OwnIds.EditTextureImage);
+                    switch (id)
+                    {
+                        case 1:
+                            view.Tools.Activate(new Tools.TexturePositionTool(face, back));
+                            break;
+                        case 3:
+                            doc.Operation("Reset Position", _ =>
+                            {
+                                if (back)
+                                    face.BackMapping = null;
+                                else
+                                    face.FrontMapping = null;
+                            });
+                            break;
+                        case 4:
+                            doc.Operation("Make Unique Texture", _ => Texturing.MakeUnique(doc.Model, face, back));
+                            break;
+                        default:
+                            runCommand(Commands.OwnIds.EditTextureImage);
+                            break;
+                    }
                 };
                 menu.AddSubmenuNodeItem("Texture", texture);
             }

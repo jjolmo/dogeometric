@@ -128,4 +128,30 @@ public static class Texturing
             (m[3] * m[7] - m[4] * m[6]) * d, (m[1] * m[6] - m[0] * m[7]) * d, (m[0] * m[4] - m[1] * m[3]) * d,
         ];
     }
+
+    /// <summary>
+    /// Texture › Make Unique Texture: the face's side gets its own copy of the material (picture included), named
+    /// like SketchUp's ("Brick1"), so editing it leaves the other faces alone. Returns the copy.
+    /// </summary>
+    public static Material MakeUnique(Model model, Face face, bool back)
+    {
+        var source = (back ? face.BackMaterial : face.FrontMaterial) ?? throw new InvalidOperationException("The face has no material on that side");
+        var name = source.Name;
+        for (var i = 1; model.Materials.Any(m => m.Name == name); i++)
+            name = source.Name + i;
+        var copy = new Material
+        {
+            Name = name,
+            Color = source.Color,
+            Opacity = source.Opacity,
+            Colorize = source.Colorize,
+            Texture = source.Texture is { } t ? new TextureImage { FileName = t.FileName, Data = t.Data, WidthMm = t.WidthMm, HeightMm = t.HeightMm } : null,
+        };
+        model.Materials.Add(copy);
+        if (back)
+            face.BackMaterial = copy;
+        else
+            face.FrontMaterial = copy;
+        return copy;
+    }
 }
