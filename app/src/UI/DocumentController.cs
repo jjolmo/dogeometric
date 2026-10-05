@@ -334,6 +334,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         Backups.KeepPreviousVersion(path);
         if (!Write(path, (m, p) => DogFile.Save(m, p, Thumbnail())))
             return false;
+        Diagnostics.Journal.Log("file", $"saved {path}");
         _savedRevision = Document.Undo.Revision;
         Changed?.Invoke();
         AppPreferences.AddRecent(path);
@@ -470,6 +471,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     private void Import(string path)
     {
+        Diagnostics.Journal.Log("file", $"import {path}");
         if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
         {
             var use = _importOptionsDialog?.GetSelectedOptions() is { } options && options.TryGetValue("Use image as", out var chosen) ? (ImageUse)(int)chosen : ImageUse.Image;
@@ -671,6 +673,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private void SetModel(Model model, string? path, bool zoomExtents = true)
     {
         Document = new Document(model);
+        Diagnostics.Journal.Log("file", $"model {path ?? "(untitled)"}: {model.Entities.Faces.Count} faces, {model.Entities.Edges.Count} edges, " +
+            $"{model.Entities.Instances.Count} groups/components, {model.Definitions.Count} definitions");
         _savedRevision = Document.Undo.Revision;
         _recoveredFrom = null;
         Document.GeometryChanged += changed =>

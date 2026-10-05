@@ -21,7 +21,7 @@ public static class PushPull
         // turns a lone rectangle into a closed box.
         keepBase |= Topology.EdgesOf(face).All(edge => Topology.FacesOf(e, edge).All(f => f == face));
 
-        if (!keepBase && CanSlide(e, face, normal))
+        if (!keepBase && CanSlide(e, face, normal, distance))
         {
             foreach (var v in face.Loops.SelectMany(l => l.Vertices).Distinct())
                 v.Position += offset;
@@ -99,6 +99,7 @@ public static class PushPull
             FaceFinder.Reverse(face); // the kept base now closes the volume from below
 
         MergeCoplanarNeighbours(e, sides);
+        CancelOpposedOverlaps(e, sides);
         if (!keepBase && PunchThrough(e, cap))
             cap = null!;
         Editing.RemoveOrphanVertices(e);
@@ -132,9 +133,12 @@ public static class PushPull
         return true;
     }
 
-    private static bool Inside(Face f, Vec3 p)
+    private static bool Inside(Face f, Vec3 p) => Inside(f.Normal, f.Loops.Select(l => l.Points.ToList()).ToList(), p);
+
+    /// <summary>Whether <paramref name="p"/> lies inside the outline <c>loops[0]</c> and outside its holes.</summary>
+    private static bool Inside(Vec3 normal, IReadOnlyList<List<Vec3>> loops, Vec3 p)
     {
-        var (u, v) = Polygon.PlaneAxes(f.Normal);
+        var (u, v) = Polygon.PlaneAxes(normal);
         bool In(IEnumerable<Vec3> loop)
         {
             var poly = loop.Select(q => (X: q.Dot(u), Y: q.Dot(v))).ToList();
@@ -147,19 +151,140 @@ public static class PushPull
             }
             return inside;
         }
-        return In(f.OuterLoop.Points) && !f.InnerLoops.Any(l => In(l.Points));
+        return In(loops[0]) && !loops.Skip(1).Any(In);
     }
 
-    /// <summary>True when every edge of the face borders exactly one other face, perpendicular to it.</summary>
-    private static bool CanSlide(Entities e, Face face, Vec3 normal)
+    /// <summary>
+    /// True when every edge of the face borders exactly one other face, perpendicular to it, that can stretch: one
+    /// lying across the face's plane (a top face running past the end of a bar on it) would fold over itself.
+    /// </summary>
+    private static bool CanSlide(Entities e, Face face, Vec3 normal, double distance)
     {
+        var d = normal.Dot(face.OuterLoop.Points.First());
         foreach (var edge in Topology.EdgesOf(face))
         {
             var others = Topology.FacesOf(e, edge).Where(f => f != face).ToList();
             if (others.Count != 1 || Math.Abs(others[0].Normal.Dot(normal)) > 1e-6)
                 return false;
+            var heights = others[0].Loops.SelectMany(l => l.Points).Select(p => normal.Dot(p) - d).ToList();
+            var (low, high) = (heights.Min(), heights.Max());
+            var behind = high <= Tolerance.Length;
+            if (!behind && low < -Tolerance.Length)
+                return false;
+            // Moving towards the neighbour shrinks it, which only works while it has length left.
+            var room = behind ? -low : high;
+            if ((behind ? distance < 0 : distance > 0) && Math.Abs(distance) >= room - Tolerance.Length)
+                return false;
         }
         return true;
+    }
+
+    /// <summary>
+    /// A new side face lying on an existing face that faces the other way (the underside of a bar pulled out past
+    /// the top it stands on) cancels with it where they overlap, as that part is now inside the solid.
+    /// </summary>
+    private static void CancelOpposedOverlaps(Entities e, IEnumerable<Face> candidates)
+    {
+        foreach (var s in candidates.ToList())
+        {
+            if (!e.Faces.Contains(s))
+                continue;
+            var t = e.Faces.FirstOrDefault(f => f != s && f.Normal.Dot(s.Normal) < -1 + 1e-9 && SamePlane(s, f)
+                && (Samples(s).Any(p => Inside(f, p)) || Samples(f).Any(p => Inside(s, p))));
+            if (t == null)
+                continue;
+
+            var n = s.Normal;
+            var plane = n.Dot(s.OuterLoop.Points.First());
+            bool InPlane(Vec3 p) => Math.Abs(n.Dot(p) - plane) <= 1e-3;
+            var shapes = new[] { s, t }.Select(f => (Face: f, Loops: f.Loops.Select(l => l.Points.ToList()).ToList())).ToList();
+            var outlines = Topology.EdgesOf(s).Concat(Topology.EdgesOf(t)).Select(x => (x.Start.Position, x.End.Position)).ToList();
+            e.Faces.Remove(s);
+            e.Faces.Remove(t);
+
+            // Both outlines into one planar graph: crossings and touching corners become shared vertices.
+            foreach (var (a, b) in outlines)
+                StickyGeometry.AddSegment(e, a, b);
+            SplitAtVertices(e, InPlane);
+            MergeDuplicateEdges(e);
+
+            var planeEdges = e.Edges.Where(x => InPlane(x.Start.Position) && InPlane(x.End.Position)).ToList();
+            var before = e.Faces.ToHashSet();
+            FaceFinder.Update(e, planeEdges, n);
+            foreach (var f in e.Faces.Where(f => !before.Contains(f) && Math.Abs(f.Normal.Dot(n)) > 1 - 1e-9 && f.OuterLoop.Points.All(InPlane)).ToList())
+            {
+                var p = Samples(f).FirstOrDefault(q => Inside(f, q));
+                var owners = shapes.Where(x => Inside(n, x.Loops, p)).ToList();
+                if (owners.Count != 1)
+                {
+                    // Inside both (the overlap) or neither (a gap the outlines happen to close): no face there.
+                    e.Faces.Remove(f);
+                    continue;
+                }
+                var owner = owners[0].Face;
+                if (f.Normal.Dot(owner.Normal) < 0)
+                    FaceFinder.Reverse(f);
+                (f.FrontMaterial, f.BackMaterial, f.Tag) = (owner.FrontMaterial, owner.BackMaterial, owner.Tag);
+            }
+            var unused = planeEdges.Where(x => e.Edges.Contains(x) && !Topology.FacesOf(e, x).Any()).ToHashSet();
+            e.Edges.RemoveAll(unused.Contains);
+            CleanUp.RepairSplitEdges(e, e.Edges.Where(x => InPlane(x.Start.Position) && InPlane(x.End.Position)).Cast<object>().ToHashSet());
+        }
+    }
+
+    /// <summary>Points just inside the outline next to the middle of each of its edges.</summary>
+    private static IEnumerable<Vec3> Samples(Face f)
+    {
+        var n = f.Normal;
+        var pts = f.OuterLoop.Points.ToList();
+        for (var i = 0; i < pts.Count; i++)
+        {
+            var (a, b) = (pts[i], pts[(i + 1) % pts.Count]);
+            yield return (a + b) / 2 + n.Cross(b - a).Normalized() * 0.01;
+        }
+    }
+
+    /// <summary>Splits edges in the plane wherever another vertex of it lies on them (where outlines overlap).</summary>
+    private static void SplitAtVertices(Entities e, Func<Vec3, bool> inPlane)
+    {
+        var vertices = e.Vertices.Where(v => inPlane(v.Position)).ToList();
+        var queue = new Queue<Edge>(e.Edges.Where(x => inPlane(x.Start.Position) && inPlane(x.End.Position)));
+        while (queue.Count > 0)
+        {
+            var edge = queue.Dequeue();
+            var (a, b) = (edge.Start.Position, edge.End.Position);
+            var dir = b - a;
+            var on = vertices.FirstOrDefault(v =>
+            {
+                var t = (v.Position - a).Dot(dir) / dir.LengthSquared;
+                return v != edge.Start && v != edge.End && t > 0 && t < 1 && (a + dir * t).DistanceTo(v.Position) <= Tolerance.Length;
+            });
+            if (on == null)
+                continue;
+            var tail = StickyGeometry.SplitEdge(e, edge, on);
+            queue.Enqueue(edge);
+            queue.Enqueue(tail);
+        }
+    }
+
+    /// <summary>Edges joining the same two vertices become one, which every face that used either now shares.</summary>
+    private static void MergeDuplicateEdges(Entities e)
+    {
+        var kept = new Dictionary<(Vertex, Vertex), Edge>();
+        foreach (var edge in e.Edges.ToList())
+        {
+            if (!kept.TryGetValue((edge.Start, edge.End), out var keep) && !kept.TryGetValue((edge.End, edge.Start), out keep))
+            {
+                kept[(edge.Start, edge.End)] = edge;
+                continue;
+            }
+            var flip = keep.Start != edge.Start;
+            foreach (var loop in e.Faces.SelectMany(f => f.Loops))
+                for (var i = 0; i < loop.Edges.Count; i++)
+                    if (loop.Edges[i].Edge == edge)
+                        loop.Edges[i] = (keep, loop.Edges[i].Reversed ^ flip);
+            e.Edges.Remove(edge);
+        }
     }
 
     /// <summary>Heals new side faces into coplanar neighbours with the same orientation and materials.</summary>
