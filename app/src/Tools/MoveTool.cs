@@ -20,6 +20,11 @@ public sealed class MoveTool : DrawingTool
     private bool _copy;
     private bool _autofold;
 
+    // Rotation grips of the group or component under the cursor (Move's red crosshairs): centre and normal (world).
+    private ComponentInstance? _gripsOf;
+    private List<(Vec3 Center, Vec3 Normal)> _grips = [];
+    private int _hotGrip = -1;
+
     // Groups and components follow the cursor: their drawn nodes (or copies of them) and where those started.
     private readonly List<(Node3D Node, Transform3D Start, bool Ghost)> _following = [];
 
@@ -137,6 +142,13 @@ public sealed class MoveTool : DrawingTool
     {
         if (button != MouseButton.Left || Current is not { } inf || View.Document is not { } doc)
             return;
+        if (_from == null && _hotGrip >= 0 && _gripsOf is { } gripped)
+        {
+            // A rotation grip: rotate that object about the box face the grip is on.
+            var (center, normal) = _grips[_hotGrip];
+            Manager.Activate(new RotateTool([gripped], center, normal));
+            return;
+        }
         if (_from == null)
         {
             _items = doc.Selection.IsEmpty ? VertexUnderCursor(doc, inf) ?? ItemUnderCursor(doc, position) : doc.Selection.Items.ToList();
@@ -153,6 +165,42 @@ public sealed class MoveTool : DrawingTool
             return;
         }
         Finish(doc, Slide(inf.Point - _from.Value));
+    }
+
+    /// <summary>The red crosshairs on the box faces of the group or component under the cursor, and which one it is on.</summary>
+    private void UpdateGrips(Vector2 position)
+    {
+        _hotGrip = -1;
+        if (_from != null || View.Document is not { } doc)
+        {
+            _gripsOf = null;
+            return;
+        }
+        var hit = View.Pick(position);
+        var context = doc.Context.Path;
+        var over = hit != null && hit.Path.Count > context.Count && hit.Path.Take(context.Count).SequenceEqual(context) ? hit.Path[context.Count] : null;
+        // Staying near the grips of the object last hovered keeps them, so they can be reached from outside it.
+        if (over != null && over != _gripsOf)
+        {
+            _gripsOf = over;
+            var b = over.Definition.Entities.Bounds();
+            var xf = over.Transform.Then(doc.Context.ToWorld);
+            _grips = [];
+            if (!b.IsEmpty)
+            {
+                var c = b.Center;
+                foreach (var (axis, half) in new[] { (Vec3.UnitX, b.Size.X / 2), (Vec3.UnitY, b.Size.Y / 2), (Vec3.UnitZ, b.Size.Z / 2) })
+                    foreach (var sign in new[] { 1, -1 })
+                        _grips.Add((xf.ApplyPoint(c + axis * (sign * half)), xf.ApplyNormal(axis * sign).Normalized()));
+            }
+        }
+        if (_gripsOf == null)
+            return;
+        for (var i = 0; i < _grips.Count; i++)
+            if (View.ToScreen(_grips[i].Center) is { } s && s.DistanceTo(position) < 9)
+                _hotGrip = i;
+        if (over == null && _hotGrip < 0)
+            _gripsOf = null;
     }
 
     /// <summary>With nothing selected, Move picks up a corner of the geometry being edited by its endpoint.</summary>
@@ -292,7 +340,30 @@ public sealed class MoveTool : DrawingTool
             foreach (var edge in _items.SelectMany(EdgesOf).Distinct())
                 DrawWorldLine(overlay, xf.ApplyPoint(edge.Start.Position) + offset, xf.ApplyPoint(edge.End.Position) + offset, new Color(0, 0, 1), 1);
         }
+        if (_from == null && _gripsOf != null)
+            foreach (var (i, (center, normal)) in _grips.Select((g, i) => (i, g)))
+            {
+                if (View.ToScreen(center) is not { } at)
+                    continue;
+                // A small cross in the box face's plane, brighter under the cursor.
+                var (u, v) = Polygon.PlaneAxes(normal);
+                var size = 9 * View.Camera.WorldPerPixel(View.Size.Y, View.Camera.DepthOf(center));
+                var color = i == _hotGrip ? new Color(1, 0.1f, 0.1f) : new Color(0.85f, 0.2f, 0.2f, 0.85f);
+                DrawWorldLine(overlay, center - u * size, center + u * size, color, i == _hotGrip ? 3 : 2);
+                DrawWorldLine(overlay, center - v * size, center + v * size, color, i == _hotGrip ? 3 : 2);
+            }
+        if (_hotGrip >= 0 && View.ToScreen(_grips[_hotGrip].Center) is { } tip)
+        {
+            DrawTooltip(overlay, tip, "Rotate");
+            return;
+        }
         DrawInference(overlay);
+    }
+
+    public override void MouseMove(Vector2 position, Vector2 relative)
+    {
+        base.MouseMove(position, relative);
+        UpdateGrips(position);
     }
 
     private static IEnumerable<Edge> EdgesOf(object item) => item switch

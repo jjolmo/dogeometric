@@ -25,6 +25,19 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
     private bool _copy;
     private (List<object> Items, Vec3 Center, Vec3 Normal, double Angle)? _lastCopy;
 
+    /// <summary>Starts already holding <paramref name="items"/> about <paramref name="center"/> on the plane of <paramref name="normal"/>
+    /// (world): Move's rotation grips hand over this way, so the next click sets the start direction.</summary>
+    public RotateTool(List<object> items, Vec3 center, Vec3 normal) : this()
+    {
+        _items = items;
+        _center = center;
+        _normal = normal.Normalized();
+        _returnToMove = true;
+    }
+
+    // Started from Move's grips: back to Move once the rotation is done or cancelled.
+    private readonly bool _returnToMove;
+
     /// <summary>Rotate, or FredoScale's Rotation (Free), which works the same: plane, origin and angle.</summary>
     public override int CommandId => commandId;
     public override string CursorImage => _copy ? "rotateadd" : "rotate";
@@ -128,6 +141,8 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
         _startDir = null;
         ResetLocks();
         View.QueueOverlayRedraw();
+        if (_returnToMove)
+            Manager.Activate(new MoveTool());
     }
 
     public override bool StartsVcb(char c) => _lastCopy != null && c is 'x' or 'X' or '*' or '/';
@@ -187,6 +202,8 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
                 _startDir = null;
                 RefreshStatus();
                 View.QueueOverlayRedraw();
+                if (_returnToMove)
+                    Manager.Activate(new MoveTool());
                 return true;
             case Key.Right or Key.Left or Key.Up when _center == null:
                 var axis = key.Keycode == Key.Right ? Red : key.Keycode == Key.Left ? Green : Blue;
