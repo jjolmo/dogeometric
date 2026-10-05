@@ -45,4 +45,45 @@ public class InferenceTests
         StickyGeometry.DrawEdges(poly, pts, closed: true, Vec3.UnitZ, curve);
         Assert.Equal(InferenceKind.Endpoint, At(poly, pts[2]).Kind);
     }
+
+    /// <summary>A plan view where the cursor picks <paramref name="edge"/> when within a unit of it.</summary>
+    private sealed class PlanViewOver(Edge edge) : IViewProjection
+    {
+        public Ray RayAt(double x, double y) => new(new Vec3(x / 10, -y / 10, 1000), -Vec3.UnitZ);
+        public (double X, double Y)? ToScreen(Vec3 p) => (p.X * 10, -p.Y * 10);
+        public Vec3 ViewDirection => -Vec3.UnitZ;
+
+        public PickHit? Pick(double x, double y)
+        {
+            var q = new Vec3(x / 10, -y / 10, 0);
+            var (a, b) = (edge.Start.Position, edge.End.Position);
+            var t = Math.Clamp((q - a).Dot(b - a) / (b - a).Dot(b - a), 0, 1);
+            var on = a + (b - a) * t;
+            return on.DistanceTo(q) < 1 ? new PickHit(edge, [], on, 1000) : null;
+        }
+    }
+
+    [Fact]
+    public void Lines_infer_parallel_and_perpendicular_to_an_edge_crossed_on_the_way()
+    {
+        var e = new Entities();
+        var edge = StickyGeometry.DrawEdges(e, [new(0, 0, 0), new(10, 5, 0)])[0];
+        var view = new PlanViewOver(edge);
+        var engine = new InferenceEngine();
+        var from = new Vec3(30, 0, 0);
+        InferenceResult At(Vec3 p) => engine.Infer(view, p.X * 10, -p.Y * 10, from, e, Transform.Identity);
+
+        Assert.NotEqual("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
+        At(new Vec3(4, 2, 0));
+        var parallel = At(from + new Vec3(20, 10.3, 0));
+        Assert.Equal("Parallel to Edge", parallel.Label);
+        Assert.True((parallel.Point - from).Normalized().Dot(new Vec3(10, 5, 0).Normalized()) > 1 - 1e-9);
+
+        var perpendicular = At(from + new Vec3(5.3, -10, 0));
+        Assert.Equal("Perpendicular to Edge", perpendicular.Label);
+        Assert.Equal(0, (perpendicular.Point - from).Dot(new Vec3(10, 5, 0)), 9);
+        // Starting a new line forgets the edge.
+        engine.Infer(view, 0, 0, null, e, Transform.Identity);
+        Assert.NotEqual("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
+    }
 }

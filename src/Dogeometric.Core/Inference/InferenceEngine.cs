@@ -60,6 +60,10 @@ public sealed class InferenceEngine
     /// <summary>Centre points to snap to (View › Center Points); empty when they are off.</summary>
     public IReadOnlyList<CenterPoint> Centers { get; set; } = [];
 
+    /// <summary>The direction of the last edge the cursor crossed while drawing from a point: lines can then run
+    /// parallel or perpendicular to it, as SketchUp's magenta inferences.</summary>
+    public Vec3? ReferenceDirection { get; set; }
+
     /// <summary>Locked axis (arrow keys), or null.</summary>
     public Vec3? LockedAxis { get; set; }
 
@@ -79,6 +83,13 @@ public sealed class InferenceEngine
         }
 
         var hit = view.Pick(x, y);
+        if (from == null)
+            ReferenceDirection = null;
+        else if (hit?.Entity is Edge crossed && crossed.Length > Tolerance.Length)
+        {
+            var toWorld = hit.Path.Aggregate(Transform.Identity, (acc, inst) => inst.Transform.Then(acc));
+            ReferenceDirection = toWorld.ApplyVector(crossed.End.Position - crossed.Start.Position).Normalized();
+        }
         var snap = SnapToPoints(view, x, y, hit, context, contextToWorld, Axes.Origin, Centers);
         if (snap != null)
             return snap;
@@ -209,7 +220,19 @@ public sealed class InferenceEngine
             return null;
         InferenceResult? best = null;
         var bestDist = SnapPixels;
-        foreach (var (dir, name) in AxisDirections)
+        var axes = AxisDirections;
+        var directions = axes.Select(a => (a.Dir, $"On {a.Name} Axis")).ToList();
+        bool OffAxis(Vec3 d) => axes.All(a => Math.Abs(a.Dir.Dot(d)) < 1 - 1e-6);
+        if (ReferenceDirection is { } r)
+        {
+            if (OffAxis(r))
+                directions.Add((r, "Parallel to Edge"));
+            // Perpendicular within the drawing plane most facing the viewer.
+            var perpendicular = r.Cross(MostFacing(view.ViewDirection, Axes));
+            if (perpendicular.Length > 1e-6 && OffAxis(perpendicular.Normalized()))
+                directions.Add((perpendicular.Normalized(), "Perpendicular to Edge"));
+        }
+        foreach (var (dir, label) in directions)
         {
             var p = ClosestOnLine(ray, from, dir);
             if (view.ToScreen(p) is not { } s || p.DistanceTo(from) < Tolerance.Length)
@@ -219,7 +242,7 @@ public sealed class InferenceEngine
             if (d < bestDist)
             {
                 bestDist = d;
-                best = new InferenceResult(p, InferenceKind.OnAxis, $"On {name} Axis", from, dir);
+                best = new InferenceResult(p, InferenceKind.OnAxis, label, from, dir);
             }
         }
         return best;
