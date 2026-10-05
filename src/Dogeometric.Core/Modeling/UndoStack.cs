@@ -137,10 +137,11 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (int, DimensionEndpoint, int) Annotation, ModelOptions Options, Rgba[] TagColors)
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (int, DimensionEndpoint, int) Annotation, ModelOptions Options, Rgba[] TagColors, (string Name, string Value, bool Edit)[][] Attributes)
     {
         public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.DimensionFontSize, m.DimensionEndpoints, m.TextFontSize), m.Options,
-            m.Tags.Select(t => t.Color).ToArray());
+            m.Tags.Select(t => t.Color).ToArray(),
+            m.Definitions.Select(d => d.Attributes.Select(a => (a.Name, a.Value, a.UserCanEdit)).ToArray()).ToArray());
 
         public void Restore(Model m)
         {
@@ -157,6 +158,11 @@ public sealed class UndoStack(Model model)
             // Only colours: visibility and names change outside operations, and undo must not take those back.
             for (var i = 0; i < Tags.Length; i++)
                 Tags[i].Color = TagColors[i];
+            for (var i = 0; i < Definitions.Length; i++)
+            {
+                Definitions[i].Attributes.Clear();
+                Definitions[i].Attributes.AddRange(Attributes[i].Select(a => new ComponentAttribute { Name = a.Name, Value = a.Value, UserCanEdit = a.Edit }));
+            }
         }
     }
 

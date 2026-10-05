@@ -116,6 +116,7 @@ public partial class MainWindow : Control
         RegisterTemplates();
         RegisterTrays();
         RegisterCameras();
+        RegisterAttributes();
         _commands.Register(CommandIds.ExportAnimation, ExportAnimation);
         _commands.AddToMenu("File", OwnIds.GenerateReport, "Generate Report...", "Report the model's groups and components, with their sizes, as HTML or CSV.",
             after: "Print", groupStart: true);

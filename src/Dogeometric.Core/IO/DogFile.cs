@@ -128,6 +128,20 @@ public static class DogFile
                     w.WriteBoolean("shadowsFaceSun", true);
                 if (d.GlueTo != GlueTo.None)
                     w.WriteString("glueTo", d.GlueTo.ToString());
+                if (d.Attributes.Count > 0)
+                {
+                    w.WriteStartArray("attributes");
+                    foreach (var a in d.Attributes)
+                    {
+                        w.WriteStartObject();
+                        w.WriteString("name", a.Name);
+                        w.WriteString("value", a.Value);
+                        if (a.UserCanEdit)
+                            w.WriteBoolean("userCanEdit", true);
+                        w.WriteEndObject();
+                    }
+                    w.WriteEndArray();
+                }
                 if (d.Camera is { } cam)
                 {
                     w.WriteStartObject("camera");
@@ -588,7 +602,17 @@ public static class DogFile
             });
         }
         for (var i = 0; i < defsJson.Count; i++)
+        {
+            if (defsJson[i].TryGetProperty("attributes", out var attrs))
+                foreach (var a in attrs.EnumerateArray())
+                    model.Definitions[i].Attributes.Add(new ComponentAttribute
+                    {
+                        Name = a.GetProperty("name").GetString() ?? "",
+                        Value = a.GetProperty("value").GetString() ?? "",
+                        UserCanEdit = a.TryGetProperty("userCanEdit", out var editable) && editable.GetBoolean(),
+                    });
             ReadEntities(defsJson[i].GetProperty("entities"), model.Definitions[i].Entities, model);
+        }
         ReadEntities(r.GetProperty("entities"), model.Entities, model);
 
         foreach (var s in r.GetProperty("scenes").EnumerateArray())

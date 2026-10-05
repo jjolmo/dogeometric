@@ -282,6 +282,10 @@ public sealed class ComponentDefinition
     /// <summary>Which faces instances stick to when placed (their blue axis along the face's normal).</summary>
     public GlueTo GlueTo { get; set; }
 
+    /// <summary>Dynamic Components' attributes (Window › Component Attributes): name, value and whether Component
+    /// Options shows it for users to change.</summary>
+    public List<ComponentAttribute> Attributes { get; } = [];
+
     /// <summary>Advanced Camera Tools: this definition is a physical camera (Camera › Create Camera).</summary>
     public PhysicalCamera? Camera { get; set; }
 
@@ -293,3 +297,13 @@ public sealed class ComponentDefinition
 
 /// <summary>A camera made by Advanced Camera Tools: its vertical field of view and its frame's width over height.</summary>
 public sealed record PhysicalCamera(double FovDegrees, double Aspect);
+
+/// <summary>A Dynamic Components attribute: its value is text or a number, as SketchUp stores it.</summary>
+public sealed class ComponentAttribute
+{
+    public string Name { get; set; } = "";
+    public string Value { get; set; } = "";
+
+    /// <summary>Shown in Component Options, where users can change it.</summary>
+    public bool UserCanEdit { get; set; }
+}

@@ -274,4 +274,28 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Equal(before, tag.Color);
     }
+
+    [Fact]
+    public void Component_attributes_survive_saving_and_undo()
+    {
+        var model = new Model();
+        var def = new ComponentDefinition { Name = "Lid" };
+        TestModels.Box(def.Entities, Vec3.Zero, new Vec3(1, 1, 1));
+        model.Definitions.Add(def);
+        model.Entities.AddInstance(def, Transform.Identity);
+        var doc = new Document(model);
+        doc.Undo.Begin("Attributes");
+        def.Attributes.Add(new ComponentAttribute { Name = "Thickness", Value = "2", UserCanEdit = true });
+        def.Attributes.Add(new ComponentAttribute { Name = "Supplier", Value = "ACME" });
+        doc.Undo.Commit();
+
+        var path = Path.Combine(Path.GetTempPath(), $"attrs-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path).Definitions.Single().Attributes;
+        File.Delete(path);
+        Assert.Equal([("Thickness", "2", true), ("Supplier", "ACME", false)], back.Select(a => (a.Name, a.Value, a.UserCanEdit)));
+
+        doc.Undo.Undo();
+        Assert.Empty(def.Attributes);
+    }
 }
