@@ -63,9 +63,9 @@ public sealed class Document
     /// geometry from before the operation, so inference doesn't snap to what is being changed. Finish with
     /// <see cref="CommitPreview"/> or <see cref="CancelPreview"/>.
     /// </summary>
-    public void Preview(string name, Action<Entities> change)
+    public void Preview(string name, Action<Entities> change, Entities? target = null)
     {
-        var entities = Context.Entities;
+        var entities = target ?? Context.Entities;
         if (!Undo.IsPending)
             Undo.Begin(name, entities);
         else

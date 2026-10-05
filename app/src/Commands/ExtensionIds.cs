@@ -42,6 +42,7 @@ public static class ExtensionIds
 
     public const int SubdSubdivide = 90091;
     public const int SandboxDrape = 90076;
+    public const int SandboxStamp = 90077;
 
     /// <summary>Tools on Surface's shape tools, from 90131 (spline ids run to 90112).</summary>
     public static int SurfaceShape(Dogeometric.App.Tools.SurfaceShape shape) => 90131 + (int)shape;

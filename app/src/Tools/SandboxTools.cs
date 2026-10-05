@@ -231,6 +231,166 @@ public sealed class SmooveTool : DrawingTool
     }
 }
 
+/// <summary>Sandbox › Stamp: the terrain under a group or component flattens to its base, sloping back within the
+/// typed offset; moving up or down before the last click raises or lowers the platform.</summary>
+public sealed class StampTool : DrawingTool
+{
+    private static double _offset = 1000;
+    private List<Vec3>? _footprint;
+    private double _base;
+    private (Entities Entities, Transform ToWorld)? _terrain;
+    private Vec3 _at;
+    private double _height;
+
+    public override int CommandId => ExtensionIds.SandboxStamp;
+    public override string CursorImage => "select";
+    public override string VcbLabel => _terrain == null ? "Offset" : "Height";
+    public override string VcbValue => Length.Format(_terrain == null ? _offset : _height, LengthUnit.Millimeters, 0);
+
+    public override string StatusText => _footprint == null ? "Select the group or component to stamp with."
+        : _terrain == null ? "Click the terrain to stamp. Type the offset in the Measurements box."
+        : "Move up or down, then click (or type the height).";
+
+    public override void Activate()
+    {
+        if (View.Document is { } doc && doc.Selection.Items.OfType<ComponentInstance>().FirstOrDefault() is { } inst)
+            Use(inst, doc.Context.ToWorld);
+        View.ShowVcbValue(VcbValue);
+    }
+
+    private void Use(ComponentInstance inst, Transform parent)
+    {
+        var points = new List<Vec3>();
+        void Collect(Entities e, Transform xf)
+        {
+            points.AddRange(e.Vertices.Select(v => xf.ApplyPoint(v.Position)));
+            foreach (var child in e.Instances)
+                Collect(child.Definition.Entities, child.Transform.Then(xf));
+        }
+        Collect(inst.Definition.Entities, inst.Transform.Then(parent));
+        if (points.Count < 3)
+            return;
+        _base = points.Min(p => p.Z);
+        _footprint = Hull(points);
+    }
+
+    /// <summary>The outline of the points seen from above (monotone chain), anticlockwise.</summary>
+    private static List<Vec3> Hull(List<Vec3> points)
+    {
+        var sorted = points.Select(p => new Vec3(p.X, p.Y, 0)).OrderBy(p => p.X).ThenBy(p => p.Y).ToList();
+        static double Cross(Vec3 o, Vec3 a, Vec3 b) => (a.X - o.X) * (b.Y - o.Y) - (a.Y - o.Y) * (b.X - o.X);
+        var hull = new List<Vec3>();
+        foreach (var pass in new[] { sorted, Enumerable.Reverse(sorted).ToList() })
+        {
+            var start = hull.Count;
+            foreach (var p in pass)
+            {
+                while (hull.Count >= start + 2 && Cross(hull[^2], hull[^1], p) <= Tolerance.Length * Tolerance.Length)
+                    hull.RemoveAt(hull.Count - 1);
+                hull.Add(p);
+            }
+            hull.RemoveAt(hull.Count - 1);
+        }
+        return hull;
+    }
+
+    public override void MouseDown(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || View.Document is not { } doc || View.Pick(position) is not { } hit)
+            return;
+        if (_terrain != null)
+        {
+            doc.CommitPreview();
+            Manager.Activate(new SelectTool());
+            return;
+        }
+        if (_footprint == null)
+        {
+            if (hit.Path.Count > 0)
+                Use(hit.Path[0], doc.Context.ToWorld);
+            RefreshStatus();
+            return;
+        }
+        if (SurfaceTarget.Of(doc, hit) is not { } target)
+            return;
+        _terrain = target;
+        _at = hit.Point;
+        _height = 0;
+        Preview();
+        RefreshStatus();
+    }
+
+    public override void MouseMove(Vector2 position, Vector2 relative)
+    {
+        base.MouseMove(position, relative);
+        if (_terrain == null)
+        {
+            View.QueueOverlayRedraw();
+            return;
+        }
+        var ray = View.ScreenRay(Mouse);
+        _height = (InferenceEngine.ClosestOnLine(new Ray(ray.Origin, ray.Direction), _at, Vec3.UnitZ) - _at).Z;
+        View.ShowVcbValue(VcbValue);
+        Preview();
+    }
+
+    private void Preview()
+    {
+        if (_terrain is not { } t || _footprint is not { } footprint || View.Document is not { } doc)
+            return;
+        var toLocal = t.ToWorld.Inverse();
+        var local = footprint.Select(p => toLocal.ApplyPoint(p with { Z = _base + _height })).ToList();
+        var baseZ = local[0].Z;
+        var offset = _offset;
+        doc.Preview("Stamp", e => Sandbox.Stamp(e, local, baseZ, offset), t.Entities);
+    }
+
+    public override bool ApplyVcb(string text)
+    {
+        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+            return false;
+        if (_terrain == null)
+        {
+            if (mm < 0)
+                return false;
+            _offset = mm;
+            View.ShowVcbValue(VcbValue);
+            return true;
+        }
+        _height = mm;
+        Preview();
+        View.Document?.CommitPreview();
+        Manager.Activate(new SelectTool());
+        return true;
+    }
+
+    public override bool KeyDown(InputEventKey key)
+    {
+        if (key.Keycode == Key.Escape && _terrain != null)
+        {
+            View.Document?.CancelPreview();
+            _terrain = null;
+            RefreshStatus();
+            return true;
+        }
+        return base.KeyDown(key);
+    }
+
+    public override void Draw(Control overlay)
+    {
+        if (_footprint is { } footprint)
+        {
+            var z = _base + _height;
+            var outline = footprint.Select(p => p with { Z = z }).ToList();
+            var ring = CurveOffset.Offset(outline, closed: true, Vec3.UnitZ, _offset);
+            foreach (var loop in new[] { outline, ring })
+                for (var i = 0; i < loop.Count; i++)
+                    DrawWorldLine(overlay, loop[i], loop[(i + 1) % loop.Count], new Color(0.9f, 0.1f, 0.1f), 1.5f);
+        }
+        DrawInference(overlay);
+    }
+}
+
 /// <summary>Sandbox › Flip Edge: click the diagonal between two triangles to join their other corners instead.</summary>
 public sealed class FlipEdgeTool : Tool
 {

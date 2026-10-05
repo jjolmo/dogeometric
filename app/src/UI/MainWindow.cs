@@ -309,6 +309,8 @@ public partial class MainWindow : Control
         _commands.Register(ExtensionIds.SandboxFromScratch, () => _viewport.Tools.Activate(new SandboxGridTool()), () => _viewport.Tools.Active is SandboxGridTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxSmoove, "Smoove", "Raise or lower a terrain smoothly.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxSmoove, () => _viewport.Tools.Activate(new SmooveTool()), () => _viewport.Tools.Active is SmooveTool);
+        _commands.AddToMenu("Tools", ExtensionIds.SandboxStamp, "Stamp", "Flatten the terrain under a group or component, with a slope around it.", submenu: "Sandbox");
+        _commands.Register(ExtensionIds.SandboxStamp, () => _viewport.Tools.Activate(new StampTool()), () => _viewport.Tools.Active is StampTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxDrape, "Drape", "Drape the selected edges onto a surface below them.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxDrape, () => _viewport.Tools.Activate(new DrapeTool()), () => _viewport.Tools.Active is DrapeTool);
         foreach (var shape in Enum.GetValues<SurfaceShape>())

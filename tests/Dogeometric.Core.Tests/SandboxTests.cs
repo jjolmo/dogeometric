@@ -54,4 +54,24 @@ public class SandboxTests
         Assert.True(Sandbox.FlipEdge(e, diagonal));
         Assert.Equal(36, Borders(e));
     }
+
+    [Fact]
+    public void Stamp_flattens_the_footprint_and_slopes_back_to_the_terrain()
+    {
+        var e = new Entities();
+        Sandbox.Grid(e, Vec3.Zero, Vec3.UnitX, 100, Vec3.UnitY, 100, 10);
+        Sandbox.Smoove(e, new Vec3(50, 50, 0), 45, Vec3.UnitZ, 20);
+        var before = e.Vertices.ToDictionary(v => (Math.Round(v.Position.X, 6), Math.Round(v.Position.Y, 6)), v => v.Position.Z);
+        Vec3[] square = [new(40, 40, 0), new(60, 40, 0), new(60, 60, 0), new(40, 60, 0)];
+        Assert.True(Sandbox.Stamp(e, square, 10, 15) > 0);
+
+        bool In(Vec3 p, double m) => p.X >= 40 - m && p.X <= 60 + m && p.Y >= 40 - m && p.Y <= 60 + m;
+        Assert.All(e.Vertices.Where(v => In(v.Position, 1e-6)), v => Assert.Equal(10, v.Position.Z, 6));
+        Assert.All(e.Vertices.Where(v => !In(v.Position, 15 + 1e-6) && before.ContainsKey((Math.Round(v.Position.X, 6), Math.Round(v.Position.Y, 6)))),
+            v => Assert.Equal(before[(Math.Round(v.Position.X, 6), Math.Round(v.Position.Y, 6))], v.Position.Z, 6));
+        Assert.Contains(e.Vertices, v => v.Position.DistanceTo(new Vec3(40, 40, 10)) < 1e-6);
+        Assert.Equal(40, Borders(e));
+        Assert.DoesNotContain(e.Edges, x => Topology.FacesOf(e, x).Count() > 2);
+        Assert.All(e.Faces, f => Assert.True(f.Normal.Z > 0));
+    }
 }

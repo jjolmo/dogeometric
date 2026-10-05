@@ -129,6 +129,63 @@ public static class Sandbox
         return moved;
     }
 
+    /// <summary>Stamp: the terrain under <paramref name="footprint"/> (seen from above) flattens to <paramref name="baseHeight"/>,
+    /// sloping smoothly back within <paramref name="offset"/>. Returns how many vertices moved.</summary>
+    public static int Stamp(Entities e, IReadOnlyList<Vec3> footprint, double baseHeight, double offset)
+    {
+        var outline = footprint.Select(p => new Vec3(p.X, p.Y, baseHeight)).ToList();
+        if (outline.Count < 3)
+            return 0;
+        if (Polygon.Normal(outline).Z < 0)
+            outline.Reverse();
+        var ring = CurveOffset.Offset(outline, closed: true, Vec3.UnitZ, offset);
+        foreach (var loop in new[] { outline, ring })
+            foreach (var run in DrapePath(e, loop, -Vec3.UnitZ, closed: true))
+                StickyGeometry.DrawEdges(e, run);
+
+        var flat = outline.Select(p => (p.X, p.Y)).ToArray();
+        var moved = new List<Vertex>();
+        foreach (var v in e.Vertices)
+        {
+            var q = (v.Position.X, v.Position.Y);
+            var d = Inside(q, flat) ? 0 : DistanceToOutline(q, flat);
+            if (d >= offset)
+                continue;
+            var t = offset <= 0 ? 0 : d / offset;
+            var weight = t * t * (3 - 2 * t);
+            v.Position = new Vec3(v.Position.X, v.Position.Y, baseHeight + (v.Position.Z - baseHeight) * weight);
+            moved.Add(v);
+        }
+        var touched = e.Faces.Where(f => f.OuterLoop.Vertices.Any(moved.Contains)).ToList();
+        foreach (var f in touched)
+            FredoScale.SplitIfBent(e, f);
+        return moved.Count;
+    }
+
+    private static bool Inside((double X, double Y) q, (double X, double Y)[] poly)
+    {
+        var inside = false;
+        for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+            if ((poly[i].Y > q.Y) != (poly[j].Y > q.Y) &&
+                q.X < (poly[j].X - poly[i].X) * (q.Y - poly[i].Y) / (poly[j].Y - poly[i].Y) + poly[i].X)
+                inside = !inside;
+        return inside;
+    }
+
+    private static double DistanceToOutline((double X, double Y) q, (double X, double Y)[] poly)
+    {
+        var best = double.MaxValue;
+        for (var i = 0; i < poly.Length; i++)
+        {
+            var (a, b) = (poly[i], poly[(i + 1) % poly.Length]);
+            double dx = b.X - a.X, dy = b.Y - a.Y;
+            var t = Math.Clamp(((q.X - a.X) * dx + (q.Y - a.Y) * dy) / Math.Max(dx * dx + dy * dy, 1e-12), 0, 1);
+            var (px, py) = (a.X + dx * t - q.X, a.Y + dy * t - q.Y);
+            best = Math.Min(best, Math.Sqrt(px * px + py * py));
+        }
+        return best;
+    }
+
     /// <summary>Add Detail: each triangle splits in four at its edge midpoints (neighbours split along the same edges).</summary>
     public static int AddDetail(Entities e, IReadOnlyCollection<Face> faces) => SplitTriangles(e, faces);
 
