@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build Manifold's C API (libmanifoldc) for the current platform into app/native/<rid>/.
 # The libraries find each other next to themselves ($ORIGIN, @loader_path, or the DLL's folder on Windows), so
-# they can ship beside the executable. macOS gets one universal (arm64 + x86_64) build.
+# they can ship beside the executable. macOS gets one universal (arm64 + x86_64) build. Links are copied as files
+# (CI artifacts drop symbolic links).
 # The C API needs CrossSection (and Clipper2, fetched and linked statically).
 # Manifold: https://github.com/elalish/manifold (Apache-2.0). Pinned to a release tag.
 set -euo pipefail
@@ -25,5 +26,5 @@ cmake -S "$WORK/src" -B "$WORK/build" "${GENERATOR[@]}" -DCMAKE_BUILD_TYPE=Relea
 cmake --build "$WORK/build" --config Release
 mkdir -p "$ROOT/app/native/$RID"
 find "$WORK/build" \( -name "libmanifold*.so*" -o -name "libmanifold*.dylib" -o -name "manifold*.dll" \) -not -path "*/CMakeFiles/*" \
-  -exec cp -P {} "$ROOT/app/native/$RID/" \;
+  -exec cp -L {} "$ROOT/app/native/$RID/" \;
 ls -la "$ROOT/app/native/$RID"

@@ -26,7 +26,7 @@ public class ReportsTests
         Assert.Equal(2400, nested.Volume!.Value, 6);
         Assert.Equal(2400, rows.Single(r => r.Path == "Enclosure").Volume!.Value, 6);
 
-        var csv = Reports.ToCsv(rows).Split('\n');
+        var csv = Reports.ToCsv(rows).Split(["\r\n", "\n"], StringSplitOptions.None);
         Assert.StartsWith("Path,Entity Description", csv[0]);
         Assert.Contains("Enclosure > Lid,Component,Lid,,Untagged,,2400,40,30,2", csv);
         Assert.Contains("<td>Enclosure &gt; Lid</td>", Reports.ToHtml(rows, "Report"));
