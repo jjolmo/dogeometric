@@ -33,9 +33,10 @@ internal static unsafe partial class ManifoldNative
         var file = OperatingSystem.IsWindows() ? "manifoldc.dll" : OperatingSystem.IsMacOS() ? "libmanifoldc.dylib" : "libmanifoldc.so";
         foreach (var dir in SearchDirectories.Append(AppContext.BaseDirectory))
         {
+            // A copy that is there but will not load says why (a missing dependency, the wrong architecture).
             var candidate = Path.Combine(dir, file);
-            if (File.Exists(candidate) && NativeLibrary.TryLoad(candidate, out var handle))
-                return handle;
+            if (File.Exists(candidate))
+                return NativeLibrary.Load(candidate);
         }
         return NativeLibrary.TryLoad(file, assembly, path, out var h) ? h : IntPtr.Zero;
     }

@@ -23,7 +23,7 @@ public sealed class ScriptGlobals
     public Entities Entities => Document.Context.Entities;
     public Selection Selection => Document.Selection;
 
-    public void puts(object? value) => Output.AppendLine(value?.ToString() ?? "nil");
+    public void puts(object? value) => Output.Append(value?.ToString() ?? "nil").Append('\n');
 
     public static Vec3 Pt(double x, double y, double z = 0) => new(x, y, z);
 
@@ -114,7 +114,7 @@ public sealed class ScriptConsole(Document document)
             _last = script;
             document.Undo.Commit();
             if (value != null)
-                _globals.Output.Append("=> ").AppendLine(value.ToString());
+                _globals.Output.Append("=> ").Append(value.ToString()).Append('\n');
             return new Result(_globals.Output.ToString(), false);
         }
         catch (CompilationErrorException ex)

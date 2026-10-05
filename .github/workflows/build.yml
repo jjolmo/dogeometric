@@ -63,6 +63,9 @@ jobs:
         with:
           name: native-${{ matrix.rid }}
           path: app/native/${{ matrix.rid }}
+      - name: Native libraries received
+        shell: bash
+        run: ls -la app/native/${{ matrix.rid }}
       - run: dotnet test tests/Dogeometric.Core.Tests -c Release
       - run: dotnet test tests/Dogeometric.Formats.Tests -c Release
       - run: dotnet test tests/Dogeometric.Scripting.Tests -c Release
