@@ -9,6 +9,7 @@ namespace Dogeometric.App.UI;
 /// small extension commands.</summary>
 public partial class MainWindow
 {
+    private const int ExtensionManager = 24257;
     private Window? _subdInfo;
     private Action _refreshSubdInfo = () => { };
 
@@ -31,6 +32,20 @@ public partial class MainWindow
                 && (face.FrontMaterial?.Texture != null ? face.FrontMaterial : face.BackMaterial) is { Texture: not null } material)
                 _document.EditTextureImage(material);
         });
+        _commands.Register(ExtensionIds.FredoScaleRotateFree, () => _viewport.Tools.Activate(new RotateTool(ExtensionIds.FredoScaleRotateFree)),
+            () => _viewport.Tools.Active.CommandId == ExtensionIds.FredoScaleRotateFree);
+        _commands.Register(ExtensionManager, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus(), _docks.Reset, "Extensions"));
+        _commands.Register(ExtensionIds.SelectionToysCheatSheet, () => Alert("Selection Toys - Cheat Sheet",
+            "Right-click a selection for its Select, Select Only and Deselect menus:\n\n" +
+            "Select › Connected Faces by Angle, Coplanar, Same Direction, Parallel, Perpendicular and Opposite Faces, " +
+            "Faces by Area, Edge Loops and Quad-face Loops: grow the selection from what is picked.\n\n" +
+            "Select Only › keeps only one kind (Edges, Faces, Groups, Components, Curves, Arcs, Circles, Polygons, " +
+            "Soft and Hidden entities, Dimensions...).\n\n" +
+            "Deselect › drops one kind and keeps the rest.\n\n" +
+            "Tools › Selection Toys › Select Edge Loops works on the current selection."));
+        _commands.Register(ExtensionIds.SelectionToysSettings, () => Alert("Selection Toys - UI Settings",
+            "Selection Toys' commands are in the right-click menu (Select, Select Only, Deselect) and in " +
+            "Tools › Selection Toys. Toolbar buttons are shown or hidden from View › Toolbars."));
         _commands.Register(ExtensionIds.SelectEdgeLoops, () =>
         {
             var doc = _document.Document;

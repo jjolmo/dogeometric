@@ -27,8 +27,10 @@ public partial class PreferencesDialog : AcceptDialog
     /// <summary>The section shown last, opened again next time.</summary>
     private static string _lastSection = "General";
 
-    public static void Show(Node parent, CommandRegistry commands, Action menusChanged, Action resetWorkspace)
+    public static void Show(Node parent, CommandRegistry commands, Action menusChanged, Action resetWorkspace, string? section = null)
     {
+        if (section != null)
+            _lastSection = section;
         var d = new PreferencesDialog
         {
             Title = "Preferences",

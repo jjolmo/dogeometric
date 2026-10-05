@@ -12,7 +12,7 @@ namespace Dogeometric.App.Tools;
 /// viewer; arrows lock it), click the start direction, then the end. Angles snap every 15°; type degrees or a
 /// slope like "1:2". Ctrl rotates a copy, "6x" afterwards makes a polar array.
 /// </summary>
-public sealed class RotateTool : DrawingTool
+public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
 {
     private const double SnapDegrees = 15;
 
@@ -24,7 +24,8 @@ public sealed class RotateTool : DrawingTool
     private bool _copy;
     private (List<object> Items, Vec3 Center, Vec3 Normal, double Angle)? _lastCopy;
 
-    public override int CommandId => CommandIds.Rotate;
+    /// <summary>Rotate, or FredoScale's Rotation (Free), which works the same: plane, origin and angle.</summary>
+    public override int CommandId => commandId;
     public override string CursorImage => _copy ? "rotateadd" : "rotate";
     protected override Vec3? From => _startDir == null ? _center : null;
     public override string VcbLabel => "Angle";
