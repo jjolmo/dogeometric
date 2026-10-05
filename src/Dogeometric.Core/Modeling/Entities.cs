@@ -272,6 +272,9 @@ public sealed class ComponentDefinition
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
 
+    /// <summary>Classifier: the IFC type its copies export as ("" when unclassified).</summary>
+    public string IfcType { get; set; } = "";
+
     /// <summary>Groups are definitions with a single instance, shown without a name in the Components panel.</summary>
     public bool IsGroup { get; set; }
 

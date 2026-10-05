@@ -6,8 +6,8 @@ using Dogeometric.Core.Modeling;
 namespace Dogeometric.Core.IO;
 
 /// <summary>
-/// IFC4 export in millimetres, as SketchUp's File › Export › 3D Model › IFC: each top-level group or component is a
-/// building element (loose geometry is one more), with its triangles, material colours and tag as the IFC layer.
+/// IFC4 export in millimetres, as SketchUp's File › Export › 3D Model › IFC: each top-level group or component is an
+/// element of its Classifier type (a proxy when unclassified), with its triangles, colours and tag as the IFC layer.
 /// </summary>
 public static class IfcWriter
 {
@@ -68,7 +68,7 @@ public static class IfcWriter
         var rootXf = options.SelectionContext != null ? options.SelectionContextTransform : Transform.Identity;
         bool Wanted(object e) => options.Selection == null || options.Selection.Contains(e);
 
-        void Element(string elementName, string? description, Tag? tag, List<Triangle> triangles)
+        void Element(string elementName, string? description, Tag? tag, string type, List<Triangle> triangles)
         {
             if (triangles.Count == 0)
                 return;
@@ -95,8 +95,11 @@ public static class IfcWriter
             var shape = Add($"IFCSHAPEREPRESENTATION(#{bodyContext},'Body','Tessellation',({string.Join(",", items.Select(i => "#" + i))}))");
             var definition = Add($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{shape}))");
             var placement = Add($"IFCLOCALPLACEMENT(#{storeyPlacement},#{origin})");
-            products.Add(Add($"IFCBUILDINGELEMENTPROXY('{Guid()}',#{history},{Text(elementName)},{(string.IsNullOrEmpty(description) ? "$" : Text(description))}," +
-                $"$,#{placement},#{definition},$,.NOTDEFINED.)"));
+            // Past the eight attributes every element has, the rest (predefined type and the like) are optional.
+            var entity = Classification.Find(type) ?? Classification.Find("IfcBuildingElementProxy")!;
+            var rest = string.Concat(Enumerable.Repeat(",$", entity.Attributes - 8));
+            products.Add(Add($"{entity.Name.ToUpperInvariant()}('{Guid()}',#{history},{Text(elementName)},{(string.IsNullOrEmpty(description) ? "$" : Text(description))}," +
+                $"$,#{placement},#{definition},${rest})"));
             var layer = tag?.Name ?? "Untagged";
             if (!layers.TryGetValue(layer, out var list))
                 layers[layer] = list = [];
@@ -106,7 +109,7 @@ public static class IfcWriter
         foreach (var inst in root.Instances.Where(i => !i.Hidden && i.Tag is not { Visible: false } && Wanted(i)))
         {
             var triangles = MeshExtractor.ExtractInstance(inst, includeHidden: false).Select(t => Moved(t, rootXf)).ToList();
-            Element(inst.Name.Length > 0 ? inst.Name : inst.Definition.Name, inst.Definition.Description, inst.Tag, triangles);
+            Element(inst.Name.Length > 0 ? inst.Name : inst.Definition.Name, inst.Definition.Description, inst.Tag, inst.Definition.IfcType, triangles);
         }
         var loose = MeshExtractor.Extract(model, new ExportOptions
         {
@@ -114,7 +117,7 @@ public static class IfcWriter
             SelectionContext = root,
             SelectionContextTransform = rootXf,
         });
-        Element("Ungrouped geometry", null, null, loose);
+        Element("Ungrouped geometry", null, null, "", loose);
 
         foreach (var (layer, shapes) in layers.OrderBy(l => l.Key, StringComparer.Ordinal))
             Add($"IFCPRESENTATIONLAYERASSIGNMENT({Text(layer)},$,({string.Join(",", shapes.Select(s => "#" + s))}),$)");

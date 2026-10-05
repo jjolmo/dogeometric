@@ -684,7 +684,7 @@ public static class Grouping
     public static void MakeUnique(Model model, ComponentInstance inst)
     {
         var src = inst.Definition;
-        var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IsGroup = src.IsGroup };
+        var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IfcType = src.IfcType, IsGroup = src.IsGroup };
         CopyEntities(src.Entities, copy.Entities, Geometry.Transform.Identity);
         copy.Entities.Subdivision = src.Entities.Subdivision;
         copy.Entities.SubdivisionSmoothCorners = src.Entities.SubdivisionSmoothCorners;

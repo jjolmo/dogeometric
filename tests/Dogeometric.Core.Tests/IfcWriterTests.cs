@@ -52,4 +52,24 @@ public class IfcWriterTests
         Assert.Equal(1, visible);
         Assert.Equal(1, Count(ifc, "IFCTRIANGULATEDFACESET"));
     }
+
+    [Fact]
+    public void Classified_definitions_export_as_their_ifc_type_and_survive_a_save()
+    {
+        var (model, a, b) = TestModels.TwoBoxGroups();
+        Classification.Apply(model, a, "IfcDoor");
+        Classification.Apply(model, b, "IfcMechanicalFastener");
+
+        var path = Path.Combine(Path.GetTempPath(), $"classified-{Guid.NewGuid():N}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path);
+        File.Delete(path);
+        Assert.Equal(["IfcDoor", "IfcMechanicalFastener"], back.Entities.Instances.Select(i => i.Definition.IfcType));
+
+        var ifc = Export(back, out _);
+        // IfcDoor has 13 attributes, IfcMechanicalFastener 11: the optional ones past the eighth are left unset.
+        Assert.Matches(@"=IFCDOOR\('[^']{22}',#\d+,'Group#1',\$,\$,#\d+,#\d+,\$,\$,\$,\$,\$,\$\)", ifc);
+        Assert.Matches(@"=IFCMECHANICALFASTENER\('[^']{22}',#\d+,'Group#2',\$,\$,#\d+,#\d+,\$,\$,\$,\$\)", ifc);
+        Assert.DoesNotContain("IFCBUILDINGELEMENTPROXY", ifc);
+    }
 }
