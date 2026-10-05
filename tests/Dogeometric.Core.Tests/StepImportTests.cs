@@ -15,6 +15,8 @@ public class StepImportTests
     [InlineData("torus", 9869.604401, 1)]
     [InlineData("cone", 2450.442270, 3)]
     [InlineData("loft", 5948.082105, 3)]
+    [InlineData("extrusion", 4574.359647, 3)]
+    [InlineData("revolution", 2888.032056, 3)]
     public void Solids_come_in_closed_with_their_volume(string name, double volume, int faces)
     {
         var result = Load(name);

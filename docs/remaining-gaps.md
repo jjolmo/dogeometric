@@ -13,7 +13,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
-| STEP import: remaining surface kinds and colours | Vendor models sometimes use surfaces of extrusion or revolution, offset surfaces and styled colours. | Planes, cylinders, cones, spheres, tori, B-spline surfaces and assemblies import (checked against FreeCAD's volumes); faces of other kinds are left out and counted. |
+| STEP import: offset surfaces and colours | Some vendor models use offset surfaces and styled colours. | Planes, cylinders, cones, spheres, tori, B-spline surfaces, surfaces of extrusion and revolution, and assemblies import (checked against FreeCAD's volumes); other faces are left out and counted. |
 | Remaining file formats | Import: IFC. COLLADA/KMZ and DWG/DXF imports flatten components into one group; COLLADA drops textures. | |
 
 ## Medium impact

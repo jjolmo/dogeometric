@@ -709,6 +709,17 @@ public static class StepImport
                     var (major, minor) = (D(e.Args[2]) * _scale, D(e.Args[3]) * _scale);
                     return new Revolved(p.O, p.X, p.Y, p.Z, Profile.Torus, v => major + minor * Math.Cos(v), v => minor * Math.Sin(v), 0, 2 * Math.PI, minor, major);
                 }
+                case "SURFACE_OF_LINEAR_EXTRUSION":
+                {
+                    var vector = E(e.Args[2]);
+                    return ProfileCurve(E(e.Args[1])) is { } c ? new Extrusion(c, Direction(vector.Args[1])) : null;
+                }
+                case "SURFACE_OF_REVOLUTION":
+                {
+                    var axis = E(e.Args[2]);
+                    var dir = axis.Args.Count > 2 && axis.Args[2] is StepParser.Ref ? Direction(axis.Args[2]) : Vec3.UnitZ;
+                    return ProfileCurve(E(e.Args[1])) is { } c ? new Revolution(c, Point(axis.Args[1]), dir) : null;
+                }
                 case "B_SPLINE_SURFACE_WITH_KNOTS":
                     return new BSplineSurface((int)D(e.Args[1]), (int)D(e.Args[2]), Grid(e.Args[3]),
                         Knots(e.Args[8], e.Args[10]), Knots(e.Args[9], e.Args[11]), null);
@@ -726,6 +737,15 @@ public static class StepImport
             }
         }
 
+        /// <summary>A curve swept into a surface; unlike an edge's, a line here is a curve too.</summary>
+        private Curve? ProfileCurve(StepParser.Entity e)
+        {
+            if (e.Type != "LINE")
+                return Curve(e);
+            var vector = E(e.Args[2]);
+            return new Line(Point(e.Args[1]), Direction(vector.Args[1]));
+        }
+
         private List<List<Vec3>> Grid(object? rows) => ((List<object?>)rows!).Select(r => ((List<object?>)r!).Select(Point).ToList()).ToList();
     }
 
@@ -733,6 +753,8 @@ public static class StepImport
     private abstract class Curve
     {
         public virtual double Period => 0;
+        public virtual double TMin => 0;
+        public virtual double TMax => 2 * Math.PI;
         public abstract Vec3 Eval(double t);
         public abstract double Param(Vec3 p, double? near);
         public abstract int Segments(double t0, double t1);
@@ -759,7 +781,9 @@ public static class StepImport
 
     private sealed class BSpline(int degree, List<Vec3> control, List<double> knots, List<double>? weights) : Curve
     {
-        public override Vec3 Eval(double t) => Nurbs.Curve(degree, control, knots, weights, t);
+        public override double TMin => knots[degree];
+        public override double TMax => knots[^(degree + 1)];
+        public override Vec3 Eval(double t) => Nurbs.Curve(degree, control, knots, weights, Math.Clamp(t, TMin, TMax));
 
         public override double Param(Vec3 p, double? near)
         {
@@ -951,6 +975,85 @@ public static class StepImport
                 best = (u, best.Item2);
             }
             return best;
+        }
+    }
+
+    private sealed class Line(Vec3 o, Vec3 d) : Curve
+    {
+        public override double TMin => -1e6;
+        public override double TMax => 1e6;
+        public override Vec3 Eval(double t) => o + d * t;
+        public override double Param(Vec3 p, double? near) => (p - o).Dot(d);
+        public override int Segments(double t0, double t1) => 1;
+    }
+
+    /// <summary>A profile curve swept along a direction: the point at u on the curve, moved v along it.</summary>
+    private sealed class Extrusion(Curve curve, Vec3 d) : Surface
+    {
+        private readonly double _period = curve.Eval(curve.TMin).DistanceTo(curve.Eval(curve.TMax)) < 1e-6 ? curve.TMax - curve.TMin : 0;
+        private readonly Vec3 _origin = curve.Eval(curve.TMin);
+        public override double PeriodU => _period;
+        public override double UMin => curve.TMin;
+        public override double UMax => curve.TMax;
+        public override double VMin => double.NegativeInfinity;
+        public override double VMax => double.PositiveInfinity;
+        public override Vec3 Eval(double u, double v) => curve.Eval(Wrap(u)) + d * v;
+
+        private double Wrap(double u) => _period > 0 ? UMin + ((u - UMin) % _period + _period) % _period : u;
+
+        // The point brought back along the direction to the profile's plane, then found on the curve.
+        public override (double U, double V) Project(Vec3 p, (double U, double V)? near)
+        {
+            var onProfile = p - d * (p - _origin).Dot(d);
+            var u = curve.Param(onProfile, near?.U);
+            var v = (p - curve.Eval(u)).Dot(d);
+            if (_period > 0 && near is { } n)
+                u += Math.Round((n.U - u) / _period) * _period;
+            return (u, v);
+        }
+    }
+
+    /// <summary>A profile curve turned about an axis: the curve's point at v, turned u radians.</summary>
+    private sealed class Revolution(Curve curve, Vec3 o, Vec3 axis) : Surface
+    {
+        private readonly Vec3 _reference = Reference(curve, o, axis);
+        public override double PeriodU => 2 * Math.PI;
+        public override double UMin => 0;
+        public override double UMax => 2 * Math.PI;
+        public override double VMin => curve.TMin;
+        public override double VMax => curve.TMax;
+
+        private static Vec3 Reference(Curve c, Vec3 o, Vec3 axis)
+        {
+            foreach (var t in new[] { 0.5, 0.25, 0.75, 0.1, 0.9 })
+            {
+                var q = c.Eval(c.TMin + (c.TMax - c.TMin) * t) - o;
+                var r = q - axis * q.Dot(axis);
+                if (r.Length > 1e-9)
+                    return r.Normalized();
+            }
+            return (Math.Abs(axis.X) < 0.9 ? Vec3.UnitX : Vec3.UnitY).Cross(axis).Normalized();
+        }
+
+        private Vec3 Turn(Vec3 p, double angle)
+        {
+            var q = p - o;
+            return o + q * Math.Cos(angle) + axis.Cross(q) * Math.Sin(angle) + axis * (axis.Dot(q) * (1 - Math.Cos(angle)));
+        }
+
+        public override Vec3 Eval(double u, double v) => Turn(curve.Eval(v), u);
+
+        // The point turned back into the profile's half-plane, then found on the curve.
+        public override (double U, double V) Project(Vec3 p, (double U, double V)? near)
+        {
+            var q = p - o;
+            var radial = q - axis * q.Dot(axis);
+            var u = radial.Length < 1e-9 && near is { } n0 ? n0.U
+                : Math.Atan2(_reference.Cross(radial).Dot(axis), _reference.Dot(radial));
+            var v = curve.Param(Turn(p, -u), near?.V);
+            if (near is { } n)
+                u += Math.Round((n.U - u) / (2 * Math.PI)) * 2 * Math.PI;
+            return (u, v);
         }
     }
 
