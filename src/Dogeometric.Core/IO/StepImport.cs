@@ -373,6 +373,7 @@ public static class StepImport
                     mapped.Add(q);
                     last = q;
                 }
+                mapped = SplitPoles(surface, mapped);
                 var du = mapped[^1].U - mapped[0].U;
                 var dv = mapped[^1].V - mapped[0].V;
                 if (surface.PeriodU > 0 && Math.Abs(du) > surface.PeriodU / 2 && Math.Abs(dv) < 1e-6 + Math.Abs(du))
@@ -439,6 +440,33 @@ public static class StepImport
             RemoveSlivers(corners, mesh);
             for (var i = 0; i < mesh.Count; i++)
                 output.Add(([corners[mesh[i].A], corners[mesh[i].B], corners[mesh[i].C]], new CurvedKey(id, i)));
+        }
+
+        /// <summary>A loop point at a pole (a sphere's, a cone's apex) is a whole side in parameters: it becomes two points,
+        /// at the u of the point before it and of the point after it.</summary>
+        private static List<(double U, double V)> SplitPoles(Surface s, List<(double U, double V)> loop)
+        {
+            if (loop.Count < 3 || s.PeriodU <= 0)
+                return loop;
+            bool Pole((double U, double V) q) => (s.Eval(q.U + 1, q.V) - s.Eval(q.U, q.V)).Length < 1e-9 * Math.Max(1, s.Eval(q.U, q.V).Length);
+            if (!loop.Any(Pole))
+                return loop;
+            var result = new List<(double U, double V)>();
+            for (var i = 0; i < loop.Count; i++)
+            {
+                var q = loop[i];
+                if (!Pole(q))
+                {
+                    result.Add(q);
+                    continue;
+                }
+                var (before, after) = (loop[(i + loop.Count - 1) % loop.Count], loop[(i + 1) % loop.Count]);
+                if (!Pole(before))
+                    result.Add((before.U, q.V));
+                if (!Pole(after))
+                    result.Add((after.U, q.V));
+            }
+            return result;
         }
 
         /// <summary>Drops triangles flat in space (where parameters fold at a seam or pole); one with a point mid-side hands it
@@ -702,8 +730,10 @@ public static class StepImport
                     var (a, b) = (t1.A, t1.B) == (edge.Item1, edge.Item2) || (t1.B, t1.C) == (edge.Item1, edge.Item2) || (t1.C, t1.A) == (edge.Item1, edge.Item2)
                         ? (edge.Item1, edge.Item2) : (edge.Item2, edge.Item1);
                     var sign = Math.Sign(Uv(a, b, c));
-                    // Only a convex quad in parameter space can be flipped without folding.
-                    if (sign == 0 || Math.Sign(Uv(a, d, c)) != sign || Math.Sign(Uv(d, b, c)) != sign)
+                    // Only a convex quad in parameter space can be flipped without folding; a corner lying on the new
+                    // diagonal (up to rounding) would end up inside an edge.
+                    var eps = 1e-9 * (Math.Abs(Uv(a, b, c)) + Math.Abs(Uv(b, a, d)));
+                    if (sign == 0 || Uv(a, d, c) * sign <= eps || Uv(d, b, c) * sign <= eps)
                         continue;
                     // At seams and poles distinct parameters share a point: flip only four distinct corners, into
                     // triangles facing the way the old pair did.

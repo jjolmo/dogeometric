@@ -200,7 +200,7 @@ public static class Polygon
                 var a = idx[(i + idx.Count - 1) % idx.Count];
                 var b = idx[i];
                 var c = idx[(i + 1) % idx.Count];
-                if (Cross(p[a], p[b], p[c]) <= 1e-12)
+                if (Cross(p[a], p[b], p[c]) <= Flat(p[a], p[c]))
                     continue; // reflex or degenerate
                 var ear = true;
                 for (var j = 0; j < idx.Count && ear; j++)
@@ -211,7 +211,9 @@ public static class Polygon
                     // Bridge duplicates share coordinates with a, b or c; they don't block the ear.
                     if (Same(p[q], p[a]) || Same(p[q], p[b]) || Same(p[q], p[c]))
                         continue;
-                    if (InTriangle(p[q], p[a], p[b], p[c]))
+                    // A vertex on the new diagonal a–c blocks it as well, even when rounding leaves it just outside.
+                    if (InTriangle(p[q], p[a], p[b], p[c])
+                        || (Math.Abs(Cross(p[a], p[c], p[q])) <= 1e-9 * Dist2(p[a], p[c]) && Between(p[a], p[c], p[q])))
                         ear = false;
                 }
                 if (!ear)
@@ -231,10 +233,13 @@ public static class Polygon
                 idx.RemoveAt(flattest);
             }
         }
-        if (idx.Count == 3 && Cross(p[idx[0]], p[idx[1]], p[idx[2]]) > 1e-12)
+        if (idx.Count == 3 && Cross(p[idx[0]], p[idx[1]], p[idx[2]]) > Flat(p[idx[0]], p[idx[2]]))
             tris.AddRange(idx);
         return tris;
     }
+
+    /// <summary>The cross product below which a corner over a–c counts as straight, relative to its size.</summary>
+    private static double Flat((double X, double Y) a, (double X, double Y) c) => Math.Max(1e-12, 1e-10 * Dist2(a, c));
 
     private static double Cross((double X, double Y) a, (double X, double Y) b, (double X, double Y) c) =>
         (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);

@@ -47,6 +47,29 @@ public class GeometryTests
     }
 
     [Fact]
+    public void A_side_sampled_into_collinear_points_keeps_every_point()
+    {
+        // A face of a STEP part whose straight edge comes sampled as a curve: dropping one of its points left a gap.
+        Vec3[] outer =
+        [
+            new(31.3720075856, 104.641463353, 1.3036405863),
+            new(32.354864476, 105.624320244, 1.3036405863),
+            new(32.8317054694, 105.14747925, 1.3468685863),
+            new(31.8493821247, 104.165155906, 1.3468685863),
+            new(31.789710307308596, 104.22469433687888, 1.3414650862996467),
+            new(31.730038489922396, 104.2842327677526, 1.3360615862997645),
+            new(31.670366672536204, 104.34377119862631, 1.3306580862998822),
+            new(31.61069485515, 104.40330962950001, 1.3252545863),
+            new(31.551023037763805, 104.46284806037372, 1.3198510863001178),
+            new(31.491351220377602, 104.5223864912474, 1.3144475863002356),
+            new(31.431679402991403, 104.58192492212112, 1.3090440863003534),
+        ];
+        var idx = Polygon.Triangulate(outer);
+        Assert.Equal(Enumerable.Range(0, outer.Length), idx.Distinct().Order());
+        Assert.Equal(Polygon.Area(outer), TriangulatedArea(outer), 9);
+    }
+
+    [Fact]
     public void Holes_are_subtracted()
     {
         Vec3[] outer = [new(0, 0, 0), new(100, 0, 0), new(100, 100, 0), new(0, 100, 0)];

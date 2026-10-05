@@ -12,6 +12,7 @@ public class StepImportTests
     [Theory]
     [InlineData("plate", 11137.345175, 11)]
     [InlineData("sphere", 4188.790205, 1)]
+    [InlineData("quarter-sphere", 1047.197551, 4)]
     [InlineData("torus", 9869.604401, 1)]
     [InlineData("cone", 2450.442270, 3)]
     [InlineData("loft", 5948.082105, 3)]
