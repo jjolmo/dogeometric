@@ -34,7 +34,8 @@ case "$RID" in
     for f in "$OUT"/*.so*; do patchelf --set-rpath '$ORIGIN' "$f"; done ;;
   osx)
     for f in "$OUT"/*.dylib; do
-      for old in $(otool -l "$f" | awk '/LC_RPATH/{getline; getline; print $2}'); do
+      # A universal library lists each search path once per architecture.
+      for old in $(otool -l "$f" | awk '/LC_RPATH/{getline; getline; print $2}' | sort -u); do
         install_name_tool -delete_rpath "$old" "$f"
       done
       install_name_tool -add_rpath @loader_path "$f"
