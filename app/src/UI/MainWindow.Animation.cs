@@ -12,7 +12,7 @@ public partial class MainWindow
 
     private void ExportAnimation()
     {
-        if (_document.Model.Scenes.Count(s => s.Camera != null) < 2)
+        if (_document.Model.Scenes.Count(s => s.Camera != null && s.InAnimation) < 2)
         {
             Alert("Export Animation", "The model needs at least two scenes to make an animation.");
             return;
@@ -24,7 +24,7 @@ public partial class MainWindow
     private List<(int Scene, CameraState Camera)> AnimationFrames()
     {
         var model = _document.Model;
-        var scenes = model.Scenes.Select((s, i) => (s, i)).Where(x => x.s.Camera != null).ToList();
+        var scenes = model.Scenes.Select((s, i) => (s, i)).Where(x => x.s.Camera != null && x.s.InAnimation).ToList();
         var frames = new List<(int, CameraState)>();
         for (var k = 0; k < scenes.Count; k++)
         {

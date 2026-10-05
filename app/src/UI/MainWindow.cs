@@ -1195,7 +1195,7 @@ public partial class MainWindow : Control
         foreach (var (name, panel, expanded) in new (string, Control, bool)[]
         {
             ("Entity Info", _entityInfo, true), ("Materials", _materials, true), ("Components", _components, false),
-            ("Styles", _styles, false), ("Tags", _tags, false), ("Shadows", _shadows, false),
+            ("Styles", _styles, false), ("Tags", _tags, false), ("Scenes", ScenesPanel.Create(() => _document.Document, _scenes), false), ("Shadows", _shadows, false),
             ("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), false), ("Outliner", _outliner, false),
         })
             _panels[name] = TraySection.Create(name, panel, expanded);

@@ -137,6 +137,10 @@ public static class DogFile
             {
                 w.WriteStartObject();
                 w.WriteString("name", s.Name);
+                if (s.Description.Length > 0)
+                    w.WriteString("description", s.Description);
+                if (!s.InAnimation)
+                    w.WriteBoolean("inAnimation", false);
                 if (s.Camera is { } c)
                 {
                     w.WriteStartObject("camera");
@@ -563,7 +567,12 @@ public static class DogFile
 
         foreach (var s in r.GetProperty("scenes").EnumerateArray())
         {
-            var scene = new Scene { Name = s.GetProperty("name").GetString() ?? "" };
+            var scene = new Scene
+            {
+                Name = s.GetProperty("name").GetString() ?? "",
+                Description = s.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : "",
+                InAnimation = !s.TryGetProperty("inAnimation", out var inAnimation) || inAnimation.GetBoolean(),
+            };
             if (s.TryGetProperty("camera", out var c))
             {
                 scene.Camera = new CameraState(

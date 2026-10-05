@@ -230,4 +230,18 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Equal(new ModelOptions(), model.Options);
     }
+
+    [Fact]
+    public void Scene_descriptions_and_animation_flags_survive_saving()
+    {
+        var model = new Model();
+        model.Scenes.Add(new Scene { Name = "Front", Description = "Lid closed" });
+        model.Scenes.Add(new Scene { Name = "Inside", InAnimation = false });
+        var path = Path.Combine(Path.GetTempPath(), $"scenes-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path).Scenes;
+        File.Delete(path);
+        Assert.Equal(("Lid closed", true), (back[0].Description, back[0].InAnimation));
+        Assert.Equal(("", false), (back[1].Description, back[1].InAnimation));
+    }
 }

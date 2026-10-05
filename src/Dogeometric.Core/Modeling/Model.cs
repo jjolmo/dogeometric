@@ -7,6 +7,10 @@ namespace Dogeometric.Core.Modeling;
 public sealed class Scene
 {
     public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+
+    /// <summary>Scenes panel › Include in animation: off, playing and exporting skip the scene.</summary>
+    public bool InAnimation { get; set; } = true;
     public CameraState? Camera { get; set; }
     public HashSet<string> HiddenTags { get; } = [];
 

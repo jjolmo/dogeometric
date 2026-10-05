@@ -24,6 +24,23 @@ public partial class SceneTabs : HBoxContainer
     public static SceneTabs Create(Func<Document> doc, ModelViewport view, Action tagsChanged) =>
         new() { _doc = doc, _view = view, _tagsChanged = tagsChanged };
 
+    /// <summary>Raised when scenes are added, removed, renamed, reordered or another becomes current.</summary>
+    public event Action? Changed;
+
+    public int CurrentIndex => _current;
+
+    /// <summary>Scene › Move Left / Move Right.</summary>
+    public void Move(int delta)
+    {
+        var scenes = _doc().Model.Scenes;
+        var to = _current + delta;
+        if (_current < 0 || to < 0 || to >= scenes.Count)
+            return;
+        (scenes[_current], scenes[to]) = (scenes[to], scenes[_current]);
+        _current = to;
+        Refresh();
+    }
+
     public void Refresh()
     {
         foreach (var c in GetChildren().Where(c => c != _player))
@@ -47,6 +64,7 @@ public partial class SceneTabs : HBoxContainer
             tab.Pressed += () => Go(index);
             AddChild(tab);
         }
+        Changed?.Invoke();
     }
 
     public void Add()
@@ -153,7 +171,14 @@ public partial class SceneTabs : HBoxContainer
                 Stop();
                 return;
             }
-            Step(1);
+            if (m.Scenes.All(s => !s.InAnimation))
+            {
+                Stop();
+                return;
+            }
+            do
+                Step(1);
+            while (!m.Scenes[_current].InAnimation);
             _player!.WaitTime = Math.Max(0.05, (m.SceneTransitions ? m.SceneTransitionSeconds : 0) + m.SceneDelaySeconds);
             _player.Start();
         }
