@@ -9,13 +9,15 @@ move axes and an orange rotate ring of a 3D transform gizmo.
 | `icon.ico` | Windows icon, 16 to 256 px |
 | `logo-horizontal-light.png` | Icon + wordmark, for light backgrounds |
 | `logo-horizontal-dark.png` | Icon + wordmark, for dark backgrounds |
+| `logo-banner.png` | The dark variant on a navy rounded banner: reads on any background (used by the top README) |
 
 `app/icon.png` is the same 1024 px icon, used by Godot as `config/icon`.
 
 The wordmark is Ubuntu Sans ExtraBold; "Dog" in tan (`#C48846` light, `#E6B880` dark), the rest in
 navy `#161C2F` or off-white `#F5F5F5`.
 
-To pick the variant by theme in Markdown:
+To pick the variant by theme in Markdown (it follows the viewer's system theme, not the page, so a dark system on a light
+page shows the light-on-white text; the banner avoids that):
 
 ```html
 <picture>

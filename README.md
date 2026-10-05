@@ -1,7 +1,4 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/branding/logo-horizontal-dark.png">
-  <img alt="Dogeometric" src="docs/branding/logo-horizontal-light.png" width="480">
-</picture>
+<img alt="Dogeometric" src="docs/branding/logo-banner.png" width="480">
 
 
 A private, behaviour-for-behaviour copy of SketchUp 2021, built with Godot 4.7 (C#/.NET 8).
