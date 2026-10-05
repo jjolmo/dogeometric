@@ -29,10 +29,8 @@ public sealed class ScriptGlobals
     public Face AddFace(params Vec3[] points) => Entities.AddFace(points);
 }
 
-/// <summary>
-/// Window › Ruby Console's engine: each line is C# run against the open model, keeping the variables the earlier lines
-/// declared (as Ruby's console does), and one undoable step.
-/// </summary>
+/// <summary>The Ruby Console's engine (Extensions › Developer): each line is C# run against the open model, keeping earlier
+/// lines' variables as Ruby's console does, and one undoable step.</summary>
 public sealed class ScriptConsole(Document document)
 {
     private readonly ScriptGlobals _globals = new(document);
