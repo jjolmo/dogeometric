@@ -260,6 +260,8 @@ public static class DogFile
         static double Sharpness(double s) => double.IsPositiveInfinity(s) ? -1 : s;
         if (e.Subdivision > 0)
             w.WriteNumber("subdivision", e.Subdivision);
+        if (e.SubdivisionSmoothCorners)
+            w.WriteBoolean("subdivisionSmoothCorners", true);
         if (e.Edges.Any(x => x.Crease != 0))
         {
             w.WriteStartArray("creases");
@@ -627,6 +629,7 @@ public static class DogFile
         static double Sharpness(double s) => s < 0 ? double.PositiveInfinity : s;
         if (j.TryGetProperty("subdivision", out var sub))
             e.Subdivision = sub.GetInt32();
+        e.SubdivisionSmoothCorners = j.TryGetProperty("subdivisionSmoothCorners", out var corners) && corners.GetBoolean();
         if (j.TryGetProperty("creases", out var creases))
         {
             var a = creases.EnumerateArray().Select(x => x.GetDouble()).ToArray();

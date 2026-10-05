@@ -109,6 +109,7 @@ public partial class MainWindow : Control
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
         RegisterExtensions();
+        RegisterSubdExtras();
         ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
@@ -244,7 +245,7 @@ public partial class MainWindow : Control
         // The reference install's Extensions menu: Make Faces, SUbD, CleanUp³.
         foreach (var (id, label, tip, action) in new (int, string, string, Action)[]
         {
-            (ExtensionIds.SubdSubdivided, "Subdivided", "Toggle between control mesh and subdivided mesh.", () => Subd("Toggle Subdivision", e => e.Subdivision = e.Subdivision > 0 ? 0 : _subdLevels)),
+            (ExtensionIds.SubdSubdivided, "Subdivided", "Toggle between control mesh and subdivided mesh.", ToggleSubdivision),
             (ExtensionIds.SubdIncrease, "Increase Subdivisions", "Increase number of subdivisions.", () => Subd("Increase Subdivisions", e => e.Subdivision = _subdLevels = Math.Min(e.Subdivision + 1, 5), subdividedOnly: true)),
             (ExtensionIds.SubdDecrease, "Decrease Subdivisions", "Decrease number of subdivisions.", () => Subd("Decrease Subdivisions", e => e.Subdivision = _subdLevels = Math.Max(e.Subdivision - 1, 1), subdividedOnly: true)),
             (ExtensionIds.SubdCrease, "Crease Tool", "Adjust edge and vertex sharpness to create creases.", () => _viewport.Tools.Activate(new CreaseTool())),
@@ -684,6 +685,18 @@ public partial class MainWindow : Control
         return targets.Where(e => e.Instances.Count == 0).ToList();
     }
 
+    /// <summary>SUbD › Subdivided; with Fix Manifolds on, meshes with internal faces (edges of three or more faces) are refused.</summary>
+    private void ToggleSubdivision()
+    {
+        if (AppPreferences.Current.SubdFixManifolds && SubdTargets().FirstOrDefault(e => e.Subdivision == 0
+                && e.Edges.Any(x => Topology.FacesOf(e, x).Skip(2).Any())) != null)
+        {
+            Alert("Failed to Subdivide", "Unable to automatically clean up internal faces. Please resolve the mesh manually.");
+            return;
+        }
+        Subd("Toggle Subdivision", e => e.Subdivision = e.Subdivision > 0 ? 0 : _subdLevels);
+    }
+
     private void Subd(string name, Action<Entities> change, bool subdividedOnly = false)
     {
         var doc = _document.Document;
@@ -1096,7 +1109,7 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.Select, () => new SelectTool());
         RegisterTool(CommandIds.Line, () => new LineTool());
         RegisterTool(CommandIds.Rectangle, () => new RectangleTool());
-        RegisterTool(CommandIds.PushPull, () => new PushPullTool());
+        RegisterTool(CommandIds.PushPull, PushPullTool);
         RegisterTool(CommandIds.Circle, () => new CircleTool());
         RegisterTool(CommandIds.Polygon, () => new PolygonTool());
         RegisterTool(CommandIds.Arc2Point, () => new ArcTool());
@@ -1157,6 +1170,8 @@ public partial class MainWindow : Control
     {
         var doc = _document.Document;
         doc.Selection.Changed += _entityInfo.Refresh;
+        doc.Selection.Changed += () => _refreshSubdInfo();
+        doc.GeometryChanged += _ => _refreshSubdInfo();
         // Deferred: the Outliner's own clicks change the model, and its tree can't be rebuilt mid-signal.
         doc.Selection.Changed += () => Callable.From(_outliner.SyncSelection).CallDeferred();
         doc.Context.Changed += () => Callable.From(_outliner.SyncSelection).CallDeferred();

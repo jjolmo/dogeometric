@@ -139,6 +139,9 @@ public sealed class Entities
     /// <summary>SUbD: subdivision rounds this mesh is shown with (0 for a plain mesh); it stays the control mesh.</summary>
     public int Subdivision { get; set; }
 
+    /// <summary>SUbD's Boundary Corners: Smooth rounds the corners of open borders, Sharp (the default) keeps them.</summary>
+    public bool SubdivisionSmoothCorners { get; set; }
+
     public List<Vertex> Vertices { get; } = [];
     public List<Edge> Edges { get; } = [];
     public List<Face> Faces { get; } = [];

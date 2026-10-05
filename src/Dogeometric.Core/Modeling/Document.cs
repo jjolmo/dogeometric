@@ -545,6 +545,7 @@ public static class Grouping
         var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IsGroup = src.IsGroup };
         CopyEntities(src.Entities, copy.Entities, Geometry.Transform.Identity);
         copy.Entities.Subdivision = src.Entities.Subdivision;
+        copy.Entities.SubdivisionSmoothCorners = src.Entities.SubdivisionSmoothCorners;
         model.Definitions.Add(copy);
         inst.Definition = copy;
     }

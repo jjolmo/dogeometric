@@ -9,9 +9,9 @@ using Godot;
 
 namespace Dogeometric.App.Tools;
 
-/// <summary>JointPushPull's Joint, Normal, Vector and Extrude tools: pick faces, click one and move to push-pull them all
-/// live; click or type the offset to finish. The palette sets borders, finishing and grouping.</summary>
-public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
+/// <summary>JointPushPull's tools: pick faces, click one and move to push-pull them all live (the palette sets borders,
+/// finishing, grouping); <paramref name="quad"/> makes it SUbD's Quad Push/Pull, Joint with contour walls only.</summary>
+public sealed class JointPushPullTool(JointPushPullMode mode, bool quad = false) : DrawingTool
 {
     // The palette's settings are kept for the session, as the extension keeps its own.
     private static JointPushPullBorders _borders = JointPushPullBorders.Contour;
@@ -26,7 +26,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
     private double _offset;
     private Window? _palette;
 
-    public override int CommandId => mode switch
+    public override int CommandId => quad ? ExtensionIds.SubdQuadPushPull : mode switch
     {
         JointPushPullMode.Joint => ExtensionIds.JointPushPull,
         JointPushPullMode.Normal => ExtensionIds.NormalPushPull,
@@ -46,7 +46,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
             ? "Click faces to push-pull (Ctrl adds), or select them first."
             : $"Faces: {_faces.Count}. Click one of them and move to push-pull; type an offset to apply it at once.";
 
-    private string Name => mode switch
+    private string Name => quad ? "Push/Pull" : mode switch
     {
         JointPushPullMode.Joint => "Joint Push Pull",
         JointPushPullMode.Normal => "Normal Push Pull",
@@ -60,7 +60,8 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
     {
         if (View.Document is { } doc)
             _faces.AddRange(doc.Selection.Items.OfType<Face>().Where(doc.Context.Entities.Faces.Contains));
-        _palette = Palette();
+        if (!quad)
+            _palette = Palette();
     }
 
     public override void Deactivate()
@@ -122,9 +123,9 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
     private JointPushPull.Options Options(Document doc) => new()
     {
         Mode = mode,
-        Borders = _borders,
-        Thicken = _thicken,
-        AsGroup = _asGroup,
+        Borders = quad ? JointPushPullBorders.Contour : _borders,
+        Thicken = !quad && _thicken,
+        AsGroup = !quad && _asGroup,
         Direction = doc.Context.ToWorld.Inverse().ApplyVector(_normal),
         Segments = _segments,
     };

@@ -96,6 +96,7 @@ public class CatmullClarkTests
         var doc = new Document(model);
         doc.Undo.Begin("Crease", def.Entities);
         def.Entities.Subdivision = 2;
+        def.Entities.SubdivisionSmoothCorners = true;
         def.Entities.Edges[0].Crease = double.PositiveInfinity;
         def.Entities.Edges[1].Crease = 1.5;
         def.Entities.Vertices[0].Crease = 2;
@@ -106,12 +107,14 @@ public class CatmullClarkTests
         var back = DogFile.Load(path).Definitions[0].Entities;
         File.Delete(path);
         Assert.Equal(2, back.Subdivision);
+        Assert.True(back.SubdivisionSmoothCorners);
         Assert.Equal(double.PositiveInfinity, back.Edges[0].Crease);
         Assert.Equal(1.5, back.Edges[1].Crease);
         Assert.Equal(2, back.Vertices[0].Crease);
 
         doc.Undo.Undo();
         Assert.Equal(0, def.Entities.Subdivision);
+        Assert.False(def.Entities.SubdivisionSmoothCorners);
         Assert.All(def.Entities.Edges, x => Assert.Equal(0, x.Crease));
         Assert.Equal(0, def.Entities.Vertices[0].Crease);
     }
@@ -128,5 +131,17 @@ public class CatmullClarkTests
         var shown = CatmullClark.ShownBounds(def.Entities);
         Assert.True(shown.Max.X < 10 && shown.Min.X > 0);
         Assert.Equal(8, def.Entities.Vertices.Count);
+    }
+
+    [Fact]
+    public void Smooth_boundary_corners_round_off_an_open_surfaces_corners()
+    {
+        var e = new Entities();
+        e.AddFace([new(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0)]);
+        Assert.Contains(CatmullClark.Mesh(e, 2).Points, p => p.DistanceTo(Vec3.Zero) < 1e-9);
+        e.SubdivisionSmoothCorners = true;
+        var smooth = CatmullClark.Mesh(e, 2).Points;
+        Assert.DoesNotContain(smooth, p => p.DistanceTo(Vec3.Zero) < 1e-6);
+        Assert.All(smooth, p => Assert.Equal(0, p.Z, 9));
     }
 }

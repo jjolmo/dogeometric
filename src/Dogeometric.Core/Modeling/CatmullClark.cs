@@ -40,7 +40,7 @@ public static class CatmullClark
 
         var level = new Level(points, polys, edgeSharpness, vertexSharpness, hard);
         for (var i = 0; i < levels; i++)
-            level = Step(level);
+            level = Step(level, e.SubdivisionSmoothCorners);
         return new Result(level.Points, level.Polygons, level.Hard);
     }
 
@@ -99,7 +99,7 @@ public static class CatmullClark
     private static Vec3 Lerp(Vec3 a, Vec3 b, double t) => a + (b - a) * t;
 
     /// <summary>One Catmull-Clark round with semi-sharp creases (DeRose et al. 1998).</summary>
-    private static Level Step(Level level)
+    private static Level Step(Level level, bool smoothCorners)
     {
         var (points, polys, edgeSharpness, vertexSharpness, hard) = level;
         var facePoint = polys.Select(p => p.Corners.Aggregate(Vec3.Zero, (a, i) => a + points[i]) / p.Corners.Length).ToList();
@@ -147,8 +147,8 @@ public static class CatmullClark
         foreach (var (v, faces) in vertexFaces)
         {
             var edges = vertexEdges[v];
-            // Corners of an open mesh (only two edges) stay where they are.
-            if (edges.Count == 2 && edges.All(k => edgeFaces[k].Count != 2))
+            // Corners of an open mesh (only two edges) stay where they are unless Boundary Corners is Smooth.
+            if (!smoothCorners && edges.Count == 2 && edges.All(k => edgeFaces[k].Count != 2))
                 continue;
             var n = faces.Count;
             var smooth = edges.Any(k => edgeFaces[k].Count != 2)

@@ -166,6 +166,7 @@ public sealed class UndoStack(Model model)
         private double[] _vertexCreases = [];
         private double[] _edgeCreases = [];
         private int _subdivision;
+        private bool _smoothCorners;
         private Edge[] _edges = [];
         private (Vertex Start, Vertex End, EdgeFlags Flags, Tag? Tag, Material? Material)[] _edgeData = [];
         private Face[] _faces = [];
@@ -187,6 +188,7 @@ public sealed class UndoStack(Model model)
             _vertexCreases = e.Vertices.Select(v => v.Crease).ToArray(),
             _edgeCreases = e.Edges.Select(x => x.Crease).ToArray(),
             _subdivision = e.Subdivision,
+            _smoothCorners = e.SubdivisionSmoothCorners,
             _edges = [.. e.Edges],
             _edgeData = e.Edges.Select(x => (x.Start, x.End, x.Flags, x.Tag, x.Material)).ToArray(),
             _faces = [.. e.Faces],
@@ -253,6 +255,7 @@ public sealed class UndoStack(Model model)
                 _vertices[i].Crease = _vertexCreases[i];
             }
             _target.Subdivision = _subdivision;
+            _target.SubdivisionSmoothCorners = _smoothCorners;
 
             Replace(_target.Edges, _edges);
             for (var i = 0; i < _edges.Length; i++)

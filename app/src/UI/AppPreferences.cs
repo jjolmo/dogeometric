@@ -46,6 +46,13 @@ public sealed class AppPreferences
     /// <summary>Print a hidden-line drawing instead of the view as drawn.</summary>
     public bool PrintAsDrawing { get; set; }
 
+    // SUbD › Preferences.
+    /// <summary>Check a mesh is manifold before subdividing it.</summary>
+    public bool SubdFixManifolds { get; set; } = true;
+
+    /// <summary>Push/Pull inside a subdivided group is SUbD's Quad Push/Pull.</summary>
+    public bool SubdReplacePushPull { get; set; }
+
     public static AppPreferences Current { get; private set; } = Load();
 
     /// <summary>Raised after the preferences change, so the parts that use them pick the new values up.</summary>
