@@ -219,14 +219,18 @@ public abstract class DrawingTool : Tool
         }
 
         if (inf.Label.Length > 0)
-        {
-            var font = overlay.GetThemeDefaultFont();
-            var size = 13;
-            var textSize = font.GetStringSize(inf.Label, HorizontalAlignment.Left, -1, size);
-            var box = new Rect2(p + new Vector2(14, 10), textSize + new Vector2(8, 4));
-            overlay.DrawRect(box, new Color(1, 1, 0.88f));
-            overlay.DrawRect(box, new Color(0.3f, 0.3f, 0.3f), filled: false, width: 1);
-            overlay.DrawString(font, box.Position + new Vector2(4, textSize.Y - 1), inf.Label, HorizontalAlignment.Left, -1, size, Colors.Black);
-        }
+            DrawTooltip(overlay, p, inf.Label);
+    }
+
+    /// <summary>SketchUp's yellow inference tooltip beside screen point <paramref name="p"/>.</summary>
+    protected static void DrawTooltip(Control overlay, Vector2 p, string text)
+    {
+        var font = overlay.GetThemeDefaultFont();
+        var size = 13;
+        var textSize = font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
+        var box = new Rect2(p + new Vector2(14, 10), textSize + new Vector2(8, 4));
+        overlay.DrawRect(box, new Color(1, 1, 0.88f));
+        overlay.DrawRect(box, new Color(0.3f, 0.3f, 0.3f), filled: false, width: 1);
+        overlay.DrawString(font, box.Position + new Vector2(4, textSize.Y - 1), text, HorizontalAlignment.Left, -1, size, Colors.Black);
     }
 }

@@ -31,6 +31,22 @@ public static class Shapes
         return pts;
     }
 
+    /// <summary>The bulge and its side for the arc from <paramref name="start"/> to <paramref name="end"/> leaving along
+    /// <paramref name="tangent"/>; null when the end lies straight ahead or behind.</summary>
+    public static (double Bulge, Vec3 Side)? TangentArc(Vec3 start, Vec3 end, Vec3 tangent)
+    {
+        if ((end - start).Length <= Tolerance.Length)
+            return null;
+        var chord = (end - start).Normalized();
+        var t = tangent.Normalized();
+        var side = t - chord * t.Dot(chord);
+        var angle = Math.Acos(Math.Clamp(t.Dot(chord), -1, 1));
+        // The tangent-chord angle is half the arc's angle, so the bulge is half the chord times tan(angle / 2).
+        if (side.Length < 1e-6 || angle > Math.PI * 0.99)
+            return null;
+        return ((end - start).Length / 2 * Math.Tan(angle / 2), side.Normalized());
+    }
+
     /// <summary>Arc from <paramref name="start"/> to <paramref name="end"/> bulging by <paramref name="bulge"/> (2-point arc).</summary>
     public static List<Vec3> TwoPointArc(Vec3 start, Vec3 end, Vec3 bulgeDir, double bulge, int segments)
     {

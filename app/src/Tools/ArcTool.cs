@@ -8,16 +8,15 @@ using Curve = Dogeometric.Core.Modeling.Curve;
 
 namespace Dogeometric.App.Tools;
 
-/// <summary>
-/// SketchUp's 2-Point Arc: click the start, click the end (or type the chord length), move sideways to set the
-/// bulge (or type it) and click. "12s" in the Measurements box sets the number of segments.
-/// </summary>
+/// <summary>SketchUp's 2-Point Arc: click the start, the end (or type the chord), then the bulge (or type it); "12s" sets the
+/// segments. Started at an edge's end, the bulge snaps where the arc is tangent to that edge (cyan).</summary>
 public sealed class ArcTool : DrawingTool
 {
     private static int _segments = Shapes.DefaultArcSegments;
 
     private Vec3? _start;
     private Vec3? _end;
+    private Vec3? _tangent;
 
     public override int CommandId => CommandIds.Arc2Point;
     public override string CursorImage => "arc1";
@@ -28,7 +27,7 @@ public sealed class ArcTool : DrawingTool
     public override string VcbValue => (_start, _end, Current) switch
     {
         ({ } s, null, { } c) => Length.Format(s.DistanceTo(c.Point), LengthUnit.Millimeters, 1),
-        ({ } s, { } e, { } c) => Length.Format(Math.Abs(Bulge(s, e, c.Point)), LengthUnit.Millimeters, 1),
+        ({ } s, { } e, { } c) => Length.Format(Math.Abs(Arc(s, e, c.Point).Bulge), LengthUnit.Millimeters, 1),
         _ => "",
     };
 
@@ -39,11 +38,17 @@ public sealed class ArcTool : DrawingTool
         if (button != MouseButton.Left || Current is not { } inf)
             return;
         if (_start == null)
+        {
             _start = inf.Point;
+            _tangent = TangentAt(inf);
+        }
         else if (_end == null)
             _end = inf.Point;
         else
-            Create(Bulge(_start.Value, _end.Value, inf.Point), inf.Point);
+        {
+            var (bulge, dir, _) = Arc(_start.Value, _end.Value, inf.Point);
+            Create(bulge, dir);
+        }
         RefreshStatus();
     }
 
@@ -54,6 +59,29 @@ public sealed class ArcTool : DrawingTool
         var toP = p - (s + e) * 0.5;
         var perp = toP - chord * toP.Dot(chord);
         return perp.Length;
+    }
+
+    /// <summary>The direction an edge arrives at the endpoint <paramref name="inf"/> snapped to, if it did.</summary>
+    private Vec3? TangentAt(InferenceResult inf)
+    {
+        if (inf is not { Kind: InferenceKind.Endpoint, Edge: { } edge } || View.Document is not { } doc)
+            return null;
+        var xf = doc.Context.Entities.Edges.Contains(edge) ? doc.Context.ToWorld : inf.EntityToWorld;
+        var (a, b) = (xf.ApplyPoint(edge.Start.Position), xf.ApplyPoint(edge.End.Position));
+        var arriving = a.DistanceTo(inf.Point) < b.DistanceTo(inf.Point) ? a - b : b - a;
+        return arriving.IsZero(1e-9) ? null : arriving.Normalized();
+    }
+
+    /// <summary>The arc's bulge and its side for the cursor at <paramref name="p"/>; near the tangent arc it snaps to it.</summary>
+    private (double Bulge, Vec3 Direction, bool Tangent) Arc(Vec3 s, Vec3 e, Vec3 p)
+    {
+        if (_tangent is { } t && Shapes.TangentArc(s, e, t) is var (bulge, side))
+        {
+            var apex = (s + e) * 0.5 + side * bulge;
+            if (View.ToScreen(apex) is { } a && View.ToScreen(p) is { } c && a.DistanceTo(c) < 10)
+                return (bulge, side, true);
+        }
+        return (Bulge(s, e, p), BulgeDirection(s, e, p), false);
     }
 
     private Vec3 BulgeDirection(Vec3 s, Vec3 e, Vec3 p)
@@ -90,21 +118,22 @@ public sealed class ArcTool : DrawingTool
         }
         if (_start is { } s2 && _end is { } e2)
         {
-            Create(mm, c.Point);
+            Create(mm, BulgeDirection(s2, e2, c.Point));
             return true;
         }
         return false;
     }
 
-    private void Create(double bulge, Vec3 towards)
+    private void Create(double bulge, Vec3 direction)
     {
         if (_start is not { } s || _end is not { } e || View.Document is not { } doc)
             return;
-        var pts = Shapes.TwoPointArc(s, e, BulgeDirection(s, e, towards), bulge, _segments);
+        var pts = Shapes.TwoPointArc(s, e, direction, bulge, _segments);
         var toLocal = doc.Context.ToWorld.Inverse();
         var local = pts.Select(toLocal.ApplyPoint).ToList();
         var curve = new Curve { Segments = _segments };
         doc.Operation("Arc", ent => StickyGeometry.DrawEdges(ent, local, closed: false, curve: curve));
+        _tangent = null;
         _start = null;
         _end = null;
         ResetLocks();
@@ -132,10 +161,17 @@ public sealed class ArcTool : DrawingTool
         {
             if (_end is { } e)
             {
-                var pts = Shapes.TwoPointArc(s, e, BulgeDirection(s, e, c.Point), Bulge(s, e, c.Point), _segments);
+                var (bulge, dir, tangent) = Arc(s, e, c.Point);
+                var pts = Shapes.TwoPointArc(s, e, dir, bulge, _segments);
+                var color = tangent ? UI.AppPreferences.Current.Tangent : Colors.Black;
                 for (var i = 0; i + 1 < pts.Count; i++)
-                    DrawWorldLine(overlay, pts[i], pts[i + 1], Colors.Black, 1.5f);
+                    DrawWorldLine(overlay, pts[i], pts[i + 1], color, tangent ? 2.5f : 1.5f);
                 DrawWorldLine(overlay, s, e, Colors.Black, 1, dashed: true);
+                if (tangent && View.ToScreen(pts[pts.Count / 2]) is { } apex)
+                {
+                    DrawTooltip(overlay, apex, "Tangent to Edge");
+                    return;
+                }
             }
             else
             {
