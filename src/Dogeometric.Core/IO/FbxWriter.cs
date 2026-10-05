@@ -9,8 +9,9 @@ namespace Dogeometric.Core.IO;
 /// but declaring millimetres, where SketchUp's reads ten times too big.</summary>
 public static class FbxWriter
 {
-    /// <summary>Writes the model (or the selection) and returns how many meshes went out.</summary>
-    public static int Write(Model model, TextWriter w, ExportOptions? options = null)
+    /// <summary>Writes the model (or the selection) and returns how many meshes went out; textured materials hand their
+    /// pictures to <paramref name="saveImage"/> under <paramref name="imageFolder"/> (left untextured without it).</summary>
+    public static int Write(Model model, TextWriter w, ExportOptions? options = null, string? imageFolder = null, Action<string, byte[]>? saveImage = null)
     {
         options ??= new ExportOptions();
         var root = options.SelectionContext ?? model.Entities;
@@ -32,9 +33,11 @@ public static class FbxWriter
 
         var nextId = 1000L;
         var objects = new StringBuilder();
-        var connections = new List<(long Child, long Parent)>();
+        var connections = new List<(long Child, long Parent, string? Property)>();
         var materialIds = new Dictionary<Material, long>();
-        var (models, geometries) = (0, 0);
+        var imageFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var (models, geometries, textures) = (0, 0, 0);
+        bool Textured(Material? m) => m?.Texture is { Data.Length: > 0 } && saveImage != null;
         // FBX is Y up: SketchUp's (x, y, z) goes out as (x, z, -y).
         static string P(Vec3 p) => $"{N(p.X)},{N(p.Z)},{N(-p.Y)}";
 
@@ -42,7 +45,7 @@ public static class FbxWriter
         {
             var id = nextId++;
             objects.Append($"\tModel: {id}, \"Model::{Text(name)}\", \"Null\" {{\n\t\tVersion: 232\n\t\tShading: Y\n\t\tCulling: \"CullingOff\"\n\t}}\n");
-            connections.Add((id, parent));
+            connections.Add((id, parent, null));
             models++;
             return id;
         }
@@ -58,6 +61,7 @@ public static class FbxWriter
             var indices = string.Join(",", Enumerable.Range(0, triangles.Count).Select(i => $"{3 * i},{3 * i + 1},{-(3 * i + 2) - 1}"));
             var normals = string.Join(",", triangles.SelectMany(t => Enumerable.Repeat(P(t.Normal), 3)));
             var materials = string.Join(",", triangles.Select(t => used.IndexOf(t.Material)));
+            var withUv = triangles.Any(t => t.Uv != null && Textured(t.Material));
             objects.Append($"\tGeometry: {geometry}, \"Geometry::\", \"Mesh\" {{\n")
                 .Append($"\t\tVertices: *{9 * triangles.Count} {{\n\t\t\ta: {vertices}\n\t\t}}\n")
                 .Append($"\t\tPolygonVertexIndex: *{3 * triangles.Count} {{\n\t\t\ta: {indices}\n\t\t}}\n")
@@ -65,15 +69,25 @@ public static class FbxWriter
                 .Append("\t\tLayerElementNormal: 0 {\n\t\t\tVersion: 102\n\t\t\tName: \"\"\n\t\t\tMappingInformationType: \"ByPolygonVertex\"\n\t\t\tReferenceInformationType: \"Direct\"\n")
                 .Append($"\t\t\tNormals: *{9 * triangles.Count} {{\n\t\t\t\ta: {normals}\n\t\t\t}}\n\t\t}}\n")
                 .Append("\t\tLayerElementMaterial: 0 {\n\t\t\tVersion: 101\n\t\t\tName: \"\"\n\t\t\tMappingInformationType: \"ByPolygon\"\n\t\t\tReferenceInformationType: \"IndexToDirect\"\n")
-                .Append($"\t\t\tMaterials: *{triangles.Count} {{\n\t\t\t\ta: {materials}\n\t\t\t}}\n\t\t}}\n")
-                .Append("\t\tLayer: 0 {\n\t\t\tVersion: 100\n")
+                .Append($"\t\t\tMaterials: *{triangles.Count} {{\n\t\t\t\ta: {materials}\n\t\t\t}}\n\t\t}}\n");
+            if (withUv)
+            {
+                var uvs = string.Join(",", triangles.SelectMany(t => t.Uv is { } uv && Textured(t.Material) ? new[] { uv.A, uv.B, uv.C } : new (double, double)[3])
+                    .Select(q => $"{N(q.Item1)},{N(q.Item2)}"));
+                objects.Append("\t\tLayerElementUV: 0 {\n\t\t\tVersion: 101\n\t\t\tName: \"UVSet0\"\n\t\t\tMappingInformationType: \"ByPolygonVertex\"\n\t\t\tReferenceInformationType: \"IndexToDirect\"\n")
+                    .Append($"\t\t\tUV: *{6 * triangles.Count} {{\n\t\t\t\ta: {uvs}\n\t\t\t}}\n")
+                    .Append($"\t\t\tUVIndex: *{3 * triangles.Count} {{\n\t\t\t\ta: {string.Join(",", Enumerable.Range(0, 3 * triangles.Count))}\n\t\t\t}}\n\t\t}}\n");
+            }
+            objects.Append("\t\tLayer: 0 {\n\t\t\tVersion: 100\n")
                 .Append("\t\t\tLayerElement:  {\n\t\t\t\tType: \"LayerElementNormal\"\n\t\t\t\tTypedIndex: 0\n\t\t\t}\n")
-                .Append("\t\t\tLayerElement:  {\n\t\t\t\tType: \"LayerElementMaterial\"\n\t\t\t\tTypedIndex: 0\n\t\t\t}\n\t\t}\n\t}\n");
+                .Append("\t\t\tLayerElement:  {\n\t\t\t\tType: \"LayerElementMaterial\"\n\t\t\t\tTypedIndex: 0\n\t\t\t}\n")
+                .Append(withUv ? "\t\t\tLayerElement:  {\n\t\t\t\tType: \"LayerElementUV\"\n\t\t\t\tTypedIndex: 0\n\t\t\t}\n" : "")
+                .Append("\t\t}\n\t}\n");
             objects.Append($"\tModel: {meshModel}, \"Model::{Text(name)}\", \"Mesh\" {{\n\t\tVersion: 232\n\t\tProperties70:  {{\n\t\t\tP: \"DefaultAttributeIndex\", \"int\", \"Integer\", \"\",0\n\t\t}}\n\t\tShading: T\n\t\tCulling: \"CullingOff\"\n\t}}\n");
-            connections.Add((meshModel, parent));
-            connections.Add((geometry, meshModel));
+            connections.Add((meshModel, parent, null));
+            connections.Add((geometry, meshModel, null));
             foreach (var m in used)
-                connections.Add((MaterialId(m), meshModel));
+                connections.Add((MaterialId(m), meshModel, null));
             models++;
             geometries++;
         }
@@ -95,6 +109,24 @@ public static class FbxWriter
                 .Append($"\t\t\tP: \"Diffuse\", \"Vector3D\", \"Vector\", \"\",{N(r)},{N(g)},{N(b)}\n")
                 .Append("\t\t\tP: \"Shininess\", \"double\", \"Number\", \"\",20\n")
                 .Append($"\t\t\tP: \"Opacity\", \"double\", \"Number\", \"\",{N(key.Opacity)}\n\t\t}}\n\t}}\n");
+            if (Textured(m))
+            {
+                var file = Path.GetFileName(m!.Texture!.FileName) is { Length: > 0 } f ? f : "texture.png";
+                var (stem, ext) = (Path.GetFileNameWithoutExtension(file), Path.GetExtension(file));
+                for (var i = 1; !imageFiles.Add(file); i++)
+                    file = $"{stem}{i}{ext}";
+                var relative = string.IsNullOrEmpty(imageFolder) ? file : $"{imageFolder}/{file}";
+                saveImage!(relative, m.Texture.Data);
+                var (texture, video) = (nextId++, nextId++);
+                objects.Append($"\tVideo: {video}, \"Video::{Text(key.Name)}\", \"Clip\" {{\n\t\tType: \"Clip\"\n\t\tProperties70:  {{\n\t\t\tP: \"Path\", \"KString\", \"XRefUrl\", \"\", \"{Text(relative)}\"\n\t\t}}\n")
+                    .Append($"\t\tUseMipMap: 0\n\t\tFilename: \"{Text(relative)}\"\n\t\tRelativeFilename: \"{Text(relative)}\"\n\t}}\n")
+                    .Append($"\tTexture: {texture}, \"Texture::{Text(key.Name)}\", \"\" {{\n\t\tType: \"TextureVideoClip\"\n\t\tVersion: 202\n\t\tTextureName: \"Texture::{Text(key.Name)}\"\n")
+                    .Append($"\t\tMedia: \"Video::{Text(key.Name)}\"\n\t\tFileName: \"{Text(relative)}\"\n\t\tRelativeFilename: \"{Text(relative)}\"\n")
+                    .Append("\t\tModelUVTranslation: 0,0\n\t\tModelUVScaling: 1,1\n\t\tTexture_Alpha_Source: \"None\"\n\t\tCropping: 0,0,0,0\n\t}\n");
+                connections.Add((video, texture, null));
+                connections.Add((texture, id, "DiffuseColor"));
+                textures++;
+            }
             return id;
         }
 
@@ -122,14 +154,17 @@ public static class FbxWriter
         // FBX counts in centimetres: millimetres are a tenth.
         w.Write("\t\tP: \"UnitScaleFactor\", \"double\", \"Number\", \"\",0.1\n\t\tP: \"OriginalUnitScaleFactor\", \"double\", \"Number\", \"\",0.1\n\t}\n}\n");
         w.Write("Documents:  {\n\tCount: 1\n\tDocument: 1, \"\", \"Scene\" {\n\t\tRootNode: 0\n\t}\n}\nReferences:  {\n}\n");
-        w.Write($"Definitions:  {{\n\tVersion: 100\n\tCount: {1 + models + geometries + materialIds.Count}\n");
+        w.Write($"Definitions:  {{\n\tVersion: 100\n\tCount: {1 + models + geometries + materialIds.Count + 2 * textures}\n");
         w.Write($"\tObjectType: \"GlobalSettings\" {{\n\t\tCount: 1\n\t}}\n\tObjectType: \"Model\" {{\n\t\tCount: {models}\n\t}}\n");
-        w.Write($"\tObjectType: \"Geometry\" {{\n\t\tCount: {geometries}\n\t}}\n\tObjectType: \"Material\" {{\n\t\tCount: {materialIds.Count}\n\t}}\n}}\n");
+        w.Write($"\tObjectType: \"Geometry\" {{\n\t\tCount: {geometries}\n\t}}\n\tObjectType: \"Material\" {{\n\t\tCount: {materialIds.Count}\n\t}}\n");
+        if (textures > 0)
+            w.Write($"\tObjectType: \"Texture\" {{\n\t\tCount: {textures}\n\t}}\n\tObjectType: \"Video\" {{\n\t\tCount: {textures}\n\t}}\n");
+        w.Write("}\n");
         w.Write("Objects:  {\n");
         w.Write(objects.ToString());
         w.Write("}\nConnections:  {\n");
-        foreach (var (child, parent) in connections)
-            w.Write($"\tC: \"OO\",{child},{parent}\n");
+        foreach (var (child, parent, property) in connections)
+            w.Write(property == null ? $"\tC: \"OO\",{child},{parent}\n" : $"\tC: \"OP\",{child},{parent}, \"{property}\"\n");
         w.Write("}\nTakes:  {\n\tCurrent: \"\"\n}\n");
         return meshes;
     }

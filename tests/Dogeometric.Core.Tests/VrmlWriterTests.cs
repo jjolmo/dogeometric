@@ -49,4 +49,35 @@ public class VrmlWriterTests
         Assert.True(Turn(-Vec3.UnitZ).DistanceTo(forward) < 1e-5);
         Assert.True(Turn(Vec3.UnitY).Dot(Vec3.UnitZ) > 0);
     }
+
+    [Fact]
+    public void Textured_sides_name_their_picture_and_give_each_corner_its_texture_point()
+    {
+        var model = new Model();
+        TestModels.Box(model.Entities, Vec3.Zero, new Vec3(100, 50, 20));
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "chip.png", Data = [1, 2, 3], WidthMm = 40, HeightMm = 20 } };
+        var top = model.Entities.Faces.Single(f => f.Normal.Z > 0.9);
+        top.FrontMaterial = chip;
+        var saved = new Dictionary<string, byte[]>();
+        using var w = new StringWriter();
+        VrmlWriter.Write(model, w, imageFolder: "box", saveImage: (path, data) => saved[path] = data);
+        var wrl = w.ToString();
+
+        Assert.Equal([1, 2, 3], saved["box/chip.png"]);
+        Assert.Contains("texture ImageTexture { url \"box/chip.png\" }", wrl);
+        var shape = wrl[wrl.IndexOf("DEF COL_Chip", StringComparison.Ordinal)..];
+        shape = shape[..shape.IndexOf("Shape {", StringComparison.Ordinal)];
+        var points = Regex.Matches(shape[shape.IndexOf("point [", StringComparison.Ordinal)..shape.IndexOf("coordIndex", StringComparison.Ordinal)], @"(-?[\d.]+) (-?[\d.]+) (-?[\d.]+),")
+            .Select(m => new Vec3(double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture)) * 25.4).ToList();
+        var uvs = Regex.Matches(shape[shape.IndexOf("texCoord", StringComparison.Ordinal)..], @"(-?[\d.]+) (-?[\d.]+),")
+            .Select(m => (double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture))).ToList();
+        Assert.Equal(4, points.Count);
+        Assert.Equal(4, uvs.Count);
+        for (var i = 0; i < 4; i++)
+        {
+            var (u, v) = Texturing.Uv(top, false, points[i], chip);
+            Assert.Equal(u, uvs[i].Item1, 5);
+            Assert.Equal(v, uvs[i].Item2, 5);
+        }
+    }
 }

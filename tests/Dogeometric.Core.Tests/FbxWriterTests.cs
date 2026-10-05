@@ -28,4 +28,26 @@ public class FbxWriterTests
         Assert.Equal(9, Regex.Matches(fbx, "C: \"OO\"").Count);
         Assert.Equal(2, Regex.Matches(fbx, "PolygonVertexIndex: \\*36 ").Count);
     }
+
+    [Fact]
+    public void Textured_materials_get_a_texture_on_their_diffuse_colour_and_meshes_their_coordinates()
+    {
+        var model = new Model();
+        TestModels.Box(model.Entities, Dogeometric.Core.Geometry.Vec3.Zero, new Dogeometric.Core.Geometry.Vec3(100, 50, 20));
+        var chip = new Material { Name = "Chip", Texture = new TextureImage { FileName = "chip.png", Data = [1, 2, 3], WidthMm = 40, HeightMm = 20 } };
+        foreach (var f in model.Entities.Faces)
+            f.FrontMaterial = chip;
+        var saved = new Dictionary<string, byte[]>();
+        using var w = new StringWriter();
+        FbxWriter.Write(model, w, imageFolder: "box", saveImage: (path, data) => saved[path] = data);
+        var fbx = w.ToString();
+
+        Assert.Equal([1, 2, 3], saved["box/chip.png"]);
+        var texture = Regex.Match(fbx, "Texture: (\\d+), \"Texture::Chip\"").Groups[1].Value;
+        var material = Regex.Match(fbx, "Material: (\\d+), \"Material::Chip\"").Groups[1].Value;
+        Assert.Contains($"C: \"OP\",{texture},{material}, \"DiffuseColor\"", fbx);
+        Assert.Contains("RelativeFilename: \"box/chip.png\"", fbx);
+        Assert.Contains("UV: *72 ", fbx);
+        Assert.Contains("Type: \"LayerElementUV\"", fbx);
+    }
 }

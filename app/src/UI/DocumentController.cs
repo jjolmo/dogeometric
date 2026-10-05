@@ -570,7 +570,12 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (Write(path, (m, p) =>
                 {
                     using var w = new System.IO.StreamWriter(p);
-                    meshes = FbxWriter.Write(m, w, options);
+                    meshes = FbxWriter.Write(m, w, options, System.IO.Path.GetFileNameWithoutExtension(p), (relative, data) =>
+                    {
+                        var file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(p)!, relative);
+                        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!);
+                        File.WriteAllBytes(file, data);
+                    });
                 }))
                 status.SetHint($"Exported {meshes} FBX meshes");
             return;
@@ -592,7 +597,12 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (Write(path, (m, p) =>
                 {
                     using var w = new System.IO.StreamWriter(p);
-                    faces = VrmlWriter.Write(m, w, viewport.Camera.Save(), options);
+                    faces = VrmlWriter.Write(m, w, viewport.Camera.Save(), options, System.IO.Path.GetFileNameWithoutExtension(p), (relative, data) =>
+                    {
+                        var file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(p)!, relative);
+                        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!);
+                        File.WriteAllBytes(file, data);
+                    });
                 }))
                 status.SetHint($"Exported {faces} faces");
             return;
