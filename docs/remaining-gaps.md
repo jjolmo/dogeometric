@@ -14,7 +14,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
 | STEP import | Vendor enclosure and connector models come as STEP. | Export is done (AP214, solids validated in FreeCAD). Import needs curved-surface tessellation. |
-| Remaining file formats | Import: IFC. Export: XSI. COLLADA/KMZ and DWG/DXF imports flatten components into one group; COLLADA drops textures. | |
+| Remaining file formats | Import: IFC. COLLADA/KMZ and DWG/DXF imports flatten components into one group; COLLADA drops textures. | |
 
 ## Medium impact
 
@@ -44,4 +44,4 @@ Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STE
 (checked with files exported by SketchUp), KMZ export (checked by importing it in SketchUp), DWG import and
 DWG/DXF 3D export through ACadSharp (both checked against SketchUp 2021), DXF 3D faces, ellipses and circles off the XY plane, VRML export (read back with VTK), 3DS import and export (checked
 against SketchUp both ways), FBX export (read by Godot's importer at true size; SketchUp's own FBX comes out 10× too
-big there).
+big there), dotXSI export (same structure as SketchUp's).
