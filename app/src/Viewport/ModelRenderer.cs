@@ -203,8 +203,28 @@ public sealed class ModelRenderer
     /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
     /// not change are reused; pass the changed ones in <paramref name="changed"/> (null = all).
     /// </summary>
+    /// <summary>Tags › Color by tag: a material standing for each tag's colour.</summary>
+    private readonly Dictionary<Tag, Material> _tagMaterials = [];
+    private bool _colorByTag;
+    private Tag? _untagged;
+
+    private Material? TagMaterial(Tag? tag)
+    {
+        if (tag == null || tag == _untagged)
+            return null;
+        if (!_tagMaterials.TryGetValue(tag, out var m) || m.Color != tag.Color)
+            _tagMaterials[tag] = m = new Material { Name = tag.Name, Color = tag.Color };
+        return m;
+    }
+
     public void Build(Model model, Node3D root, IEnumerable<Entities>? changed = null)
     {
+        if (_colorByTag != model.Options.ColorByTag)
+        {
+            _colorByTag = model.Options.ColorByTag;
+            changed = null;
+        }
+        _untagged = model.UntaggedTag;
         if (changed == null)
             _meshes.Clear();
         else
@@ -215,7 +235,7 @@ public sealed class ModelRenderer
             root.RemoveChild(child);
             child.QueueFree();
         }
-        AddEntities(model.Entities, root, inherited: null, mirrored: false);
+        AddEntities(model.Entities, root, inherited: _colorByTag ? TagMaterial(model.UntaggedTag) ?? new Material { Color = model.UntaggedTag.Color } : null, mirrored: false);
     }
 
     /// <summary>
@@ -291,7 +311,7 @@ public sealed class ModelRenderer
             if (inst.Hidden)
                 node.SetMeta("hidden", true); // shown faded (View › Hidden Objects)
             parent.AddChild(node);
-            AddEntities(inst.Definition.Entities, node, inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
+            AddEntities(inst.Definition.Entities, node, _colorByTag ? TagMaterial(inst.Tag) ?? inherited : inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
         }
     }
 
@@ -309,10 +329,10 @@ public sealed class ModelRenderer
         {
             if (face.Hidden || face.Tag is { Visible: false })
                 continue;
-            var key = (face.FrontMaterial, face.BackMaterial);
+            var key = _colorByTag ? (TagMaterial(face.Tag), TagMaterial(face.Tag)) : (face.FrontMaterial, face.BackMaterial);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
-            data.AddFace(face, face.FrontMaterial, face.BackMaterial, smooth, openings.GetValueOrDefault(face));
+            data.AddFace(face, key.Item1, key.Item2, smooth, openings.GetValueOrDefault(face));
         }
 
         ArrayMesh? faces = null;

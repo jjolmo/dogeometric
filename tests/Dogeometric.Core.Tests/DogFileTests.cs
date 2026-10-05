@@ -245,4 +245,33 @@ public class DogFileTests
         Assert.Equal(("Lid closed", true), (back[0].Description, back[0].InAnimation));
         Assert.Equal(("", false), (back[1].Description, back[1].InAnimation));
     }
+
+    [Fact]
+    public void Purging_tags_keeps_those_in_use_and_untagged()
+    {
+        var model = new Model();
+        var used = model.GetOrAddTag("Lid");
+        model.GetOrAddTag("Unused");
+        var def = new ComponentDefinition { IsGroup = true };
+        TestModels.Box(def.Entities, Vec3.Zero, new Vec3(1, 1, 1));
+        def.Entities.Faces[0].Tag = used;
+        model.Definitions.Add(def);
+        model.Entities.AddInstance(def, Transform.Identity);
+        Assert.Equal(1, Grouping.PurgeTags(model));
+        Assert.Equal([Tag.UntaggedName, "Lid"], model.Tags.Select(t => t.Name));
+    }
+
+    [Fact]
+    public void Undo_brings_back_a_tags_colour()
+    {
+        var model = new Model();
+        var tag = model.GetOrAddTag("Lid");
+        var before = tag.Color;
+        var doc = new Document(model);
+        doc.Undo.Begin("Tag Color");
+        tag.Color = new Rgba(1, 2, 3);
+        doc.Undo.Commit();
+        doc.Undo.Undo();
+        Assert.Equal(before, tag.Color);
+    }
 }

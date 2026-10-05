@@ -522,6 +522,22 @@ public static class Grouping
     /// <summary>
     /// Purge Unused: removes definitions no instance uses (repeatedly, as removing one can orphan the ones it
     /// contained). Returns how many went.
+    /// <summary>Tags › Purge: removes the tags nothing uses (Untagged stays). Returns how many went.</summary>
+    public static int PurgeTags(Model model)
+    {
+        var used = new HashSet<Tag>();
+        foreach (var e in model.AllEntities)
+        {
+            used.UnionWith(e.Edges.Select(x => x.Tag).OfType<Tag>());
+            used.UnionWith(e.Faces.Select(x => x.Tag).OfType<Tag>());
+            used.UnionWith(e.Instances.Select(x => x.Tag).OfType<Tag>());
+            used.UnionWith(e.Dimensions.Select(x => x.Tag).OfType<Tag>());
+            used.UnionWith(e.Texts.Select(x => x.Tag).OfType<Tag>());
+            used.UnionWith(e.SectionPlanes.Select(x => x.Tag).OfType<Tag>());
+        }
+        return model.Tags.RemoveAll(t => t != model.UntaggedTag && !used.Contains(t));
+    }
+
     /// </summary>
     public static int PurgeUnused(Model model)
     {

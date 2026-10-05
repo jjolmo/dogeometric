@@ -40,6 +40,9 @@ public sealed record ModelOptions
     public double FogStart { get; init; }
     public double FogEnd { get; init; } = 1;
     public Rgba? FogColor { get; init; }
+
+    /// <summary>Tags panel › Color by tag: faces show their tag's colour (untagged ones their group's).</summary>
+    public bool ColorByTag { get; init; }
 }
 
 /// <summary>SketchUp's dimension endpoint styles.</summary>

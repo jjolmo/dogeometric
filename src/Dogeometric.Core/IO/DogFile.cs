@@ -62,6 +62,7 @@ public static class DogFile
             w.WriteNumber("fadeSimilar", model.Options.FadeSimilar);
             w.WriteBoolean("componentAxes", model.Options.ShowComponentAxes);
             w.WriteBoolean("smoothTextures", model.Options.SmoothTextures);
+            w.WriteBoolean("colorByTag", model.Options.ColorByTag);
             w.WriteNumber("fogStart", model.Options.FogStart);
             w.WriteNumber("fogEnd", model.Options.FogEnd);
             if (model.Options.FogColor is { } fog)
@@ -504,6 +505,7 @@ public static class DogFile
                 FadeSimilar = opts.GetProperty("fadeSimilar").GetDouble(),
                 ShowComponentAxes = opts.GetProperty("componentAxes").GetBoolean(),
                 SmoothTextures = opts.GetProperty("smoothTextures").GetBoolean(),
+                ColorByTag = opts.TryGetProperty("colorByTag", out var cbt) && cbt.GetBoolean(),
                 FogStart = opts.TryGetProperty("fogStart", out var fs) ? fs.GetDouble() : 0,
                 FogEnd = opts.TryGetProperty("fogEnd", out var fe) ? fe.GetDouble() : 1,
                 FogColor = opts.TryGetProperty("fogColor", out var fc) && fc.GetString()!.Split(',') is [var fr, var fg, var fb]

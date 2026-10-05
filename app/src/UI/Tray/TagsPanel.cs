@@ -3,11 +3,13 @@ using Godot;
 
 namespace Dogeometric.App.UI.Tray;
 
-/// <summary>SketchUp's Tags panel: visibility per tag, its colour, and Add Tag.</summary>
+/// <summary>SketchUp's Tags panel: visibility, name and colour per tag; Add and Delete Tag; and its details menu
+/// (Select All, Purge, Color by tag).</summary>
 public partial class TagsPanel : VBoxContainer
 {
     private Func<Document> _doc = null!;
     private Action _visibilityChanged = null!;
+    private Tag? _picked;
 
     public static TagsPanel Create(Func<Document> doc, Action visibilityChanged) => new() { _doc = doc, _visibilityChanged = visibilityChanged };
 
@@ -19,6 +21,7 @@ public partial class TagsPanel : VBoxContainer
             c.QueueFree();
         }
         var doc = _doc();
+        var bar = new HBoxContainer();
         var add = new Button { Text = "+  Add Tag", FocusMode = FocusModeEnum.None };
         add.Pressed += () =>
         {
@@ -26,7 +29,59 @@ public partial class TagsPanel : VBoxContainer
             doc.Operation("Add Tag", _ => doc.Model.GetOrAddTag(name));
             Refresh();
         };
-        AddChild(add);
+        bar.AddChild(add);
+        var delete = new Button { Text = "−  Delete Tag", FocusMode = FocusModeEnum.None, Disabled = _picked == null };
+        delete.Pressed += () =>
+        {
+            if (_picked is not { } tag || tag == doc.Model.UntaggedTag)
+                return;
+            // As in SketchUp, what used it goes back to Untagged.
+            doc.Operation("Delete Tag", _ =>
+            {
+                foreach (var e in doc.Model.AllEntities)
+                {
+                    e.Edges.Where(x => x.Tag == tag).ToList().ForEach(x => x.Tag = null);
+                    e.Faces.Where(x => x.Tag == tag).ToList().ForEach(x => x.Tag = null);
+                    e.Instances.Where(x => x.Tag == tag).ToList().ForEach(x => x.Tag = null);
+                }
+                doc.Model.Tags.Remove(tag);
+            });
+            _picked = null;
+            _visibilityChanged();
+            Refresh();
+        };
+        bar.AddChild(delete);
+        var details = new MenuButton { Text = "≡", TooltipText = "Details", FocusMode = FocusModeEnum.None, Flat = false };
+        var menu = details.GetPopup();
+        menu.AddItem("Select All", 0);
+        menu.SetItemDisabled(0, _picked == null);
+        menu.AddItem("Purge", 1);
+        menu.AddCheckItem("Color by tag", 2);
+        menu.SetItemChecked(2, doc.Model.Options.ColorByTag);
+        menu.IdPressed += id =>
+        {
+            switch (id)
+            {
+                case 0 when _picked is { } tag:
+                    var context = doc.Context.Entities;
+                    doc.Selection.Set(context.Edges.Where(x => x.Tag == tag).Cast<object>()
+                        .Concat(context.Faces.Where(x => x.Tag == tag)).Concat(context.Instances.Where(x => x.Tag == tag)));
+                    break;
+                case 1:
+                    doc.Operation("Purge Tags", _ => Grouping.PurgeTags(doc.Model));
+                    Refresh();
+                    break;
+                case 2:
+                    doc.Undo.Begin("Color by tag");
+                    doc.Model.Options = doc.Model.Options with { ColorByTag = !doc.Model.Options.ColorByTag };
+                    doc.Undo.Commit();
+                    _visibilityChanged();
+                    Refresh();
+                    break;
+            }
+        };
+        bar.AddChild(details);
+        AddChild(bar);
 
         foreach (var tag in doc.Model.Tags)
         {
@@ -44,11 +99,28 @@ public partial class TagsPanel : VBoxContainer
             }
             else
             {
-                var name = new LineEdit { Text = tag.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill, Flat = true };
+                var name = new LineEdit { Text = tag.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill, Flat = true, CustomMinimumSize = new Vector2(60, 0) };
                 name.TextSubmitted += t => tag.Name = t;
                 row.AddChild(name);
             }
-            row.AddChild(new ColorRect { Color = Color.Color8(tag.Color.R, tag.Color.G, tag.Color.B), CustomMinimumSize = new Vector2(18, 18) });
+            var pick = new Button { Text = "•", ToggleMode = true, ButtonPressed = tag == _picked, FocusMode = FocusModeEnum.None, TooltipText = "Select this tag" };
+            pick.Pressed += () =>
+            {
+                _picked = tag == _picked ? null : tag;
+                Refresh();
+            };
+            row.AddChild(pick);
+            var color = new ColorPickerButton { Color = Color.Color8(tag.Color.R, tag.Color.G, tag.Color.B), CustomMinimumSize = new Vector2(30, 20), EditAlpha = false, SizeFlagsHorizontal = SizeFlags.ShrinkEnd };
+            color.PopupClosed += () =>
+            {
+                var c = color.Color;
+                doc.Undo.Begin("Tag Color");
+                tag.Color = new Rgba((byte)c.R8, (byte)c.G8, (byte)c.B8);
+                doc.Undo.Commit();
+                if (doc.Model.Options.ColorByTag)
+                    _visibilityChanged();
+            };
+            row.AddChild(color);
             AddChild(row);
         }
     }
