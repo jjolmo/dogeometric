@@ -412,9 +412,7 @@ public static class StepImport
             var holes = uv.Where(l => l != outer).ToList();
             var points = outer.Concat(holes.SelectMany(h => h)).ToList();
             var triangles = TriangulateUv(points, [outer.Count, .. holes.Select(h => h.Count)]);
-            // A face going all the way round meets itself at the seam, where flips can fold it; it keeps plain splitting.
-            var aroundSeam = surface.PeriodU > 0 && outer.Max(q => q.U) - outer.Min(q => q.U) > surface.PeriodU - 1e-6;
-            Refine(surface, points, triangles, flips: !aroundSeam);
+            Refine(surface, points, triangles);
 
             // ∂u × ∂v is the surface's normal, so a triangle anticlockwise in (u, v) faces it; the face's sense may flip it.
             var corners = new List<Vec3>();
@@ -613,16 +611,13 @@ public static class StepImport
                 return a / 2;
             }
 
-        /// <summary>Splits interior edges (shared by two triangles) where the surface bulges away from the chord, so
-        /// the boundary, shared with neighbouring faces, keeps its points.</summary>
-        private static void Refine(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles, bool flips)
+        /// <summary>Flips to Delaunay and splits interior edges (shared by two triangles) where the surface bulges away from
+        /// the chord, so the boundary, shared with neighbouring faces, keeps its points.</summary>
+        private static void Refine(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles)
         {
-            if (flips)
-                Flip(s, points, triangles);
             for (var round = 0; round < 12; round++)
             {
-                if (round > 0 && flips)
-                    Flip(s, points, triangles);
+                Flip(s, points, triangles);
                 var byEdge = new Dictionary<(int, int), List<int>>();
                 for (var t = 0; t < triangles.Count; t++)
                 {

@@ -92,7 +92,7 @@ public class StepImportTests
         var result = Load("offset");
         Assert.Equal((1, 0), (result.Faces, result.SkippedFaces));
         var area = MeshExtractor.Extract(result.Model).Sum(t => (t.B - t.A).Cross(t.C - t.A).Length / 2);
-        // FreeCAD: 1551.54 mm². Thin triangles overstate curved areas a little (see docs/remaining-gaps.md).
-        Assert.InRange(area, 1551.54, 1551.54 * 1.05);
+        // FreeCAD: 1551.54 mm².
+        Assert.InRange(area, 1551.54 * 0.99, 1551.54 * 1.01);
     }
 }
