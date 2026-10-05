@@ -18,7 +18,6 @@ public sealed class Scene
     public MatchedPhoto? Photo { get; set; }
 }
 
-/// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
 /// <summary>Styles › Edit › Edge Settings: what colour edges take.</summary>
 public enum EdgeColorMode { AllSame, ByMaterial, ByAxis }
 
@@ -31,6 +30,9 @@ public sealed record StyleSettings
     public int ProfileWidth { get; init; } = 3;
     public int DepthCueWidth { get; init; } = 4;
     public int ExtensionLength { get; init; } = 3;
+    public bool Endpoints { get; init; }
+    public int EndpointLength { get; init; } = 9;
+    public bool Jitter { get; init; }
     public EdgeColorMode EdgeColorMode { get; init; } = EdgeColorMode.AllSame;
     public Rgba EdgeColor { get; init; } = new(0, 0, 0);
 
@@ -96,6 +98,7 @@ public sealed record ModelOptions
 /// <summary>SketchUp's dimension endpoint styles.</summary>
 public enum DimensionEndpoint { None, Slash, Dot, ClosedArrow, OpenArrow }
 
+/// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
 public sealed class Model
 {
     public Entities Entities { get; } = new();

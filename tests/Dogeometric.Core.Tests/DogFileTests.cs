@@ -342,6 +342,7 @@ public class DogFileTests
         var model = new Model();
         var doc = new Document(model);
         var style = new StyleSettings { Name = "Plans", ProfileWidth = 5, EdgeColorMode = EdgeColorMode.ByAxis, EdgeColor = new Rgba(10, 20, 30),
+            Endpoints = true, EndpointLength = 12, Jitter = true,
             BackColor = new Rgba(1, 2, 3), Sky = false, GroundTransparency = 0.4, GroundFromBelow = true };
         doc.Undo.Begin("Style");
         model.Style = style;

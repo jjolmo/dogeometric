@@ -44,7 +44,12 @@ public sealed class ModelRenderer
         _edgeMaterial.SetShaderParameter("color", edge);
         _edgeMaterial.SetShaderParameter("vertex_colors", s.EdgeColorMode != EdgeColorMode.AllSame);
         _profileMaterial.SetShaderParameter("color", edge);
-        var rebuild = old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
+        foreach (var m in _endpointMaterials.Concat(_jitterMaterials))
+        {
+            m.SetShaderParameter("color", edge);
+            m.SetShaderParameter("endpoint_px", (float)s.EndpointLength);
+        }
+        var rebuild = old.Endpoints != s.Endpoints || old.Jitter != s.Jitter || old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
             || s.EdgeColorMode != EdgeColorMode.AllSame && old.EdgeColor != s.EdgeColor;
         if (rebuild)
             ForgetMaterials();
@@ -77,6 +82,17 @@ public sealed class ModelRenderer
         set => _edgeMaterial.NextPass = value ? _backEdgeMaterial : null;
     }
     private readonly ShaderMaterial _profileMaterial = new() { Shader = GD.Load<Shader>("res://shaders/profile.gdshader") };
+    private static readonly Shader EdgeEffectShader = GD.Load<Shader>("res://shaders/edge_effect.gdshader");
+    private readonly ShaderMaterial[] _endpointMaterials = [EffectMaterial(0, 0), EffectMaterial(0, 1)];
+    private readonly ShaderMaterial[] _jitterMaterials = [EffectMaterial(1, 0), EffectMaterial(1, 1)];
+
+    private static ShaderMaterial EffectMaterial(int effect, int pass)
+    {
+        var m = new ShaderMaterial { Shader = EdgeEffectShader };
+        m.SetShaderParameter("effect", effect);
+        m.SetShaderParameter("pass", pass);
+        return m;
+    }
 
     /// <summary>View › Edge Style › Profiles: silhouettes drawn thick (SketchUp's default width, 3 pixels).</summary>
     public bool ShowProfiles
@@ -334,7 +350,12 @@ public sealed class ModelRenderer
         }
         if (mesh.Profiles != null && (ShowEdges || ShowProfiles) && (FaceStyle != FaceStyle.Wireframe || QuadEdges))
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Profiles, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        if (mesh.Edges != null && ShowEdges && !QuadEdges)
+        if (mesh.Profiles != null && ShowEdges && !QuadEdges)
+            foreach (var (on, materials) in new[] { (_style.Endpoints, _endpointMaterials), (_style.Jitter, _jitterMaterials) })
+                foreach (var material in on ? materials : [])
+                    parent.AddChild(new MeshInstance3D { Mesh = mesh.Profiles, MaterialOverride = material, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        // Jitter's strokes stand in for the edges.
+        if (mesh.Edges != null && ShowEdges && !QuadEdges && !_style.Jitter)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = _shadows is { Enabled: true, FromEdges: true } ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Hidden != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Hidden, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
@@ -560,7 +581,7 @@ public sealed class ModelRenderer
                 custom0.AddRange([other.X, other.Y, other.Z, side]);
                 custom1.AddRange(p1);
                 custom2.AddRange(p2);
-                custom3.AddRange([soft, list.Count > 1 ? 1 : 0, list.Count > 0 ? 1 : 0, 0]);
+                custom3.AddRange([soft, list.Count > 1 ? 1 : 0, list.Count > 0 ? 1 : 0, p == b ? 1 : 0]);
             }
             // The shader measures sideways from each end towards the other, so B's sides are mirrored.
             Corner(a, b, -1);

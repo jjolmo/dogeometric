@@ -28,6 +28,9 @@ public partial class StylesPanel : VBoxContainer
         p.Number("Profile width", 1, 20, s => s.ProfileWidth, (s, v) => s with { ProfileWidth = v });
         p.Number("Depth cue width", 1, 20, s => s.DepthCueWidth, (s, v) => s with { DepthCueWidth = v });
         p.Number("Extension length", 1, 50, s => s.ExtensionLength, (s, v) => s with { ExtensionLength = v });
+        p.Flag("Endpoints", s => s.Endpoints, (s, v) => s with { Endpoints = v });
+        p.Number("Endpoint length", 1, 50, s => s.EndpointLength, (s, v) => s with { EndpointLength = v });
+        p.Flag("Jitter", s => s.Jitter, (s, v) => s with { Jitter = v });
         p.Choice("Color", ["All same", "By material", "By axis"], s => (int)s.EdgeColorMode, (s, v) => s with { EdgeColorMode = (EdgeColorMode)v });
         p.Colour("Edge color", s => s.EdgeColor, (s, c) => s with { EdgeColor = c });
         p.Section("Face Settings");

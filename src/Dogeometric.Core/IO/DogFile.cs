@@ -247,6 +247,9 @@ public static class DogFile
         w.WriteNumber("profileWidth", s.ProfileWidth);
         w.WriteNumber("depthCueWidth", s.DepthCueWidth);
         w.WriteNumber("extensionLength", s.ExtensionLength);
+        w.WriteBoolean("endpoints", s.Endpoints);
+        w.WriteNumber("endpointLength", s.EndpointLength);
+        w.WriteBoolean("jitter", s.Jitter);
         w.WriteString("edgeColorMode", s.EdgeColorMode.ToString());
         w.WriteString("edgeColor", RgbaText(s.EdgeColor));
         w.WriteString("frontColor", RgbaText(s.FrontColor));
@@ -272,6 +275,9 @@ public static class DogFile
             ProfileWidth = Int("profileWidth", d.ProfileWidth),
             DepthCueWidth = Int("depthCueWidth", d.DepthCueWidth),
             ExtensionLength = Int("extensionLength", d.ExtensionLength),
+            Endpoints = Bool("endpoints", d.Endpoints),
+            EndpointLength = Int("endpointLength", d.EndpointLength),
+            Jitter = Bool("jitter", d.Jitter),
             EdgeColorMode = j.TryGetProperty("edgeColorMode", out var m) && Enum.TryParse<EdgeColorMode>(m.GetString(), out var mode) ? mode : d.EdgeColorMode,
             EdgeColor = ReadRgba(j, "edgeColor", d.EdgeColor),
             FrontColor = ReadRgba(j, "frontColor", d.FrontColor),
