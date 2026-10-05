@@ -210,7 +210,16 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images (as texture)"], Import);
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images (as texture)"], Import,
+        dialog =>
+        {
+            // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
+            dialog.AddOption("Units (STL, OBJ)", [.. MeshUnits.Select(u => u.Name)], 0);
+            _importOptionsDialog = dialog;
+        });
+
+    private static readonly (string Name, double Mm)[] MeshUnits = [("Millimeters", 1), ("Centimeters", 10), ("Meters", 1000), ("Inches", 25.4)];
+    private FileDialog? _importOptionsDialog;
 
     /// <summary>File › Import of a picture: the main window hands it to the texture placing tool.</summary>
     public event Action<string>? ImageImportRequested;
@@ -329,7 +338,9 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
         try
         {
-            var imported = Load(path);
+            var imported = System.IO.Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj"
+                ? Dogeometric.Core.IO.MeshImport.Load(path, MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o && o.TryGetValue("Units (STL, OBJ)", out var u) ? (int)u : 0].Mm)
+                : Load(path);
             Merge(imported);
             Document.Undo.Clear();
             Rebuild();
