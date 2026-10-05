@@ -102,6 +102,10 @@ public sealed class CommandRegistry
             DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(UserShortcutsPath));
     }
 
+    /// <summary>Every key binding in force: each command's shortcut and the extra keys that also run it.</summary>
+    public IEnumerable<(Key Keys, int Id)> Shortcuts() =>
+        _commands.Values.Where(c => c.Shortcut != Key.None).Select(c => (c.Shortcut, c.Id)).Concat(_aliases);
+
     /// <summary>Every command with a label (for Preferences › Shortcuts).</summary>
     public IEnumerable<Command> All => _commands.Values.Where(c => c.Label.Length > 0);
 

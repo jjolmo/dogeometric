@@ -139,6 +139,8 @@ public sealed partial class ToolbarDocks : Control
             Title = s.Bar.Title,
             Theme = LightTheme.Create(),
             Unresizable = true,
+            // Clicking a toolbar must leave the keyboard to the view, or shortcuts stop working.
+            Unfocusable = true,
             Transient = true,
             WrapControls = true,
             AlwaysOnTop = false,

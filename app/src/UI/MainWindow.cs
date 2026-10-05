@@ -147,6 +147,10 @@ public partial class MainWindow : Control
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
         _commands.AddDefaultShortcut("Shift+S", CommandIds.HideRestOfModel);
         _commands.LoadUserShortcuts();
+        // Test hook: every shortcut with the command it runs and whether that command does anything.
+        if (OS.GetEnvironment("DOGEOMETRIC_DUMP_SHORTCUTS") is { Length: > 0 } shortcutDump)
+            System.IO.File.WriteAllLines(shortcutDump, _commands.Shortcuts().Select(s =>
+                $"{CommandRegistry.ShortcutText(s.Keys)}\t{s.Id}\t{_commands.Get(s.Id).Label}\t{(_commands.Get(s.Id).IsImplemented ? "ok" : "NOT IMPLEMENTED")}"));
         var menuPanel = new PanelContainer();
         menuPanel.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.MenuBackground));
         menuPanel.AddChild(MenuBuilder.Build(_commands, text => _status.SetHint(text), UpdateToolStatus));
@@ -163,8 +167,8 @@ public partial class MainWindow : Control
         layout.AddChild(menuPanel);
         layout.MoveChild(menuPanel, 0);
         // Development aid: the menu tree as text, to compare with SketchUp's.
-        if (OS.GetEnvironment("DOGEOMETRIC_DUMP_MENUS") is { Length: > 0 } dumpPath)
-            System.IO.File.WriteAllText(dumpPath, _commands.MenuText());
+        if (OS.GetEnvironment("DOGEOMETRIC_DUMP_MENUS") is { Length: > 0 } menuDump)
+            System.IO.File.WriteAllText(menuDump, _commands.MenuText());
 
         var (topPanel, topBars) = DockStrip(vertical: false);
         topPanel.Visible = true;
