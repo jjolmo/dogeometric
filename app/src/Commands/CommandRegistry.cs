@@ -272,6 +272,8 @@ public sealed class CommandRegistry
         else if (after != null && children.FindIndex(c => c.Label.Replace("&", "").Replace("...", "") == after) is var at and >= 0)
         {
             children.Insert(at + 1, item);
+            if (groupStart)
+                children.Insert(at + 1, new MenuNode("", null, null, true));
         }
         else
         {

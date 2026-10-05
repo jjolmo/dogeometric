@@ -113,6 +113,20 @@ public partial class MainWindow : Control
         RegisterHelp();
         RegisterTemplates();
         _commands.Register(CommandIds.ExportAnimation, ExportAnimation);
+        _commands.AddToMenu("File", OwnIds.GenerateReport, "Generate Report...", "Report the model's groups and components, with their sizes, as HTML or CSV.",
+            after: "Print", groupStart: true);
+        _commands.Register(OwnIds.GenerateReport, () => _document.PickExport("Generate Report", ["*.html ; HTML Report", "*.csv ; CSV Report"], path =>
+        {
+            var doc = _document.Document;
+            var picked = doc.Selection.Items.OfType<ComponentInstance>().ToList();
+            var rows = Dogeometric.Core.IO.Reports.Rows(doc.Model, picked.Count > 0 ? picked : null);
+            var csv = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+            File.WriteAllText(path, csv ? Dogeometric.Core.IO.Reports.ToCsv(rows)
+                : Dogeometric.Core.IO.Reports.ToHtml(rows, $"Report: {System.IO.Path.GetFileNameWithoutExtension(_document.Path ?? "Untitled")}"));
+            if (!csv)
+                OS.ShellOpen(path);
+            _status.SetHint($"Generated report: {rows.Count} entities");
+        }));
         ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
