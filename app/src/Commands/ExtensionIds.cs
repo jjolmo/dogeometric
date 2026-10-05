@@ -16,6 +16,7 @@ public static class ExtensionIds
     public const int VectorPushPull = 90063;
     public const int ExtrudePushPull = 90064;
     public const int FollowPushPull = 90065;
+    public const int RoundPushPull = 90066;
     public const int SelectOnlyEdges = 90031;
     public const int SelectOnlyFaces = 90032;
     public const int SelectOnlyGroups = 90033;

@@ -20,6 +20,10 @@ public enum JointPushPullMode
     /// <summary>The faces move as in Joint but their borders slide along the faces around them, which stretch (a
     /// multi-face "smart" push-pull: no new walls).</summary>
     Follow,
+
+    /// <summary>Each face moves along its normal and the sharp edges and corners between them are rounded with the
+    /// offset as radius (cylinder strips, sphere patches): a box thickened outwards gets a rounded skin.</summary>
+    Round,
 }
 
 /// <summary>Which walls join the moved faces to where they started.</summary>
@@ -40,6 +44,9 @@ public static class JointPushPull
 
         /// <summary>Vector mode's direction (normalised on use).</summary>
         public Vec3 Direction { get; init; } = Vec3.UnitZ;
+
+        /// <summary>Round mode's segments per rounded edge.</summary>
+        public int Segments { get; init; } = 6;
     }
 
     /// <summary>Push-pulls <paramref name="faces"/> of <paramref name="model"/>'s <paramref name="e"/> by <paramref name="offset"/>; returns the faces made.</summary>
@@ -50,6 +57,10 @@ public static class JointPushPull
             return [];
         if (o.Mode == JointPushPullMode.Follow)
             return Follow(e, set, offset);
+        // Round needs the faces to pull apart at every edge between them; where they would cut into each other it
+        // falls back to Joint's mitres.
+        if (o.Mode == JointPushPullMode.Round && !RoundsApart(e, set, offset))
+            o = o with { Mode = JointPushPullMode.Joint };
         var selected = set.ToHashSet();
         var normals = set.ToDictionary(f => f, f => f.Normal.Normalized());
 
@@ -59,7 +70,7 @@ public static class JointPushPull
         {
             switch (o.Mode)
             {
-                case JointPushPullMode.Normal:
+                case JointPushPullMode.Normal or JointPushPullMode.Round:
                     return v.Position + normals[f] * offset;
                 case JointPushPullMode.Vector:
                     return v.Position + o.Direction.Normalized() * offset;
@@ -89,7 +100,7 @@ public static class JointPushPull
                     foreach (var (edge, rev) in loop.Edges)
                     {
                         var inSelection = Topology.FacesOf(e, edge).Count(selected.Contains);
-                        var grid = o.Borders == JointPushPullBorders.Grid || o.Mode == JointPushPullMode.Normal;
+                        var grid = (o.Borders == JointPushPullBorders.Grid || o.Mode == JointPushPullMode.Normal) && o.Mode != JointPushPullMode.Round;
                         if (!grid && inSelection > 1)
                             continue;
                         var a = rev ? edge.End : edge.Start;
@@ -99,6 +110,11 @@ public static class JointPushPull
                         walls.Add(([a.Position, b.Position, Move(f, b), Move(f, a)], f, outward));
                     }
         }
+
+        // Round's strips and patches are worked out while the faces are still there to tell edges apart.
+        var rounding = o.Mode == JointPushPullMode.Round
+            ? Rounding(e, set, offset, Math.Max(1, o.Segments), o.Borders != JointPushPullBorders.None)
+            : [];
 
         var target = e;
         ComponentInstance? group = null;
@@ -148,6 +164,20 @@ public static class JointPushPull
                 FaceFinder.Reverse(f);
             made.Add(f);
         }
+        var facing = offset < 0 && (o.Thicken || o.AsGroup) ? -1 : 1;
+        var rounded = new List<Face>();
+        foreach (var (pts, outward) in rounding)
+        {
+            if (pts.Distinct().Count() < 3)
+                continue;
+            var f = weld.Face(pts, []);
+            if (f.Normal.Dot(outward) * facing < 0)
+                FaceFinder.Reverse(f);
+            rounded.Add(f);
+        }
+        made.AddRange(rounded);
+        // The rounding reads as one smooth surface, joined smoothly to the faces it rounds.
+        Editing.SoftenByAngle(target, rounded.SelectMany(Topology.EdgesOf).Distinct().ToList(), Math.Max(20, 100.0 / Math.Max(1, o.Segments)));
         foreach (var (pts, src, outward) in walls)
         {
             if (pts[0].DistanceTo(pts[3]) < Tolerance.Length && pts[1].DistanceTo(pts[2]) < Tolerance.Length)
@@ -247,6 +277,128 @@ public static class JointPushPull
         foreach (var f in touched)
             FredoScale.SplitIfBent(e, f);
         return [.. set.Where(e.Faces.Contains)];
+    }
+
+    /// <summary>Whether every edge between two of the faces opens up when they move by <paramref name="offset"/>.</summary>
+    private static bool RoundsApart(Entities e, List<Face> set, double offset)
+    {
+        var selected = set.ToHashSet();
+        foreach (var edge in set.SelectMany(Topology.EdgesOf).Distinct())
+        {
+            var faces = Topology.FacesOf(e, edge).Where(selected.Contains).ToList();
+            if (faces.Count != 2)
+                continue;
+            var (f1, f2) = (faces[0], faces[1]);
+            var n1 = f1.Normal.Normalized();
+            if (Math.Abs(n1.Dot(f2.Normal.Normalized())) > 1 - 1e-9)
+                continue;
+            // f2 falls away behind f1's plane at a convex edge.
+            var p = f2.OuterLoop.Points.MaxBy(q => Math.Abs((q - edge.Start.Position).Dot(n1)));
+            if ((p - edge.Start.Position).Dot(n1) * offset > 0)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Round mode's rounding: a strip of <paramref name="segments"/> quads round every edge between two of the faces, a
+    /// sphere patch at every corner where three or more meet, and (with walls) a flat fan closing each strip at the
+    /// selection's border. Directions on the arcs are normalised blends of the faces' normals, the same on strips and
+    /// patches, so they meet exactly.
+    /// </summary>
+    private static List<(List<Vec3> Points, Vec3 Outward)> Rounding(Entities e, List<Face> set, double offset, int segments, bool caps)
+    {
+        var selected = set.ToHashSet();
+        var made = new List<(List<Vec3>, Vec3)>();
+        Vec3 Blend(Vec3 a, Vec3 b, double t) => (a * (1 - t) + b * t).Normalized();
+        void Add(List<Vec3> pts, Vec3 outward) => made.Add((pts, outward));
+
+        var facesAt = new Dictionary<Vertex, List<Face>>();
+        foreach (var f in set)
+            foreach (var v in f.Loops.SelectMany(l => l.Vertices))
+            {
+                if (!facesAt.TryGetValue(v, out var list))
+                    facesAt[v] = list = [];
+                list.Add(f);
+            }
+
+        foreach (var edge in set.SelectMany(Topology.EdgesOf).Distinct())
+        {
+            var faces = Topology.FacesOf(e, edge).Where(selected.Contains).ToList();
+            if (faces.Count != 2)
+                continue;
+            var (n1, n2) = (faces[0].Normal.Normalized(), faces[1].Normal.Normalized());
+            if (n1.Dot(n2) > 1 - 1e-9)
+                continue;
+            var (a, b) = (edge.Start.Position, edge.End.Position);
+            for (var k = 0; k < segments; k++)
+            {
+                var (d0, d1) = (Blend(n1, n2, (double)k / segments), Blend(n1, n2, (double)(k + 1) / segments));
+                Add([a + d0 * offset, a + d1 * offset, b + d1 * offset, b + d0 * offset], (d0 + d1).Normalized());
+            }
+            // A strip ending on the selection's border is closed by a flat fan round that end.
+            foreach (var end in new[] { edge.Start, edge.End })
+                if (caps && Topology.FacesOf(e, edge).Count() == 2 && IsBorder(e, end, selected))
+                {
+                    var fan = new List<Vec3> { end.Position };
+                    for (var k = 0; k <= segments; k++)
+                        fan.Add(end.Position + Blend(n1, n2, (double)k / segments) * offset);
+                    var along = (end == edge.Start ? a - b : b - a).Normalized();
+                    Add(fan, along);
+                }
+        }
+
+        foreach (var (v, faces) in facesAt)
+        {
+            var ring = Ring(e, v, faces);
+            if (ring == null || ring.Count < 3)
+                continue;
+            var normals = ring.Select(f => f.Normal.Normalized()).ToList();
+            var m = normals.Aggregate(Vec3.Zero, (x, n) => x + n).Normalized();
+            for (var i = 0; i < normals.Count; i++)
+            {
+                var (p, q) = (normals[i], normals[(i + 1) % normals.Count]);
+                Vec3 Grid(int x, int y) => v.Position + (m * (segments - x - y) + p * x + q * y).Normalized() * offset;
+                for (var x = 0; x < segments; x++)
+                    for (var y = 0; x + y < segments; y++)
+                    {
+                        Add([Grid(x, y), Grid(x + 1, y), Grid(x, y + 1)], ((m + p + q) / 3).Normalized());
+                        if (x + y + 2 <= segments)
+                            Add([Grid(x + 1, y), Grid(x + 1, y + 1), Grid(x, y + 1)], ((m + p + q) / 3).Normalized());
+                    }
+            }
+        }
+        return made;
+    }
+
+    private static bool IsBorder(Entities e, Vertex v, HashSet<Face> selected) =>
+        e.Faces.Any(f => !selected.Contains(f) && f.Loops.Any(l => l.Vertices.Contains(v)))
+        || e.Edges.Any(x => (x.Start == v || x.End == v) && Topology.FacesOf(e, x).Count(selected.Contains) < 2);
+
+    /// <summary>The faces round a corner in order (each sharing an edge with the next), when they close all the way round.</summary>
+    private static List<Face>? Ring(Entities e, Vertex v, List<Face> faces)
+    {
+        var ring = new List<Face> { faces[0] };
+        var edges = Topology.EdgesOf(faces[0]).Where(x => x.Start == v || x.End == v).ToList();
+        if (edges.Count != 2)
+            return null;
+        var at = edges[0];
+        var current = faces[0];
+        while (true)
+        {
+            var next = faces.FirstOrDefault(f => f != current && Topology.EdgesOf(f).Contains(at));
+            if (next == null)
+                return null;
+            if (next == ring[0])
+                return ring.Count == faces.Count ? ring : null;
+            ring.Add(next);
+            var other = Topology.EdgesOf(next).Where(x => (x.Start == v || x.End == v) && x != at).ToList();
+            if (other.Count != 1)
+                return null;
+            (current, at) = (next, other[0]);
+            if (ring.Count > faces.Count)
+                return null;
+        }
     }
 
     /// <summary>The least-squares displacement meeting each row's n·d = target, weighted; null when it is undetermined.</summary>

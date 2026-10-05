@@ -32,6 +32,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
         JointPushPullMode.Normal => ExtensionIds.NormalPushPull,
         JointPushPullMode.Vector => ExtensionIds.VectorPushPull,
         JointPushPullMode.Follow => ExtensionIds.FollowPushPull,
+        JointPushPullMode.Round => ExtensionIds.RoundPushPull,
         _ => ExtensionIds.ExtrudePushPull,
     };
 
@@ -51,6 +52,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
         JointPushPullMode.Normal => "Normal Push Pull",
         JointPushPullMode.Vector => "Vector Push Pull",
         JointPushPullMode.Follow => "Follow Push Pull",
+        JointPushPullMode.Round => "Round Push Pull",
         _ => "Extrude Push Pull",
     };
 
@@ -124,7 +126,10 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
         Thicken = _thicken,
         AsGroup = _asGroup,
         Direction = doc.Context.ToWorld.Inverse().ApplyVector(_normal),
+        Segments = _segments,
     };
+
+    private static int _segments = 6;
 
     private void Preview()
     {
@@ -224,6 +229,18 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
                 Preview();
         };
         grid.AddChild(finishing);
+        if (mode == JointPushPullMode.Round)
+        {
+            grid.AddChild(new Label { Text = "Segments" });
+            var segments = new SpinBox { MinValue = 1, MaxValue = 48, Value = _segments };
+            segments.ValueChanged += v =>
+            {
+                _segments = (int)v;
+                if (_pushing)
+                    Preview();
+            };
+            grid.AddChild(segments);
+        }
         var group = new CheckBox { Text = "Generate as a Group", ButtonPressed = _asGroup };
         group.Toggled += v =>
         {

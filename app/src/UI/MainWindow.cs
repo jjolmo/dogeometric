@@ -269,6 +269,7 @@ public partial class MainWindow : Control
         foreach (var (id, label, tip, m) in new[]
         {
             (ExtensionIds.JointPushPull, "Joint Push Pull", "Push-pull or thicken a surface.", JointPushPullMode.Joint),
+            (ExtensionIds.RoundPushPull, "Round Push Pull", "Thicken a surface with possible rounding at sharp corners of faces.", JointPushPullMode.Round),
             (ExtensionIds.VectorPushPull, "Vector Push Pull", "Push-pull along a direction.", JointPushPullMode.Vector),
             (ExtensionIds.NormalPushPull, "Normal Push Pull", "Push-pull multiple faces individually.", JointPushPullMode.Normal),
             (ExtensionIds.ExtrudePushPull, "Extrude Push Pull", "Compact push-pull on average direction.", JointPushPullMode.Extrude),

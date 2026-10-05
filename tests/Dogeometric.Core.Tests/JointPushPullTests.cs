@@ -96,4 +96,53 @@ public class JointPushPullTests
         Assert.Equal(new Vec3(25, 20, 35), e.Bounds().Size);
         Assert.Equal(25 * 20 * 35, Check(e).Volume, 6);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Round_gives_a_box_a_rounded_skin(bool thicken)
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(20, 20, 20));
+        var e = m.Entities;
+        JointPushPull.Apply(m, e, [.. e.Faces], 2, new JointPushPull.Options { Mode = JointPushPullMode.Round, Thicken = thicken, Segments = 12 });
+        Assert.Empty(SolidInspector.Find(e));
+        Assert.Equal(new Vec3(24, 24, 24), e.Bounds().Size);
+        var minkowski = 8000 + 2400 * 2 + 240 * Math.PI + 4.0 / 3 * Math.PI * 8;
+        var volume = Check(e).Volume;
+        var expected = thicken ? minkowski - 8000 : minkowski;
+        Assert.InRange(volume, expected * 0.995, expected);
+    }
+
+    [Fact]
+    public void Round_falls_back_to_mitres_where_faces_would_cut_into_each_other()
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(20, 20, 20));
+        var e = m.Entities;
+        // Inwards every edge of a box closes up: no rounding, a smaller box.
+        JointPushPull.Apply(m, e, [.. e.Faces], -2, new JointPushPull.Options { Mode = JointPushPullMode.Round, Thicken = true });
+        Assert.Empty(SolidInspector.Find(e));
+        Assert.Equal(8000 - 16 * 16 * 16, Check(e).Volume, 6);
+    }
+
+    [Fact]
+    public void Round_thickens_an_open_l_sheet_into_a_solid()
+    {
+        var m = new Model();
+        var e = m.Entities;
+        var w = new Welder(e);
+        // Floor and wall meeting at a convex edge seen from outside (fronts facing out).
+        var floor = w.Face([new(0, 0, 0), new(0, 20, 0), new(30, 20, 0), new(30, 0, 0)], []);
+        var wall = w.Face([new(0, 0, 0), new(0, 0, 15), new(0, 20, 15), new(0, 20, 0)], []);
+        if (floor.Normal.Z > 0)
+            FaceFinder.Reverse(floor);
+        if (wall.Normal.X > 0)
+            FaceFinder.Reverse(wall);
+        JointPushPull.Apply(m, e, [floor, wall], 2, new JointPushPull.Options { Mode = JointPushPullMode.Round, Thicken = true, Segments = 8 });
+        Assert.Empty(SolidInspector.Find(e));
+        // Two slabs plus a quarter-cylinder of radius 2 along the 20 mm edge.
+        var expected = 30 * 20 * 2 + 15 * 20 * 2 + Math.PI * 4 / 4 * 20;
+        Assert.InRange(Check(e).Volume, expected * 0.99, expected);
+    }
 }
