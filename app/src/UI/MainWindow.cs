@@ -238,6 +238,7 @@ public partial class MainWindow : Control
     private void RegisterExtensions()
     {
         RegisterExtensionInfo();
+        _commands.Register(CommandIds.RubyConsole, ShowConsole);
         _commands.AddToMenu("File", OwnIds.RecoverBackup, "Recover Backup...",
             "Open one of the automatic backups as an unsaved copy.", after: "Revert");
         _commands.AddToMenu("View", OwnIds.CenterPoints, "Center Points",

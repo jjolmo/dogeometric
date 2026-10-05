@@ -13,5 +13,6 @@
     <ProjectReference Include="../src/Dogeometric.Core/Dogeometric.Core.csproj" />
     <ProjectReference Include="../src/Dogeometric.Formats/Dogeometric.Formats.csproj" />
     <ProjectReference Include="../src/Dogeometric.Solids/Dogeometric.Solids.csproj" />
+    <ProjectReference Include="../src/Dogeometric.Scripting/Dogeometric.Scripting.csproj" />
   </ItemGroup>
 </Project>

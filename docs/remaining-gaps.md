@@ -20,7 +20,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Notes |
 |---|---|
-| Ruby Console and Ruby API | SketchUp's extension mechanism. Our extensions are rebuilt natively; no scripting yet. A console with a small command language (or an embedded scripting host) would cover macros. |
+| Ruby API | Extensions › Developer › Ruby Console runs C# against the model (Model, Entities, Selection, puts, Pt, AddFace; one undo step per line), but there is no Ruby: SketchUp's .rb extensions and scripts do not run. |
 | Model Info › Classifications | Classifier types go to and from `.skp` (AppliedSchemaTypes, checked in SketchUp 2021) and `.dog`; importing other schemas (gbXML, .skc files) is missing. |
 
 ## Low impact

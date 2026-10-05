@@ -92,6 +92,7 @@ public static class CommandIds
     public const int ZoomToPhoto = 10625;
     public const int ImageIgloo = 10631;
     public const int Classifier = 21075;
+    public const int RubyConsole = 21478;
 
     // Tools
     public const int Select = 21022;

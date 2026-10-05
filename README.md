@@ -23,7 +23,7 @@ dotnet build Dogeometric.sln
 ~/Godot/godot.x86_64 --path app
 ```
 
-Tests: `dotnet test tests/Dogeometric.Core.Tests` (also `Dogeometric.Formats.Tests` and `Dogeometric.Solids.Tests`).
+Tests: `dotnet test tests/Dogeometric.Core.Tests` (also `Dogeometric.Formats.Tests`, `Dogeometric.Solids.Tests` and `Dogeometric.Scripting.Tests`).
 
 Linux release: `scripts/release-linux.sh` (needs Godot's .NET export templates and `tools/native/build-manifold.sh` run once).
 
@@ -40,6 +40,7 @@ Linux release: `scripts/release-linux.sh` (needs Godot's .NET export templates a
 | [OpenSKP](https://github.com/iamahsanmehmood/openskp) (vendored in `third_party/OpenSkp`) | MIT | Reading and writing `.skp` |
 | [Manifold](https://github.com/elalish/manifold) (built by `tools/native/build-manifold.sh`) | Apache-2.0 | Solid Tools booleans |
 | [ACadSharp](https://github.com/DomCR/ACadSharp) (NuGet) | MIT | DWG import and export |
+| [Roslyn scripting](https://github.com/dotnet/roslyn) (NuGet) | MIT | The Ruby Console's C# |
 
 ## Licence
 
