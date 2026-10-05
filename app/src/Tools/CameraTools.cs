@@ -124,6 +124,20 @@ public sealed class WalkTool : Tool
     public override bool IsNavigation => true;
     public override string StatusText => "Click and drag to walk.  Ctrl = run, Shift = move vertically or sideways, Alt = disable collision detection";
     public override string VcbLabel => "Eye Height";
+    public override string VcbValue => Length.Format(View.Camera.Eye.Z, LengthUnit.Millimeters, 0);
+
+    public override void Activate() => View.ShowVcbValue(VcbValue);
+
+    /// <summary>A typed eye height moves the eye up or down, looking the same way, as in Look Around.</summary>
+    public override bool ApplyVcb(string text)
+    {
+        if (!Length.TryParse(text, LengthUnit.Millimeters, out var height))
+            return false;
+        View.BeginNavigation();
+        View.ChangeCamera(c => c.PlaceEye(new Vec3(c.Eye.X, c.Eye.Y, height), c.Direction));
+        View.ShowVcbValue(VcbValue);
+        return true;
+    }
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {

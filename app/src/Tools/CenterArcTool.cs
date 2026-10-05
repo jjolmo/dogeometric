@@ -192,7 +192,37 @@ public sealed class PieTool() : CenterArcTool(true);
 
 public sealed class ThreePointArcTool : DrawingTool
 {
+    private static int _segments = Shapes.DefaultArcSegments;
     private readonly List<Vec3> _points = [];
+
+    public override string VcbLabel => _points.Count == 1 ? "Length" : "Segments";
+    public override string VcbValue => _points.Count == 1 && Current is { } c
+        ? Length.Format(_points[0].DistanceTo(c.Point), LengthUnit.Millimeters, 1) : $"{_segments}s";
+
+    protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
+
+    /// <summary>"12s" sets the segments; after the first point, a length places the second along the cursor.</summary>
+    public override bool ApplyVcb(string text)
+    {
+        var t = text.Trim().ToLowerInvariant();
+        if (t.EndsWith('s') && int.TryParse(t[..^1], out var n))
+        {
+            if (n < 2 || n > 999)
+                return false;
+            _segments = n;
+            View.ShowVcbValue(VcbValue);
+            return true;
+        }
+        if (_points.Count != 1 || Current is not { } c || !Length.TryParse(t, LengthUnit.Millimeters, out var mm) || mm <= 0)
+            return false;
+        var dir = (c.Point - _points[0]).Normalized();
+        if (dir.IsZero(1e-9))
+            return false;
+        _points.Add(_points[0] + dir * mm);
+        RefreshStatus();
+        View.QueueOverlayRedraw();
+        return true;
+    }
 
     public override int CommandId => CommandIds.Arc3Point;
     public override string CursorImage => "arc3point1";
@@ -213,7 +243,7 @@ public sealed class ThreePointArcTool : DrawingTool
         _points.Add(inf.Point);
         if (_points.Count == 3)
         {
-            if (Shapes.ThreePointArc(_points[0], _points[1], _points[2], Shapes.DefaultArcSegments) is { } arc)
+            if (Shapes.ThreePointArc(_points[0], _points[1], _points[2], _segments) is { } arc)
             {
                 var local = arc.Select(ToLocal).ToList();
                 var normal = doc.Context.ToWorld.Inverse().ApplyVector((_points[1] - _points[0]).Cross(_points[2] - _points[0])).Normalized();
