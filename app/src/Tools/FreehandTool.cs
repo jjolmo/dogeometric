@@ -7,7 +7,8 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Freehand: press and drag to draw a curve on the plane where the drag starts (the face under the
-/// cursor, else the ground); release to finish. Ending on the start point closes it into a face.
+/// cursor, else the ground); release to finish. Ending on the start point closes it into a face. With Shift held,
+/// it draws a 3D polyline instead: a curve that sticks to nothing and makes no faces (kept in a group of its own).
 /// </summary>
 public sealed class FreehandTool : DrawingTool
 {
@@ -20,7 +21,7 @@ public sealed class FreehandTool : DrawingTool
 
     public override int CommandId => CommandIds.Freehand;
     public override string CursorImage => "freehand";
-    public override string StatusText => "Click and drag to draw freehand curve.";
+    public override string StatusText => "Click and drag to draw freehand curve.  Shift = 3D polyline.";
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
@@ -62,8 +63,27 @@ public sealed class FreehandTool : DrawingTool
             points.RemoveAt(points.Count - 1);
         var local = points.Select(ToLocal).ToList();
         var normal = doc.Context.ToWorld.Inverse().ApplyVector(_normal).Normalized();
+        if (Input.IsKeyPressed(Key.Shift))
+        {
+            doc.Operation("3D Polyline", e => Polyline(doc.Model, e, local, closed));
+            View.QueueOverlayRedraw();
+            return;
+        }
         doc.Operation("Freehand", e => StickyGeometry.DrawEdges(e, local, closed, normal, new Core.Modeling.Curve { Segments = local.Count, IsPolygon = false }));
         View.QueueOverlayRedraw();
+    }
+
+    /// <summary>A free curve in a group of its own, so it neither splits edges nor fills into faces.</summary>
+    private static void Polyline(Model model, Entities e, List<Vec3> points, bool closed)
+    {
+        var def = new ComponentDefinition { Name = "3d Polyline", IsGroup = true };
+        var curve = new Core.Modeling.Curve { Segments = points.Count, IsPolygon = false };
+        var vertices = points.Select(def.Entities.AddVertex).ToList();
+        var count = closed ? vertices.Count : vertices.Count - 1;
+        for (var i = 0; i < count; i++)
+            def.Entities.AddEdge(vertices[i], vertices[(i + 1) % vertices.Count]).Curve = curve;
+        model.Definitions.Add(def);
+        e.AddInstance(def, Transform.Identity);
     }
 
     public override void Draw(Control overlay)
