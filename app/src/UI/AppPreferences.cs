@@ -44,6 +44,17 @@ public sealed class AppPreferences
     public bool ExportTransparent { get; set; }
     public double ExportJpegQuality { get; set; } = 0.92;
 
+    /// <summary>File › Export › 2D Graphic › Options for drawings (SVG, PDF, DXF): SketchUp's Hidden Line Options.</summary>
+    public bool VectorFullScale { get; set; } = true;
+    public double VectorWidthMm { get; set; } = 297;
+    public bool VectorShowProfiles { get; set; } = true;
+    public bool VectorMatchProfiles { get; set; } = true;
+    public double VectorProfileMm { get; set; } = 0.5;
+    public bool VectorSectionWidth { get; set; }
+    public double VectorSectionMm { get; set; } = 0.7;
+    public bool VectorExtend { get; set; }
+    public double VectorExtensionMm { get; set; } = 2;
+
     /// <summary>The Section Plane tool asks for a name and symbol on placing one (until "don't ask again").</summary>
     public bool AskSectionName { get; set; } = true;
 

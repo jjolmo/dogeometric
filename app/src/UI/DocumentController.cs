@@ -360,33 +360,31 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image", "*.svg ; SVG drawing", "*.pdf ; PDF drawing", "*.dxf ; DXF drawing (full scale in parallel views)"], path =>
         {
             var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
-            Error error;
             if (ext is ".svg" or ".pdf" or ".dxf")
             {
                 var segments = viewport.HiddenLineDrawing();
                 var (w, h) = (viewport.Size.X, viewport.Size.Y);
-                try
+                ExportVectorDialog.Show(host, (Vector2I)viewport.Size, viewport.MillimetresPerPixel, !viewport.Camera.Perspective, lines =>
                 {
-                    if (ext == ".svg")
-                        System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToSvg(segments, w, h));
-                    else if (ext == ".dxf")
-                        System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToDxf(segments, h, viewport.MillimetresPerPixel));
-                    else
-                        System.IO.File.WriteAllBytes(path, Dogeometric.Core.IO.HiddenLine.ToPdf(segments, w, h));
-                    error = Error.Ok;
-                }
-                catch (System.IO.IOException)
-                {
-                    error = Error.CantCreate;
-                }
-            }
-            else
-            {
-                var png = ext is not (".jpg" or ".jpeg");
-                ExportImageDialog.Show(host, (Vector2I)viewport.Size, png, () => ExportImage(png ? (ext == ".png" ? path : path + ".png") : path, png));
+                    try
+                    {
+                        if (ext == ".svg")
+                            System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToSvg(segments, w, h, lines));
+                        else if (ext == ".dxf")
+                            System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToDxf(segments, h, viewport.MillimetresPerPixel, lines));
+                        else
+                            System.IO.File.WriteAllBytes(path, Dogeometric.Core.IO.HiddenLine.ToPdf(segments, w, h, lines));
+                        status.SetHint($"Exported {System.IO.Path.GetFileName(path)}");
+                    }
+                    catch (System.IO.IOException e)
+                    {
+                        status.SetHint($"Could not export: {e.Message}");
+                    }
+                });
                 return;
             }
-            status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
+            var png = ext is not (".jpg" or ".jpeg");
+            ExportImageDialog.Show(host, (Vector2I)viewport.Size, png, () => ExportImage(png ? (ext == ".png" ? path : path + ".png") : path, png));
         });
 
     private async void ExportImage(string path, bool png)

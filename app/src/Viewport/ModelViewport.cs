@@ -501,7 +501,6 @@ public partial class ModelViewport : Control
         return Core.IO.HiddenLine.Visible(doc.Model, Screen, RayTo, doc.Picker);
     }
 
-    /// <summary>The drawn view as an image (the 3D scene; tool feedback on the overlay is left out).</summary>
     /// <summary>The view as drawn, with its annotations and watermarks (exports and printing show them, as in SketchUp).</summary>
     public Image Snapshot() => _subViewport.GetTexture().GetImage();
 

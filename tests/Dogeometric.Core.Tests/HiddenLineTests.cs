@@ -52,4 +52,42 @@ public class HiddenLineTests
         Assert.Equal(new Vec3(20, 20, 0), e.Bounds().Size);
         Assert.Single(e.Faces);
     }
+
+    [Fact]
+    public void An_active_section_leaves_out_what_it_cuts_away_and_adds_its_cut_lines()
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(10, 10, 10));
+        // Arrows towards -x at x = 5: the half beyond (x > 5) is removed.
+        var plane = new SectionPlane(new Vec3(5, 0, 0), new Vec3(-1, 0, 0));
+        m.Entities.SectionPlanes.Add(plane);
+        m.Entities.ActiveSection = plane;
+        var (toScreen, rayTo) = Parallel();
+        var segments = HiddenLine.Visible(m, toScreen, rayTo, new Picker(), stepPixels: 1);
+        Assert.Contains(segments, s => s.Section);
+        Assert.Contains(segments, s => !s.Section);
+        // The removed half's corners (x = 10) are no segment's end.
+        var removed = m.Entities.Vertices.Where(v => v.Position.X == 10).Select(v => toScreen(v.Position)!.Value).ToList();
+        Assert.All(segments, s => Assert.DoesNotContain(removed, c => Math.Abs(c.X - s.X1) + Math.Abs(c.Y - s.Y1) < 0.5 || Math.Abs(c.X - s.X2) + Math.Abs(c.Y - s.Y2) < 0.5));
+    }
+
+    [Fact]
+    public void Drawing_options_size_the_paper_and_set_the_line_widths()
+    {
+        List<HiddenLine.Segment> segs = [new(0, 0, 100, 0, false), new(0, 10, 100, 10, true), new(0, 20, 100, 20, false, Section: true)];
+        var lines = new HiddenLine.Lines(MmPerPixel: 0.5, EdgeMm: 0.25, ProfileMm: 0.5, ExtensionMm: 1);
+        var svg = HiddenLine.ToSvg(segs, 200, 100, lines);
+        Assert.Contains("width=\"100mm\" height=\"50mm\"", svg);
+        // Widths in view pixels: 0.25 mm / 0.5 = 0.5, 0.5 mm / 0.5 = 1, section matches the screen (3).
+        Assert.Contains("stroke-width=\"0.5\"", svg);
+        Assert.Contains("stroke-width=\"1\"", svg);
+        Assert.Contains("stroke-width=\"3\"", svg);
+        // The edge runs 1 mm (2 px) past each end; profiles don't.
+        Assert.Contains("x1=\"-2\" y1=\"0\" x2=\"102\"", svg);
+        Assert.Contains("x1=\"0\" y1=\"10\" x2=\"100\"", svg);
+        var pdf = Encoding.ASCII.GetString(HiddenLine.ToPdf(segs, 200, 100, lines));
+        Assert.Contains("/MediaBox [0 0 283.4646 141.7323]", pdf);
+        var dxf = HiddenLine.ToDxf(segs, 100, 1, lines);
+        Assert.Contains("8\nSections\n370\n", dxf);
+    }
 }
