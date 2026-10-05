@@ -9,11 +9,13 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Push/Pull: hover a face, click, move to set the distance (snapping to other geometry), click to
-/// finish or type a distance. Ctrl toggles "create new starting face"; double-click repeats the last distance.
+/// finish or type a distance. Ctrl toggles "create new starting face", Alt toggles Stretch Mode (the face moves and
+/// the faces around it stretch); double-click repeats the last distance.
 /// </summary>
 public sealed class PushPullTool : DrawingTool
 {
     private static double _lastDistance;
+    private static bool _stretch;
 
     private Face? _hover;
     private Face? _face;
@@ -28,9 +30,22 @@ public sealed class PushPullTool : DrawingTool
     public override string VcbLabel => "Distance";
     public override Input.CursorShape Cursor => Input.CursorShape.PointingHand;
 
-    public override string StatusText => _face == null
-        ? "Click to select the face that you want to push or pull."
-        : "Click to set face or enter distance.  Ctrl = toggle create new starting face.";
+    public override string StatusText => (_face, _stretch) switch
+    {
+        (null, false) => "Click to select the face that you want to push or pull.  Alt = Toggle Stretch Mode.",
+        (null, true) => "Click to select the face that you want to stretch.  Alt = Toggle Stretch Mode.",
+        (_, false) => "Click to set face or enter distance.  Ctrl = Toggle Create New Starting Face.  Alt = Toggle Stretch Mode.",
+        _ => "Click to set the faces you're stretching or enter distance.  Alt = Toggle Stretch Mode.",
+    };
+
+    /// <summary>Push/pulls the face, or in Stretch Mode moves it along its normal so the faces around it stretch.</summary>
+    private static void Run(Entities e, Face face, double distance, bool keep)
+    {
+        if (_stretch)
+            Transforming.Move(e, [face], face.Normal.Normalized() * distance);
+        else
+            PushPull.Apply(e, face, distance, keep);
+    }
 
     public override string VcbValue => _face != null ? Length.Format(_distance, LengthUnit.Millimeters, 1) : "";
 
@@ -58,10 +73,10 @@ public sealed class PushPullTool : DrawingTool
         var d = _distance / scale;
         try
         {
-            doc.Preview("Push/Pull", e =>
+            doc.Preview(_stretch ? "Stretch" : "Push/Pull", e =>
             {
                 if (Math.Abs(d) > Tolerance.Length)
-                    PushPull.Apply(e, face, d, keep);
+                    Run(e, face, d, keep);
             });
         }
         catch (Exception)
@@ -144,7 +159,7 @@ public sealed class PushPullTool : DrawingTool
             var local = doc.Context.ToWorld;
             var scale = local.ApplyVector(face.Normal).Length;
             var keep = Input.IsKeyPressed(Key.Ctrl);
-            doc.Operation("Push/Pull", e => PushPull.Apply(e, face, distance / scale, keep));
+            doc.Operation(_stretch ? "Stretch" : "Push/Pull", e => Run(e, face, distance / scale, keep));
             _lastDistance = distance;
         }
         _face = null;
@@ -177,6 +192,13 @@ public sealed class PushPullTool : DrawingTool
         {
             ShowPreview(); // Ctrl toggles "create new starting face": redo with the new mode
             return false;
+        }
+        if (key.Keycode == Key.Alt && !key.Echo)
+        {
+            _stretch = !_stretch;
+            ShowPreview();
+            RefreshStatus();
+            return true;
         }
         if (key.Keycode == Key.Escape && _face != null)
         {
