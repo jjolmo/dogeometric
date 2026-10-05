@@ -94,6 +94,11 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
 
     public override void MouseDown(MouseButton button, Vector2 position)
     {
+        if (button == MouseButton.Right && View.Document is { } d)
+        {
+            ShowMenu(d, position);
+            return;
+        }
         if (button != MouseButton.Left || View.Document is not { } doc)
             return;
         if (_lifted >= 0)
@@ -145,6 +150,70 @@ public sealed class TexturePositionTool(Face face, bool back) : Tool
     /// <summary>The picture point (tile fractions) shown at a plane point, through the current corners.</summary>
     private (double S, double T)? Unmap((double X, double Y) p) =>
         Homography.Solve([(0, 0), (1, 0), (0, 1), (1, 1)], [_o, _u, _v, _w]) is { } h && Homography.Invert(h) is { } inv ? Homography.Apply(inv, p) : null;
+
+    /// <summary>Position Texture's context menu, as SketchUp's: Done, Reset, Flip, Rotate, Fixed Pins.</summary>
+    private void ShowMenu(Document doc, Vector2 at)
+    {
+        var menu = new PopupMenu();
+        menu.AddItem("Done", 0);
+        menu.AddItem("Reset", 1);
+        menu.AddSeparator();
+        var flip = new PopupMenu();
+        flip.AddItem("Left/Right", 10);
+        flip.AddItem("Up/Down", 11);
+        menu.AddSubmenuNodeItem("Flip", flip);
+        var rotate = new PopupMenu();
+        rotate.AddItem("90", 20);
+        rotate.AddItem("180", 21);
+        rotate.AddItem("270", 22);
+        menu.AddSubmenuNodeItem("Rotate", rotate);
+        menu.AddSeparator();
+        menu.AddCheckItem("Fixed Pins", 30);
+        menu.SetItemChecked(menu.GetItemIndex(30), !_free);
+        void Run(long id)
+        {
+            switch (id)
+            {
+                case 0:
+                    Finish(doc);
+                    return;
+                case 1:
+                    var tex = _material.Texture!;
+                    (_o, _u, _v, _w, _distorted) = ((0, 0), (tex.WidthMm, 0), (0, tex.HeightMm), (tex.WidthMm, tex.HeightMm), false);
+                    break;
+                case 10:
+                    (_o, _u, _v, _w) = (_u, _o, _w, _v);
+                    break;
+                case 11:
+                    (_o, _u, _v, _w) = (_v, _w, _o, _u);
+                    break;
+                case 20 or 21 or 22:
+                    // Turns the picture a quarter at a time, counter-clockwise, about its centre.
+                    for (var i = 0; i <= id - 20; i++)
+                        (_o, _u, _w, _v) = (_u, _w, _v, _o);
+                    break;
+                case 30:
+                    ToggleFree();
+                    return;
+            }
+            // Free pins follow the reshaped picture from its corners.
+            if (_free)
+            {
+                _freePins[0] = (0, 0, _o);
+                _freePins[1] = (1, 0, _u);
+                _freePins[2] = (0, 1, _v);
+                _freePins[3] = (1, 1, _w);
+            }
+            Preview();
+        }
+        menu.IdPressed += Run;
+        flip.IdPressed += Run;
+        rotate.IdPressed += Run;
+        menu.PopupHide += menu.QueueFree;
+        View.AddChild(menu);
+        menu.Position = (Vector2I)(View.GetScreenPosition() + at);
+        menu.Popup();
+    }
 
     private void ToggleFree()
     {
