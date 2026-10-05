@@ -112,6 +112,7 @@ public partial class MainWindow : Control
         RegisterSubdExtras();
         RegisterHelp();
         RegisterTemplates();
+        RegisterTrays();
         _commands.Register(CommandIds.ExportAnimation, ExportAnimation);
         _commands.AddToMenu("File", OwnIds.GenerateReport, "Generate Report...", "Report the model's groups and components, with their sizes, as HTML or CSV.",
             after: "Print", groupStart: true);
@@ -1128,7 +1129,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
         _commands.Register(CommandIds.Revert, _document.Revert);
         _commands.DynamicItems[CommandIds.RecentFile] = () => AppPreferences.Current.RecentFiles
-            .Select((p, i) => ($"{i + 1} {System.IO.Path.GetFileName(p)}", (Action)(() => _document.OpenRecent(p))));
+            .Select((p, i) => new DynamicItem($"{i + 1} {System.IO.Path.GetFileName(p)}", () => _document.OpenRecent(p)));
         _commands.Register(CommandIds.ZoomToPhoto, () =>
         {
             if (_scenes.Current?.Photo is { } photo)
@@ -1178,33 +1179,27 @@ public partial class MainWindow : Control
         RegisterTool(CommandIds.PaintBucket, () => new PaintBucketTool(() => _materials.CurrentMaterial, m => _materials.SetCurrent(m)));
     }
 
-    /// <summary>SketchUp's Default Tray on the right: Entity Info, Materials, Tags.</summary>
+    /// <summary>The tray panels, created once; <see cref="LayoutTrays"/> places them in their trays.</summary>
     private void BuildTray()
     {
-        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        _tray.AddChild(scroll);
-        var list = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        list.AddThemeConstantOverride("separation", 2);
-        scroll.AddChild(list);
-        list.AddChild(new Label { Text = "Default Tray" });
         _entityInfo = EntityInfoPanel.Create(() => _document.Document);
         _materials = MaterialsPanel.Create(() => _document.Document);
         _document.MaterialsChanged += _materials.Refresh;
         _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
-        list.AddChild(TraySection.Create("Entity Info", _entityInfo));
-        list.AddChild(TraySection.Create("Materials", _materials));
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
-        list.AddChild(TraySection.Create("Components", _components, expanded: false));
         _styles = StylesPanel.Create(_commands);
-        list.AddChild(TraySection.Create("Styles", _styles, expanded: false));
-        list.AddChild(TraySection.Create("Tags", _tags, expanded: false));
         _shadows = ShadowsPanel.Create(() => _document.Document, _document.ApplyShadows);
         _document.ShadowsChanged += _shadows.Refresh;
         _document.DocumentReplaced += _shadows.Refresh;
-        list.AddChild(TraySection.Create("Shadows", _shadows, expanded: false));
-        list.AddChild(TraySection.Create("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), expanded: false));
         _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
-        list.AddChild(TraySection.Create("Outliner", _outliner, expanded: false));
+        foreach (var (name, panel, expanded) in new (string, Control, bool)[]
+        {
+            ("Entity Info", _entityInfo, true), ("Materials", _materials, true), ("Components", _components, false),
+            ("Styles", _styles, false), ("Tags", _tags, false), ("Shadows", _shadows, false),
+            ("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), false), ("Outliner", _outliner, false),
+        })
+            _panels[name] = TraySection.Create(name, panel, expanded);
+        LayoutTrays();
     }
 
     /// <summary>Panels follow the current document's selection and geometry.</summary>

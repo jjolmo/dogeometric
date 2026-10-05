@@ -81,6 +81,9 @@ public sealed class AppPreferences
     /// <summary>Preferences › Template: the template File › New starts from (by name).</summary>
     public string DefaultTemplate { get; set; } = "";
 
+    /// <summary>Window › Manage Trays: the trays, each with its panels and whether it shows.</summary>
+    public List<TrayLayout> Trays { get; set; } = [];
+
     /// <summary>File › Recent File, newest first.</summary>
     public List<string> RecentFiles { get; set; } = [];
 
@@ -134,4 +137,12 @@ public sealed class AppPreferences
         Current = new AppPreferences();
         Save();
     }
+}
+
+/// <summary>A tray: its name, the panels it holds (in order) and whether it shows.</summary>
+public sealed class TrayLayout
+{
+    public string Name { get; set; } = "";
+    public List<string> Panels { get; set; } = [];
+    public bool Visible { get; set; } = true;
 }

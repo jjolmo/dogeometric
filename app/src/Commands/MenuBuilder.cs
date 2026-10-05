@@ -48,10 +48,16 @@ public static class MenuBuilder
                 else if (registry.DynamicItems.TryGetValue(child.Id!.Value, out var inline))
                 {
                     var added = false;
-                    foreach (var (label, run) in inline())
+                    foreach (var item in inline())
                     {
-                        popup.AddItem(label, dynamicBase + dynamicActions.Count);
-                        dynamicActions.Add(run);
+                        if (item.Checked is { } on)
+                        {
+                            popup.AddCheckItem(item.Label, dynamicBase + dynamicActions.Count);
+                            popup.SetItemChecked(popup.ItemCount - 1, on);
+                        }
+                        else
+                            popup.AddItem(item.Label, dynamicBase + dynamicActions.Count);
+                        dynamicActions.Add(item.Run);
                         added = true;
                     }
                     if (!added)

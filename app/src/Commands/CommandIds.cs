@@ -84,6 +84,9 @@ public static class CommandIds
     public const int NewFromTemplate = 24446;
     public const int AddLocation = 24216;
     public const int ExportAnimation = 21388;
+    public const int TrayPlaceholder = 10635;
+    public const int NewTray = 10634;
+    public const int ManageTrays = 24224;
     public const int ClearLocation = 24197;
     public const int SaveAsTemplate = 24183;
     public const int ZoomToPhoto = 10625;
