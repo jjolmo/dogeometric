@@ -18,6 +18,8 @@ public sealed class MoveTool : DrawingTool
     private Vec3? _from;
     private List<object> _items = [];
     private bool _copy;
+    // Stamp (Ctrl's third step): each click leaves a copy and the items stay in hand.
+    private bool _stamp;
     private bool _autofold;
 
     // Rotation grips of the group or component under the cursor (Move's red crosshairs): centre and normal (world).
@@ -32,16 +34,17 @@ public sealed class MoveTool : DrawingTool
     private (List<object> Source, Vec3 Offset)? _lastCopy;
 
     public override int CommandId => CommandIds.Move;
-    public override string CursorImage => _copy ? "movecopy" : "move";
+    public override string CursorImage => _stamp ? "movestamp" : _copy ? "movecopy" : "move";
     protected override Vec3? From => _from;
     public override string VcbLabel => "Distance";
     public override Input.CursorShape Cursor => Input.CursorShape.Move;
 
     public override string StatusText => (_from, _copy) switch
     {
+        _ when _stamp => _from == null ? "Click something to begin stamping it.  Ctrl = Cycle Copy/Stamp/Move." : "Click to stamp a copy, or enter a distance.  Ctrl = Cycle Copy/Stamp/Move.",
         _ when _autofold && !_copy => _from == null ? "Click an item to auto-fold." : "Click to place the item you are auto-folding or enter distance.",
-        (null, false) => "Click something to begin moving it.  Alt = Toggle Autofold.",
-        (null, true) => "Click something to begin copying it.",
+        (null, false) => "Click something to begin moving it.  Ctrl = Cycle Copy/Stamp/Move.  Alt = Toggle Autofold.",
+        (null, true) => "Click something to begin copying it.  Ctrl = Cycle Copy/Stamp/Move.",
         (_, false) => "Click to place the items you're moving or enter a distance.  Alt = Toggle Autofold.",
         _ => "Click to place the items you're copying or enter a distance.",
     };
@@ -233,6 +236,16 @@ public sealed class MoveTool : DrawingTool
         }
         Unfollow();
         var items = _items;
+        if (_stamp)
+        {
+            // A copy is left where it lands; the original stays in hand, measured from there for the next stamp.
+            doc.Operation("Stamp", e => Transforming.Copy(e, items, Transform.Translation(offset)));
+            _from = _from!.Value + worldOffset;
+            Follow();
+            OnInferenceChanged();
+            RefreshStatus();
+            return;
+        }
         if (_copy)
         {
             List<object> copies = [];
@@ -297,7 +310,8 @@ public sealed class MoveTool : DrawingTool
     {
         if (key.Keycode == Key.Ctrl && !key.Echo)
         {
-            _copy = !_copy;
+            // Move, Copy, Stamp, then Move again.
+            (_copy, _stamp) = (_copy, _stamp) switch { (false, false) => (true, false), (true, false) => (true, true), _ => (false, false) };
             if (_from != null)
             {
                 Follow();
