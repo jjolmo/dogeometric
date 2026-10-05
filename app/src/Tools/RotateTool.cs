@@ -9,7 +9,8 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Rotate: click the centre (protractor on the face under the cursor or the axis plane facing the
-/// viewer; arrows lock it), click the start direction, then the end. Angles snap every 15°; type degrees or a
+/// viewer; arrows lock it, or drag from the centre along an edge to turn about it), click the start direction, then
+/// the end. Angles snap every 15°; type degrees or a
 /// slope like "1:2". Ctrl rotates a copy, "6x" afterwards makes a polar array.
 /// </summary>
 public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
@@ -70,6 +71,7 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
                 : inf.Kind == InferenceKind.InPlane ? Blue
                 : MostFacingPlane());
             _lastCopy = null;
+            _pressedAt = position;
         }
         else if (_startDir == null)
         {
@@ -83,6 +85,23 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
             Finish(doc, angle);
         }
         RefreshStatus();
+    }
+
+    private Vector2? _pressedAt;
+
+    /// <summary>Dragging from the centre sets the rotation axis along the drag (an edge or an axis), as in SketchUp.</summary>
+    public override void MouseUp(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || _pressedAt is not { } pressed)
+            return;
+        _pressedAt = null;
+        if (_center is not { } c || _startDir != null || position.DistanceTo(pressed) < 8 || Current is not { } inf)
+            return;
+        var axis = inf.Point - c;
+        if (axis.IsZero(1e-6))
+            return;
+        _normal = axis.Normalized();
+        View.QueueOverlayRedraw();
     }
 
     private List<object> ItemUnderCursor(Document doc, Vector2 position)
