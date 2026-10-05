@@ -10,6 +10,8 @@ public static class Toolbars
     public static readonly int[] Views = [10507, 10501, 10502, 10503, 10505, 10504];
     public static readonly int[] Styles = [10596, 10619, 10597, 10598, 10599, 10600, 10601];
     public static readonly int[] SolidTools = [24198, 24200, 24201, 24202, 24203, 24204];
+    public static readonly int[] Section = [21337, 21347, 21348, 21349];
+    public static readonly int[] Shadows = [Commands.OwnIds.ShadowSettings, 10602];
 
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
@@ -154,6 +156,11 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SubdDecrease] = "subd_decrease";
         Icons[Commands.ExtensionIds.SubdCrease] = "subd_crease";
         Icons[Commands.ExtensionIds.SubdQuadPushPull] = "subd_quad_pushpull";
+        Icons[21347] = "display_section_planes";
+        Icons[21348] = "display_section_cuts";
+        Icons[21349] = "display_section_fill";
+        Icons[10602] = "shadows_display";
+        Icons[Commands.OwnIds.ShadowSettings] = "shadow_settings";
         Icons[Commands.ExtensionIds.SubdDisplayEdges] = "subd_display_edges";
         Icons[Commands.ExtensionIds.SubdEntityInfo] = "subd_entity_info";
         Icons[Commands.ExtensionIds.SubdGettingStarted] = "subd_help";

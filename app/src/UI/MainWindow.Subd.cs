@@ -38,6 +38,8 @@ public partial class MainWindow
             (ExtensionIds.SplineCloseNice, "Close loop nicely (Toggle F9)"), (ExtensionIds.SplineCloseLine, "Close loop with line (Toggle F8)"),
         })
             (_commands.Get(id).Label, _commands.Get(id).Description) = (label, label);
+        (_commands.Get(OwnIds.ShadowSettings).Label, _commands.Get(OwnIds.ShadowSettings).Description) = ("Shadow Settings", "Show the Shadows panel.");
+        _commands.Register(OwnIds.ShadowSettings, () => _panels["Shadows"].Expand());
         _commands.Register(ExtensionIds.SplineVertexMarks, () =>
         {
             BezierSplineTool.VertexMarks = !BezierSplineTool.VertexMarks;

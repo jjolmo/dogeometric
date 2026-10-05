@@ -193,6 +193,8 @@ public partial class MainWindow : Control
         Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("SUbD", Toolbars.Subd, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Section", Toolbars.Section, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Shadows", Toolbars.Shadows, ToolbarDocks.Dock.Top, visible: false);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;

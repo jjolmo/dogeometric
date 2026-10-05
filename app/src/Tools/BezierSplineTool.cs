@@ -7,9 +7,8 @@ using Curve = Dogeometric.Core.Modeling.Curve;
 
 namespace Dogeometric.App.Tools;
 
-/// <summary>BezierSpline's curve tools: click control points (Esc removes the last), double-click or Return to finish;
-/// "Ns" sets the precision, a length the family's extra value; F9 closes nicely, F8 with a line, F7 opens, F5 toggles
-/// vertex marks, TAB opens the extra parameters.</summary>
+/// <summary>BezierSpline's curve tools: click control points, Return to finish; "Ns" sets the precision. F9/F8 close the
+/// loop nicely or with a line, F7 opens it, F5 shows vertex marks, TAB the extra parameters.</summary>
 public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
 {
     private static readonly Dictionary<SplineKind, (int Precision, double Parameter)> Settings = [];

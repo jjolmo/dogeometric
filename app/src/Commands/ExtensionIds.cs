@@ -123,4 +123,7 @@ public static class OwnIds
 
     /// <summary>File › Generate Report (SketchUp's own id is not in the reference tables).</summary>
     public const int GenerateReport = 95004;
+
+    /// <summary>The Shadows toolbar's Shadow Settings button (opens the Shadows panel).</summary>
+    public const int ShadowSettings = 95005;
 }
