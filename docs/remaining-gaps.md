@@ -13,8 +13,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
-| STEP export (and import) | Enclosures go on to FreeCAD/KiCad/Fusion for fit checks and manufacturing; STL loses the exact geometry. | Not in SketchUp itself (it needs a plugin), so beyond parity, but the most useful format here. Planar faces and polygonal curves map to an AP214 faceted B-rep. |
-| Solid Tools test coverage | Shells, lids and holes are built with Union/Subtract/Trim/Split/Outer Shell. `Dogeometric.Solids` has no test project; Trim, Split and Outer Shell are only checked by hand. | Add `tests/Dogeometric.Solids.Tests` with volume and manifold checks, as the e2e harness does. |
+| STEP import | Vendor enclosure and connector models come as STEP. | Export is done (AP214, solids validated in FreeCAD). Import needs curved-surface tessellation. |
 | Component libraries (Components panel › Open or create a local collection) | Standoffs, screws, connectors and PCBs reused from a folder of `.skp` files. | The panel only shows In Model definitions; File › Import of one `.skp` works. |
 | Remaining file formats | Import: DWG (mechanical drawings), 3DS, DAE, IFC, KMZ. Export: DWG, 3DS, FBX, IFC, KMZ, VRML, XSI. | OpenSKP already has an IFC writer (`third_party/OpenSkp/IfcExport.cs`) to wire to File › Export. DWG needs a reader/writer (DXF is done both ways). |
 
@@ -41,4 +40,5 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 Styles (edges, faces, background, modelling colours, watermarks, `.style` load/save), every tool's Ctrl/Alt/Shift
 from the Instructor pages, VCB coordinates/arrays/offsets, imperial units and formats, Outliner editing, section
 plane naming/symbol/fill troubleshooting/slice to group, Dimension and Text options, 2D image and vector export
-options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture.
+options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture, STEP export,
+Solid Tools tests (Outer Shell now fills cavities).

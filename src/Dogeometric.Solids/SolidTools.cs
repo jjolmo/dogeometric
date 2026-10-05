@@ -10,12 +10,17 @@ namespace Dogeometric.Solids;
 /// </summary>
 public static class SolidTools
 {
-    /// <summary>Union: one solid with everything, interior faces removed (and Outer Shell for two solids).</summary>
+    /// <summary>Union: one solid with everything, interior faces removed.</summary>
     public static ComponentInstance Union(Model model, Entities e, IReadOnlyList<ComponentInstance> inputs) =>
         Combine(model, e, inputs, (a, b) => a.Union(b), "Union");
 
+    /// <summary>Outer Shell: the union with its inner cavities filled.</summary>
     public static ComponentInstance OuterShell(Model model, Entities e, IReadOnlyList<ComponentInstance> inputs) =>
-        Combine(model, e, inputs, (a, b) => a.Union(b), "Outer Shell");
+        Combine(model, e, inputs, (a, b) =>
+        {
+            using var union = a.Union(b);
+            return union.WithoutCavities();
+        }, "Outer Shell");
 
     /// <summary>Intersect: only the volume common to all.</summary>
     public static ComponentInstance Intersect(Model model, Entities e, IReadOnlyList<ComponentInstance> inputs) =>

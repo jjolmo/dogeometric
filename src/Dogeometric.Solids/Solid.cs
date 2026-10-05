@@ -97,6 +97,30 @@ public sealed unsafe class Solid : IDisposable
         }
     }
 
+    /// <summary>The solid without its cavities: connected shells that enclose negative volume.</summary>
+    public Solid WithoutCavities()
+    {
+        var (positions, tris) = ToMesh();
+        var parent = Enumerable.Range(0, positions.Count).ToArray();
+        int Root(int i) => parent[i] == i ? i : parent[i] = Root(parent[i]);
+        for (var t = 0; t < tris.Count; t += 3)
+        {
+            parent[Root(tris[t + 1])] = Root(tris[t]);
+            parent[Root(tris[t + 2])] = Root(tris[t]);
+        }
+        var volume = new Dictionary<int, double>();
+        for (var t = 0; t < tris.Count; t += 3)
+        {
+            var root = Root(tris[t]);
+            volume[root] = volume.GetValueOrDefault(root) + positions[tris[t]].Dot(positions[tris[t + 1]].Cross(positions[tris[t + 2]])) / 6;
+        }
+        var kept = new List<Triangle>();
+        for (var t = 0; t < tris.Count; t += 3)
+            if (volume[Root(tris[t])] > 0)
+                kept.Add(new Triangle(positions[tris[t]], positions[tris[t + 1]], positions[tris[t + 2]], null));
+        return FromTriangles(kept);
+    }
+
     public void Dispose()
     {
         if (Handle != IntPtr.Zero)
