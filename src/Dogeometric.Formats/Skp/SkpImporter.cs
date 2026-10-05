@@ -16,7 +16,18 @@ public static class SkpImporter
         var model = Convert(Sk.SkpFile.Open(path));
         if (SkpShadows.Read(path) is { } shadows)
             model.Shadows = shadows;
+        // OpenSKP reads scenes from 2021+ files only.
+        if (model.Scenes.Count == 0 && !IsZipped(path))
+            model.Scenes.AddRange(SkpLegacyScenes.Read(File.ReadAllBytes(path)));
         return model;
+    }
+
+    private static bool IsZipped(string path)
+    {
+        var head = new byte[4096];
+        using var f = File.OpenRead(path);
+        var n = f.Read(head, 0, head.Length);
+        return head.AsSpan(0, n).IndexOf("PK\u0003\u0004"u8) >= 0;
     }
 
     public static Model Convert(Sk.SkpModel skp)
