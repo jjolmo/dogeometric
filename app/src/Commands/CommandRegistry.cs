@@ -38,6 +38,7 @@ public sealed class CommandRegistry
 
     public IReadOnlyList<MenuNode> Menus => _menus;
     private readonly List<MenuNode> _menus;
+    private readonly List<MenuNode> _native;
     public IReadOnlyList<(Key Keys, int Id)> Aliases => _aliases;
 
     public CommandRegistry(string jsonPath)
@@ -61,6 +62,7 @@ public sealed class CommandRegistry
         }
 
         _menus = ParseMenus(root.GetProperty("menus"), "");
+        _native = [.. _menus];
         RememberDefaults();
     }
 
@@ -156,6 +158,73 @@ public sealed class CommandRegistry
         if (!_commands.TryGetValue(id, out var cmd))
             _commands[id] = cmd = new Command(id);
         return cmd;
+    }
+
+    /// <summary>
+    /// Sets what extensions add to <paramref name="menu"/>: SketchUp's own items followed by <paramref name="spec"/>,
+    /// written as SketchUp lists them (two spaces per level, "---" separators, "Label | id" items, bare labels for submenus).
+    /// </summary>
+    public void SetExtensionMenu(string menu, string spec)
+    {
+        var index = _menus.FindIndex(m => m.Label.Replace("&", "") == menu);
+        if (index < 0)
+            return;
+        var lines = spec.Replace("\r", "").Split('\n').Where(l => l.Trim().Length > 0).ToList();
+        var at = 0;
+        List<MenuNode> Parse(int depth, string path)
+        {
+            var nodes = new List<MenuNode>();
+            while (at < lines.Count)
+            {
+                var line = lines[at];
+                var indent = (line.Length - line.TrimStart().Length) / 2;
+                if (indent < depth)
+                    break;
+                at++;
+                var text = line.Trim();
+                if (text == "---")
+                    nodes.Add(new MenuNode("", null, null, true));
+                else if (text.LastIndexOf(" | ", StringComparison.Ordinal) is var bar and >= 0)
+                {
+                    var (label, id) = (text[..bar], int.Parse(text[(bar + 3)..]));
+                    nodes.Add(new MenuNode(label, id, null, false));
+                    if (Get(id) is { Label.Length: 0 } cmd)
+                        cmd.Label = label;
+                    Get(id).MenuPath = $"{path}/{label}";
+                }
+                else
+                    nodes.Add(new MenuNode(text, null, Parse(depth + 1, $"{path}/{text}"), false));
+            }
+            return nodes;
+        }
+        _menus[index] = _native[index] with { Children = [.. _native[index].Children ?? [], .. Parse(0, menu)] };
+    }
+
+    /// <summary>Puts <paramref name="node"/> into SketchUp's own <paramref name="menu"/> after the item labelled
+    /// <paramref name="after"/>; call before <see cref="SetExtensionMenu"/> for that menu.</summary>
+    public void InsertNative(string menu, string after, MenuNode node)
+    {
+        var index = _native.FindIndex(m => m.Label.Replace("&", "") == menu);
+        var children = (_native[index].Children ?? []).ToList();
+        children.Insert(children.FindIndex(c => c.Label.Replace("&", "") == after) + 1, node);
+        _native[index] = _native[index] with { Children = children };
+    }
+
+    /// <summary>The menus as an indented tree, separators as "---".</summary>
+    public string MenuText()
+    {
+        var sb = new System.Text.StringBuilder();
+        void Walk(IEnumerable<MenuNode> nodes, int depth)
+        {
+            foreach (var n in nodes)
+            {
+                sb.Append(' ', depth * 2).AppendLine(n.IsSeparator ? "---" : n.Label.Replace("&", ""));
+                if (n.Children != null)
+                    Walk(n.Children, depth + 1);
+            }
+        }
+        Walk(_menus, 0);
+        return sb.ToString();
     }
 
     /// <summary>Submenus filled when they open (Camera › Edit Matched Photo lists the photo scenes), by label.</summary>

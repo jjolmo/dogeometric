@@ -31,7 +31,9 @@ public static class ExtensionIds
     public const int Sphere = 90054;
     /// <summary>BezierSpline's curve tools, one id per family from 90101.</summary>
     public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
-    public const int SplineEdit = 90113;
+    public const int SplineTBone = 90113;
+    public const int SplineDividerAnimation = 90114;
+    public const int SplineEdit = 90120;
 
     public const int SandboxFromContours = 90071;
     public const int SandboxFromScratch = 90072;
@@ -70,6 +72,33 @@ public static class ExtensionIds
     public const int CleanUpMergeFaces = 90046;
     public const int CleanUpMergeMaterials = 90047;
     public const int CleanUpRepairEdges = 90048;
+
+    public const int FredoScaleScaleTarget = 90201;
+    public const int FredoScaleTaperTarget = 90202;
+    public const int FredoScaleShearTarget = 90203;
+    public const int FredoScaleStretchTarget = 90204;
+    public const int FredoScaleShearFree = 90205;
+    public const int FredoScaleRotateFree = 90206;
+    public const int FredoScaleMakeUnique = 90207;
+    public const int SurfaceEditContours = 90210;
+    public const int Interact = 90220;
+    public const int SubdQuadPushPull = 90230;
+    public const int SubdDisplayEdges = 90231;
+    public const int SubdPreferences = 90232;
+    public const int SubdEntityInfo = 90234;
+    public const int SubdGettingStarted = 90235;
+    public const int SelectionToysSettings = 90240;
+    public const int SelectionToysCheatSheet = 90241;
+    public const int SelectEdgeLoops = 90242;
+    public const int ComponentOptions = 90250;
+    public const int ComponentAttributes = 90251;
+    public const int CameraCreate = 90260;
+    public const int CameraLookThrough = 90261;
+    public const int CameraLock = 90262;
+    public const int CameraShowAll = 90263;
+    public const int CameraFrustumLines = 90264;
+    public const int CameraFrustumVolume = 90265;
+    public const int CameraReset = 90266;
 }
 
 /// <summary>Dogeometric's own commands, which SketchUp does not have.</summary>

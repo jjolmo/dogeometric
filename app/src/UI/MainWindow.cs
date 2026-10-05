@@ -109,6 +109,7 @@ public partial class MainWindow : Control
         // Commands must be registered before the menu is built: item kinds (check/radio) depend on them.
         RegisterCommands();
         RegisterExtensions();
+        ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
         _commands.AddDefaultShortcut("Shift+S", CommandIds.HideRestOfModel);
@@ -128,6 +129,9 @@ public partial class MainWindow : Control
         };
         layout.AddChild(menuPanel);
         layout.MoveChild(menuPanel, 0);
+        // Development aid: the menu tree as text, to compare with SketchUp's.
+        if (OS.GetEnvironment("DOGEOMETRIC_DUMP_MENUS") is { Length: > 0 } dumpPath)
+            System.IO.File.WriteAllText(dumpPath, _commands.MenuText());
 
         var (topPanel, topBars) = DockStrip(vertical: false);
         topPanel.Visible = true;
