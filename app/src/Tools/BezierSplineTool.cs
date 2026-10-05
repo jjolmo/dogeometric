@@ -128,6 +128,8 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
             grid.AddChild(maximum);
         }
         d.AddChild(grid);
+        foreach (var spin in new[] { precision, parameter, maximum }.OfType<SpinBox>())
+            d.RegisterTextEnter(spin.GetLineEdit());
         d.Confirmed += () =>
         {
             if (mode != null && maximum != null)

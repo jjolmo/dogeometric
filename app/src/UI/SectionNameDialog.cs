@@ -20,6 +20,9 @@ public static class SectionNameDialog
         var dontAsk = new CheckBox { Text = "Please don't ask again. Use default names." };
         box.AddChild(dontAsk);
         dialog.AddChild(box);
+        // Enter in either field places it, as in SketchUp.
+        dialog.RegisterTextEnter(nameEdit);
+        dialog.RegisterTextEnter(symbolEdit);
         dialog.Confirmed += () =>
         {
             if (dontAsk.ButtonPressed)

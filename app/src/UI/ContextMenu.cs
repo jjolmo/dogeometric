@@ -401,6 +401,7 @@ public static class ContextMenu
         var row = new HBoxContainer();
         row.AddChild(new Label { Text = "Maximum angle between faces:" });
         var spin = new SpinBox { MinValue = 0, MaxValue = 180, Step = 0.5, Value = _lastAngle, Suffix = "°" };
+        dialog.RegisterTextEnter(spin.GetLineEdit());
         row.AddChild(spin);
         dialog.AddChild(row);
         dialog.Confirmed += () =>

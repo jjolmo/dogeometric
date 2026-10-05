@@ -16,6 +16,8 @@ public static class ExportImageDialog
         var grid = new GridContainer { Columns = 2 };
         var width = new SpinBox { CustomMinimumSize = new Vector2(150, 0), MinValue = 16, MaxValue = 16384, Value = p.ExportUseViewSize ? viewSize.X : p.ExportWidth, Suffix = "pixels" };
         var height = new SpinBox { CustomMinimumSize = new Vector2(150, 0), MinValue = 16, MaxValue = 16384, Value = p.ExportUseViewSize ? viewSize.Y : p.ExportHeight, Suffix = "pixels" };
+        dialog.RegisterTextEnter(width.GetLineEdit());
+        dialog.RegisterTextEnter(height.GetLineEdit());
         grid.AddChild(new Label { Text = "Width" });
         grid.AddChild(width);
         grid.AddChild(new Label { Text = "Height" });

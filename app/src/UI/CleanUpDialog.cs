@@ -71,6 +71,7 @@ public static class CleanUpDialog
         var smoothRow = new HBoxContainer();
         smoothRow.AddChild(new Label { Text = "Smooth Edges by Angle" });
         var smooth = new SpinBox { MinValue = 0, MaxValue = 180, Step = 0.5, Value = o.SmoothAngle, Suffix = "°" };
+        d.RegisterTextEnter(smooth.GetLineEdit());
         smoothRow.AddChild(smooth);
         box.AddChild(smoothRow);
 
