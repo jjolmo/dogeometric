@@ -283,7 +283,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
@@ -472,6 +472,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Core.IO.DxfImport.Load(path)
+                : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".dae" or ".kmz"
+                ? Dogeometric.Core.IO.DaeImport.Load(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj"
                 ? Dogeometric.Core.IO.MeshImport.Load(path, MeshUnits[_importOptionsDialog?.GetSelectedOptions() is { } o && o.TryGetValue("Units (STL, OBJ)", out var u) ? (int)u : 0].Mm)
                 : Load(path);

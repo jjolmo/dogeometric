@@ -81,8 +81,8 @@ public static class MeshImport
 
     private static double Num(string s) => double.Parse(s, NumberStyles.Float, CultureInfo.InvariantCulture);
 
-    /// <summary>A model holding the polygons as one group.</summary>
-    public static Model Build(string name, IEnumerable<List<Vec3>> polygons, double mmPerUnit = 1)
+    /// <summary>A model holding the polygons as one group; <paramref name="materials"/> paints each polygon (by index).</summary>
+    public static Model Build(string name, IEnumerable<List<Vec3>> polygons, double mmPerUnit = 1, IReadOnlyList<Material?>? materials = null)
     {
         var model = new Model();
         var def = new ComponentDefinition { Name = name, IsGroup = true };
@@ -108,8 +108,12 @@ public static class MeshImport
             return points.Count - 1;
         }
         var triangles = new List<(int A, int B, int C, Vec3 Normal)>();
+        var painted = new List<Material?>();
+        var index = -1;
         foreach (var polygon in polygons)
         {
+            index++;
+            var material = materials != null && index < materials.Count ? materials[index] : null;
             var ids = polygon.Select(p => Id(p * mmPerUnit)).ToList();
             for (var i = 1; i + 1 < ids.Count; i++)
             {
@@ -118,8 +122,31 @@ public static class MeshImport
                 if (a == b || b == c || a == c || n.Length < Tolerance.Length * Tolerance.Length)
                     continue;
                 triangles.Add((a, b, c, n.Normalized()));
+                painted.Add(material);
             }
         }
+
+        // A triangle repeated with the opposite winding is the back of the first (COLLADA writes back sides apart).
+        var backs = new Material?[triangles.Count];
+        var seen = new Dictionary<(int, int, int), int>();
+        var kept = new List<int>();
+        for (var t = 0; t < triangles.Count; t++)
+        {
+            var (a, b, c, _) = triangles[t];
+            var corners = new[] { a, b, c };
+            Array.Sort(corners);
+            if (seen.TryGetValue((corners[0], corners[1], corners[2]), out var first))
+            {
+                if (triangles[first].Normal.Dot(triangles[t].Normal) < 0)
+                    backs[first] ??= painted[t];
+                continue;
+            }
+            seen[(corners[0], corners[1], corners[2])] = t;
+            kept.Add(t);
+        }
+        triangles = kept.Select(t => triangles[t]).ToList();
+        var backPainted = kept.Select(t => backs[t]).ToList();
+        painted = kept.Select(t => painted[t]).ToList();
 
         // Neighbouring triangles in the same plane, facing the same way, make one face.
         var parent = Enumerable.Range(0, triangles.Count).ToArray();
@@ -139,7 +166,8 @@ public static class MeshImport
         foreach (var list in byEdge.Values.Where(l => l.Count == 2))
         {
             var (t1, t2) = (triangles[list[0]], triangles[list[1]]);
-            if (t1.Normal.Dot(t2.Normal) > 1 - 1e-9 && Math.Abs((points[t2.A] - points[t1.A]).Dot(t1.Normal)) < Tolerance.Length)
+            if (t1.Normal.Dot(t2.Normal) > 1 - 1e-9 && Math.Abs((points[t2.A] - points[t1.A]).Dot(t1.Normal)) < Tolerance.Length
+                && painted[list[0]] == painted[list[1]] && backPainted[list[0]] == backPainted[list[1]])
                 parent[Find(list[0])] = Find(list[1]);
         }
 
@@ -187,9 +215,12 @@ public static class MeshImport
                 var flat = Flat(outer);
                 var mine = holes.Where(h => Inside(Flat(h)[0], flat)).ToList();
                 holes = holes.Except(mine).ToList();
-                welder.Face(outer, mine);
+                var face = welder.Face(outer, mine);
+                (face.FrontMaterial, face.BackMaterial) = (painted[cluster.First()], backPainted[cluster.First()]);
             }
         }
+        foreach (var m in painted.Concat(backPainted).OfType<Material>().Distinct())
+            model.Materials.Add(m);
         model.Definitions.Add(def);
         model.Entities.AddInstance(def, Transform.Identity);
         return model;
