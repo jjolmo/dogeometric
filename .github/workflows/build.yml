@@ -31,7 +31,7 @@ jobs:
           key: manifold-${{ env.MANIFOLD_TAG }}-${{ matrix.rid }}-${{ hashFiles('tools/native/build-manifold.sh') }}
       - name: Install Ninja
         if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+        run: sudo apt-get update && sudo apt-get install -y ninja-build patchelf
       - name: Install Ninja
         if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'macOS'
         run: brew install ninja

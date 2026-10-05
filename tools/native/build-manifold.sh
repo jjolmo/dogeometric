@@ -27,4 +27,18 @@ cmake --build "$WORK/build" --config Release
 mkdir -p "$ROOT/app/native/$RID"
 find "$WORK/build" \( -name "libmanifold*.so*" -o -name "libmanifold*.dylib" -o -name "manifold*.dll" \) -not -path "*/CMakeFiles/*" \
   -exec cp -L {} "$ROOT/app/native/$RID/" \;
-ls -la "$ROOT/app/native/$RID"
+# Manifold's build leaves its own build folder as the search path: point each library at its own folder instead.
+OUT="$ROOT/app/native/$RID"
+case "$RID" in
+  linux-*)
+    for f in "$OUT"/*.so*; do patchelf --set-rpath '$ORIGIN' "$f"; done ;;
+  osx)
+    for f in "$OUT"/*.dylib; do
+      for old in $(otool -l "$f" | awk '/LC_RPATH/{getline; getline; print $2}'); do
+        install_name_tool -delete_rpath "$old" "$f"
+      done
+      install_name_tool -add_rpath @loader_path "$f"
+      codesign -f -s - "$f"
+    done ;;
+esac
+ls -la "$OUT"
