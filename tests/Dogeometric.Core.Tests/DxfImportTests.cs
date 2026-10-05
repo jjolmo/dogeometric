@@ -60,4 +60,36 @@ public class DxfImportTests
         Assert.InRange(face.Area, 200 - (4 - Math.PI) * 4 - 0.2, 200 - (4 - Math.PI) * 4);
         Assert.Equal(new Vec3(20, 10, 0), e.Bounds().Size);
     }
+
+    [Fact]
+    public void Blocks_become_components_placed_by_their_inserts()
+    {
+        // A 10 mm square block with its base point at (5, 0), inserted once turned 90° at (100, 0) and once doubled at the origin.
+        string Pairs(params (int Code, string Value)[] pairs) => string.Concat(pairs.Select(p => $"{p.Code}\n{p.Value}\n"));
+        var dxf = Pairs((0, "SECTION"), (2, "BLOCKS"),
+                (0, "BLOCK"), (8, "0"), (2, "SQ"), (10, "5"), (20, "0"), (30, "0"),
+                (0, "LWPOLYLINE"), (8, "0"), (70, "1"), (10, "0"), (20, "0"), (10, "10"), (20, "0"), (10, "10"), (20, "10"), (10, "0"), (20, "10"),
+                (0, "ENDBLK"), (0, "ENDSEC"),
+                (0, "SECTION"), (2, "ENTITIES"),
+                (0, "INSERT"), (8, "Parts"), (2, "SQ"), (10, "100"), (20, "0"), (30, "0"), (50, "90"),
+                (0, "INSERT"), (8, "0"), (2, "SQ"), (10, "0"), (20, "0"), (30, "0"), (41, "2"), (42, "2"), (43, "2"),
+                (0, "ENDSEC"), (0, "EOF"));
+
+        var model = DxfImport.Read(dxf, "blocks");
+
+        var drawing = model.Entities.Instances.Single().Definition.Entities;
+        Assert.Equal(2, drawing.Instances.Count);
+        var square = Assert.Single(drawing.Instances.Select(i => i.Definition).Distinct());
+        Assert.Equal("SQ", square.Name);
+        Assert.False(square.IsGroup);
+        Assert.Single(square.Entities.Faces);
+        Assert.Equal("Parts", drawing.Instances[0].Tag?.Name);
+        // The base point goes to the insertion point: turned 90°, the square spans x 100..90, y -5..5.
+        var turned = square.Entities.Faces[0].OuterLoop.Points.Select(drawing.Instances[0].Transform.ApplyPoint).ToList();
+        Assert.Equal(90, turned.Min(p => p.X), 6);
+        Assert.Equal(-5, turned.Min(p => p.Y), 6);
+        var doubled = square.Entities.Faces[0].OuterLoop.Points.Select(drawing.Instances[1].Transform.ApplyPoint).ToList();
+        Assert.Equal(-10, doubled.Min(p => p.X), 6);
+        Assert.Equal(20, doubled.Max(p => p.Y), 6);
+    }
 }

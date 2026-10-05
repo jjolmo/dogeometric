@@ -13,7 +13,7 @@ using Line = ACadSharp.Entities.Line;
 
 namespace Dogeometric.Formats;
 
-/// <summary>AutoCAD DWG through ACadSharp (MIT): DWG import goes through the DXF importer, and File › Export › 3D Model
+/// <summary>AutoCAD DWG through ACadSharp (MIT): DWG import goes through the DXF importer (blocks as components), and File › Export › 3D Model
 /// writes DWG or DXF as SketchUp does: faces as 3D faces, edges as lines, tags as layers, in millimetres.</summary>
 public static class CadFiles
 {
@@ -29,45 +29,29 @@ public static class CadFiles
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    /// <summary>Block references exploded into place and polyface meshes (SketchUp's faces) turned into 3D faces, so
-    /// model space holds only what the DXF importer reads.</summary>
+    /// <summary>Polyface meshes (SketchUp's faces) turned into 3D faces, in model space and in every block, which stay
+    /// blocks so their references come in as components.</summary>
     private static void Flatten(CadDocument doc)
     {
-        var pending = new Queue<Entity>(doc.Entities.ToList());
-        var depth = 0;
-        while (pending.Count > 0 && depth++ < 1_000_000)
-        {
-            var entity = pending.Dequeue();
-            switch (entity)
+        foreach (var record in doc.BlockRecords.ToList())
+            foreach (var mesh in record.Entities.OfType<PolyfaceMesh>().ToList())
             {
-                case Insert insert:
-                    doc.Entities.Remove(insert);
-                    foreach (var part in insert.Explode())
-                    {
-                        // Entities on layer 0 inside a block take the reference's layer.
-                        if (part.Layer?.Name == Layer.DefaultName)
-                            part.Layer = insert.Layer;
-                        doc.Entities.Add(part);
-                        pending.Enqueue(part);
-                    }
-                    break;
-                case PolyfaceMesh mesh:
-                    doc.Entities.Remove(mesh);
-                    var corners = mesh.Vertices.Select(v => v.Location).ToList();
-                    foreach (var f in mesh.Faces)
-                    {
-                        var ids = new[] { f.Index1, f.Index2, f.Index3, f.Index4 }.Select(i => Math.Abs((int)i) - 1).Where(i => i >= 0 && i < corners.Count).ToList();
-                        if (ids.Count < 3)
-                            continue;
-                        doc.Entities.Add(new Face3D
+                var corners = mesh.Vertices.Select(v => v.Location).ToList();
+                var faces = new List<Face3D>();
+                foreach (var f in mesh.Faces)
+                {
+                    var ids = new[] { f.Index1, f.Index2, f.Index3, f.Index4 }.Select(i => Math.Abs((int)i) - 1).Where(i => i >= 0 && i < corners.Count).ToList();
+                    if (ids.Count >= 3)
+                        faces.Add(new Face3D
                         {
                             FirstCorner = corners[ids[0]], SecondCorner = corners[ids[1]], ThirdCorner = corners[ids[2]],
                             FourthCorner = corners[ids[^1]], Layer = mesh.Layer,
                         });
-                    }
-                    break;
+                }
+                record.Entities.Remove(mesh);
+                foreach (var face in faces)
+                    record.Entities.Add(face);
             }
-        }
     }
 
     /// <summary>Writes the visible model (or the selection) as a .dwg or .dxf by the path's extension; returns the
