@@ -4,7 +4,8 @@ using Godot;
 namespace Dogeometric.App.Tools;
 
 /// <summary>Camera › Image Igloo: look around from a matched photo's camera and see every photo matched from that spot
-/// around you, each where it was taken looking.</summary>
+/// around you, each where it was taken looking. Shift + arrows step through the photos in scene order, Ctrl + arrows
+/// through those taken from the same spot.</summary>
 public sealed class ImageIglooTool : Tool
 {
     private const double RadiansPerPixel = 0.0035;
@@ -16,7 +17,7 @@ public sealed class ImageIglooTool : Tool
     public override bool IsNavigation => true;
     public override string StatusText => _igloo == null
         ? "Image Igloo: go to a scene with a matched photo first."
-        : "Drag to look around the photos matched from here.";
+        : "Drag to look around the photos matched from here.  Shift + Arrow keys = next photo, Ctrl + Arrow keys = next from this spot.";
 
     public override void Activate()
     {
@@ -52,6 +53,35 @@ public sealed class ImageIglooTool : Tool
         // Looking around keeps the eye, so the photos stay lined up; the single matched photo gives way to them.
         View.ShowPhoto(null);
         RefreshStatus();
+    }
+
+    private int _photoIndex = -1;
+
+    public override bool KeyDown(InputEventKey key)
+    {
+        if (View.Document is not { } doc || key.Keycode is not (Key.Left or Key.Right or Key.Up or Key.Down) || !(key.ShiftPressed || key.CtrlPressed))
+            return false;
+        var step = key.Keycode is Key.Right or Key.Down ? 1 : -1;
+        var photos = doc.Model.Scenes.Select(s => s.Photo).OfType<MatchedPhoto>().ToList();
+        if (photos.Count == 0)
+            return false;
+        if (_photoIndex < 0)
+            _photoIndex = View.Photo is { } shown ? Math.Max(0, photos.IndexOf(shown)) : 0;
+        var here = PhotoMatch.Solve(photos[_photoIndex]);
+        // Ctrl keeps to the photos taken from (about) the same spot as the current one.
+        bool SameSpot(MatchedPhoto p) => !key.CtrlPressed || here is not { } h
+            || PhotoMatch.Solve(p) is { } c && c.Eye.DistanceTo(h.Eye) <= Math.Max(1, h.Eye.Length * 0.02);
+        for (var i = 1; i <= photos.Count; i++)
+        {
+            var next = ((_photoIndex + step * i) % photos.Count + photos.Count) % photos.Count;
+            if (!SameSpot(photos[next]) || PhotoMatch.Solve(photos[next]) is not { } camera)
+                continue;
+            _photoIndex = next;
+            View.BeginNavigation();
+            View.ChangeCamera(c => c.Restore(camera));
+            return true;
+        }
+        return true;
     }
 
     public override void Deactivate()
