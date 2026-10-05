@@ -13,7 +13,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
-| STEP import: offset surfaces and colours | Some vendor models use offset surfaces and styled colours. | Planes, cylinders, cones, spheres, tori, B-spline surfaces, surfaces of extrusion and revolution, and assemblies import (checked against FreeCAD's volumes); other faces are left out and counted. |
+| STEP import: offset surfaces | Some vendor models use offset surfaces. | Planes, cylinders, cones, spheres, tori, B-spline surfaces, surfaces of extrusion and revolution, and assemblies import (checked against FreeCAD's volumes); other faces are left out and counted. |
 | Remaining file formats | Import: IFC. COLLADA/KMZ and DWG/DXF imports flatten components into one group; COLLADA drops textures. | |
 
 ## Medium impact
@@ -44,4 +44,5 @@ DWG/DXF 3D export through ACadSharp (both checked against SketchUp 2021), DXF 3D
 against SketchUp both ways), FBX export (read by Godot's importer at true size; SketchUp's own FBX comes out 10× too
 big there), dotXSI export (same structure as SketchUp's), `.dog` previews
 saved with the file and shown in collections, Help › Welcome (templates, Open, recent files with previews), STEP import (analytic and
-B-spline surfaces, assemblies).
+B-spline surfaces, extrusions, revolutions, assemblies) and STEP colours both ways (AP214 styled items; only
+checked against our own reader, as FreeCAD loads colours only with its GUI).

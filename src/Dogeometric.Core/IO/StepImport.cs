@@ -72,6 +72,7 @@ public static class StepImport
             ReadUnits();
             var model = new Model();
             var placements = Placements();
+            var colours = Colours();
             var index = 0;
             foreach (var e in data.Values.OrderBy(e => e.Id))
             {
@@ -115,6 +116,9 @@ public static class StepImport
                 // A part placed more than once in an assembly is a component; once, a group.
                 var def = new ComponentDefinition { Name = label, IsGroup = transforms.Count == 1 };
                 var made = MeshImport.AddMerged(def.Entities, polygons);
+                foreach (var (f, key, _) in made)
+                    if (colours.TryGetValue(key is CurvedKey ck ? ck.Face : key is int id ? id : -1, out var paint))
+                        f.FrontMaterial = paint;
                 // A curved face's triangles stay apart, joined by soft, smooth edges as SketchUp shows curved surfaces.
                 var curvedOf = made.Where(m => m.Key is CurvedKey).ToDictionary(m => m.Face, m => ((CurvedKey)m.Key!).Face);
                 var users = new Dictionary<Edge, List<int>>();
@@ -129,11 +133,18 @@ public static class StepImport
                     if (sources.Count == 2 && sources[0] == sources[1])
                         edge.Flags |= EdgeFlags.Soft | EdgeFlags.Smooth;
                 model.Definitions.Add(def);
+                var solidColour = colours.GetValueOrDefault(e.Id) ?? refs.OfType<StepParser.Ref>().Select(r => colours.GetValueOrDefault(r.Id)).FirstOrDefault(c => c != null);
                 foreach (var t in transforms)
-                    model.Entities.AddInstance(def, t).Name = transforms.Count == 1 ? label : "";
+                {
+                    var instance = model.Entities.AddInstance(def, t);
+                    instance.Name = transforms.Count == 1 ? label : "";
+                    instance.Material = solidColour;
+                }
             }
             if (model.Definitions.Count == 0)
                 throw new InvalidDataException($"no B-rep solids or shells in {name}");
+            foreach (var m in colours.Values.Distinct())
+                model.Materials.Add(m);
             return new Result(model, _faces, _skipped);
         }
 
@@ -196,6 +207,61 @@ public static class StepImport
                         var g = Root(rep.Id);
                         result[item.Id] = (names.GetValueOrDefault(g) ?? (solid.Args[0] is string s && s.Length > 0 ? s : $"Solid{item.Id}"), World(g, 0));
                     }
+            return result;
+        }
+
+        /// <summary>The colours styled items give faces, shells and solids (STYLED_ITEM → … → COLOUR_RGB), one material
+        /// per distinct colour.</summary>
+        private Dictionary<int, Material> Colours()
+        {
+            var materials = new Dictionary<Rgba, Material>();
+            var result = new Dictionary<int, Material>();
+            (Rgba Colour, string Name)? Find(object? node, int depth)
+            {
+                if (depth > 10)
+                    return null;
+                if (node is List<object?> list)
+                    return list.Select(x => Find(x, depth + 1)).FirstOrDefault(x => x != null);
+                if (node is not StepParser.Ref r || !data.TryGetValue(r.Id, out var e))
+                    return null;
+                byte B(object? v) => (byte)Math.Round(Math.Clamp(D(v), 0, 1) * 255);
+                switch (e.Type)
+                {
+                    case "COLOUR_RGB":
+                        return (new Rgba(B(e.Args[1]), B(e.Args[2]), B(e.Args[3])), e.Args[0] as string ?? "");
+                    case "DRAUGHTING_PRE_DEFINED_COLOUR":
+                        var named = (e.Args[0] as string ?? "").ToLowerInvariant() switch
+                        {
+                            "red" => new Rgba(255, 0, 0),
+                            "green" => new Rgba(0, 255, 0),
+                            "blue" => new Rgba(0, 0, 255),
+                            "yellow" => new Rgba(255, 255, 0),
+                            "magenta" => new Rgba(255, 0, 255),
+                            "cyan" => new Rgba(0, 255, 255),
+                            "black" => new Rgba(0, 0, 0),
+                            _ => new Rgba(255, 255, 255),
+                        };
+                        return (named, e.Args[0] as string ?? "");
+                    case "SURFACE_STYLE_USAGE":
+                        return Find(e.Args[1], depth + 1);
+                    case "SURFACE_STYLE_RENDERING" or "SURFACE_STYLE_RENDERING_WITH_PROPERTIES":
+                        return Find(e.Args[1], depth + 1);
+                    default:
+                        // Styles nest colours in their arguments: look through all of them.
+                        return e.Args.Select(a => Find(a, depth + 1)).FirstOrDefault(x => x != null);
+                }
+            }
+            foreach (var item in data.Values.Where(e => e.Type is "STYLED_ITEM" or "OVER_RIDING_STYLED_ITEM"))
+            {
+                if (item.Args.Count < 3 || item.Args[2] is not StepParser.Ref target || Find(item.Args[1], 0) is not { } found)
+                    continue;
+                if (!materials.TryGetValue(found.Colour, out var material))
+                {
+                    var c = found.Colour;
+                    materials[c] = material = new Material { Name = found.Name.Length > 0 ? found.Name : $"Color_{c.R:X2}{c.G:X2}{c.B:X2}", Color = c };
+                }
+                result[target.Id] = material;
+            }
             return result;
         }
 

@@ -75,7 +75,8 @@ public static class StepWriter
 
         var root = options.SelectionContext ?? model.Entities;
         var rootXf = options.SelectionContext != null ? options.SelectionContextTransform : Transform.Identity;
-        foreach (var (entities, xf) in Visible(root, rootXf, options.Selection))
+        var painted = new List<(int Face, Material Material)>();
+        foreach (var (entities, xf, inherited) in Visible(root, rootXf, null, options.Selection))
         {
             var faces = entities.Faces.Where(f => !f.Hidden && f.Tag is not { Visible: false }
                 && (entities != root || options.Selection == null || options.Selection.Contains(f))).ToList();
@@ -122,6 +123,8 @@ public static class StepWriter
                     var refDir = world[1] - world[0];
                     var plane = d.Add($"PLANE('',#{Placement(world[0], normal, refDir)})");
                     stepFaces.Add(d.Add($"ADVANCED_FACE('',({string.Join(",", bounds.Select(b => "#" + b))}),#{plane},.T.)"));
+                    if ((face.FrontMaterial ?? inherited) is { } material)
+                        painted.Add((stepFaces[^1], material));
                 }
                 if (stepFaces.Count == 0)
                     continue;
@@ -142,6 +145,26 @@ public static class StepWriter
         var representation = d.Add($"SHAPE_REPRESENTATION('',({string.Join(",", items.Select(i => "#" + i))}),#{geometryContext})");
         d.Add($"SHAPE_DEFINITION_REPRESENTATION(#{shape},#{representation})");
 
+        // Face colours as AP214 writes them: a styled item per face, sharing one style per material.
+        if (painted.Count > 0)
+        {
+            var styles = new Dictionary<Material, int>();
+            var styled = new List<int>();
+            foreach (var (face, material) in painted)
+            {
+                if (!styles.TryGetValue(material, out var style))
+                {
+                    var c = material.Color;
+                    var colour = d.Add($"COLOUR_RGB({Text(material.Name)},{N(c.R / 255.0)},{N(c.G / 255.0)},{N(c.B / 255.0)})");
+                    var fill = d.Add($"FILL_AREA_STYLE('',(#{d.Add($"FILL_AREA_STYLE_COLOUR('',#{colour})")}))");
+                    var side = d.Add($"SURFACE_SIDE_STYLE('',(#{d.Add($"SURFACE_STYLE_FILL_AREA(#{fill})")}))");
+                    styles[material] = style = d.Add($"PRESENTATION_STYLE_ASSIGNMENT((#{d.Add($"SURFACE_STYLE_USAGE(.BOTH.,#{side})")}))");
+                }
+                styled.Add(d.Add($"STYLED_ITEM('color',(#{style}),#{face})"));
+            }
+            d.Add($"MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION('',({string.Join(",", styled.Select(i => "#" + i))}),#{geometryContext})");
+        }
+
         var stamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
         output.Write("ISO-10303-21;\nHEADER;\n");
         output.Write($"FILE_DESCRIPTION(('Dogeometric model'),'2;1');\n");
@@ -152,12 +175,12 @@ public static class StepWriter
         return new Result(solids, surfaces);
     }
 
-    /// <summary>Every visible collection with its world placement, nested groups and components included.</summary>
-    private static IEnumerable<(Entities, Transform)> Visible(Entities e, Transform xf, IReadOnlySet<object>? only = null)
+    /// <summary>Every visible collection with its world placement and the material its instances paint it with.</summary>
+    private static IEnumerable<(Entities, Transform, Material?)> Visible(Entities e, Transform xf, Material? inherited, IReadOnlySet<object>? only = null)
     {
-        yield return (e, xf);
+        yield return (e, xf, inherited);
         foreach (var i in e.Instances.Where(i => !i.Hidden && i.Tag is not { Visible: false } && (only == null || only.Contains(i))))
-            foreach (var nested in Visible(i.Definition.Entities, i.Transform.Then(xf)))
+            foreach (var nested in Visible(i.Definition.Entities, i.Transform.Then(xf), i.Material ?? inherited))
                 yield return nested;
     }
 

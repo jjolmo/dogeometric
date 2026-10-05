@@ -65,4 +65,23 @@ public class StepImportTests
         Assert.Equal(12, back.Faces);
         Assert.Equal(10 * 20 * 30 + 125, MeshCheck.Analyze(MeshExtractor.Extract(back.Model)).Volume, 3);
     }
+
+    [Fact]
+    public void Colours_go_out_and_come_back()
+    {
+        var (model, a, b) = TestModels.TwoBoxGroups();
+        a.Material = new Material { Name = "Housing", Color = new Rgba(20, 40, 200) };
+        var lid = b.Definition.Entities.Faces[0];
+        lid.FrontMaterial = new Material { Name = "Red", Color = new Rgba(220, 0, 0) };
+        using var w = new StringWriter();
+        StepWriter.Write(model, w);
+        var step = w.ToString();
+        Assert.Equal(7, step.Split("STYLED_ITEM(").Length - 1);
+
+        var back = StepImport.Read(step, "colours").Model;
+        var faces = back.AllEntities.SelectMany(e => e.Faces).ToList();
+        Assert.Equal(6, faces.Count(f => f.FrontMaterial?.Color == new Rgba(20, 40, 200)));
+        Assert.Single(faces, f => f.FrontMaterial?.Color == new Rgba(220, 0, 0));
+        Assert.Contains(back.Materials, m => m.Name == "Housing");
+    }
 }
