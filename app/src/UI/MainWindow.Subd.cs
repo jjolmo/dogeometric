@@ -13,6 +13,62 @@ public partial class MainWindow
     private Window? _subdInfo;
     private Action _refreshTagList = () => { };
 
+    /// <summary>The Shadows toolbar's date (day of the year) or time of day slider, with its value beside it.</summary>
+    private Control ShadowSlider(bool date)
+    {
+        var row = new HBoxContainer();
+        row.AddChild(new Label { Text = date ? "Date" : "Time", Modulate = new Color(0.35f, 0.35f, 0.35f) });
+        var slider = new HSlider
+        {
+            MinValue = date ? 1 : 0, MaxValue = date ? 365 : 24 * 60 - 1, Step = 1,
+            CustomMinimumSize = new Vector2(date ? 120 : 110, 24), FocusMode = Control.FocusModeEnum.None, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        var value = new Label { CustomMinimumSize = new Vector2(48, 0) };
+        row.AddChild(slider);
+        row.AddChild(value);
+        var updating = false;
+        DateTime At(double v, DateTime t) => date
+            ? new DateTime(t.Year, 1, 1).AddDays(v - 1).Add(t.TimeOfDay)
+            : t.Date.AddMinutes(v);
+        void Show()
+        {
+            var t = _document.Model.Shadows.Time;
+            updating = true;
+            slider.Value = date ? t.DayOfYear : t.Hour * 60 + t.Minute;
+            updating = false;
+            value.Text = date ? t.ToString("MM/dd") : t.ToString("HH:mm");
+        }
+        slider.ValueChanged += v =>
+        {
+            if (updating)
+                return;
+            var model = _document.Model;
+            var undo = _document.Document.Undo;
+            var single = !undo.IsPending;
+            if (single)
+                undo.Begin("Shadows");
+            value.Text = date ? At(v, model.Shadows.Time).ToString("MM/dd") : At(v, model.Shadows.Time).ToString("HH:mm");
+            model.Shadows = model.Shadows with { Time = At(v, model.Shadows.Time) };
+            if (single)
+                undo.Commit();
+            _document.ApplyShadows();
+        };
+        // One undo step for the whole drag.
+        slider.DragStarted += () => _document.Document.Undo.Begin("Shadows");
+        slider.DragEnded += _ =>
+        {
+            if (_document.Document.Undo.IsPending)
+                _document.Document.Undo.Commit();
+        };
+        _document.ShadowsChanged += () =>
+        {
+            if (GodotObject.IsInstanceValid(slider))
+                Show();
+        };
+        Show();
+        return row;
+    }
+
     /// <summary>The Tags toolbar's list: the selection's tag, and choosing one moves the selection to it.</summary>
     private Control TagList()
     {
@@ -95,6 +151,8 @@ public partial class MainWindow
         (_commands.Get(OwnIds.TagsPanel).Label, _commands.Get(OwnIds.TagsPanel).Description) = ("Tags", "Show the Tags panel.");
         _commands.Register(OwnIds.TagsPanel, () => _panels["Tags"].Expand());
         Toolbar.Widgets[OwnIds.TagList] = TagList;
+        Toolbar.Widgets[OwnIds.ShadowDate] = () => ShadowSlider(date: true);
+        Toolbar.Widgets[OwnIds.ShadowTime] = () => ShadowSlider(date: false);
         _commands.Register(ExtensionIds.SplineVertexMarks, () =>
         {
             BezierSplineTool.VertexMarks = !BezierSplineTool.VertexMarks;

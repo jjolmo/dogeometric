@@ -129,5 +129,9 @@ public static class OwnIds
 
     /// <summary>The Tags toolbar: its tag list and the button that shows the Tags panel.</summary>
     public const int TagList = 95006;
+
+    /// <summary>The Shadows toolbar's date and time sliders.</summary>
+    public const int ShadowDate = 95008;
+    public const int ShadowTime = 95009;
     public const int TagsPanel = 95007;
 }

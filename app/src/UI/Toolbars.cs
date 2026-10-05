@@ -12,7 +12,7 @@ public static class Toolbars
     public static readonly int[] SolidTools = [24198, 24200, 24201, 24202, 24203, 24204];
     public static readonly int[] Section = [21337, 21347, 21348, 21349];
     public static readonly int[] Tags = [Commands.OwnIds.TagList, Commands.OwnIds.TagsPanel];
-    public static readonly int[] Shadows = [Commands.OwnIds.ShadowSettings, 10602];
+    public static readonly int[] Shadows = [Commands.OwnIds.ShadowSettings, 10602, Commands.OwnIds.ShadowDate, Commands.OwnIds.ShadowTime];
 
     // Extension toolbars.
     public static readonly int[] SolidInspector = [Commands.ExtensionIds.SolidInspector];
