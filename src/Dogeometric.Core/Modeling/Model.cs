@@ -184,6 +184,36 @@ public sealed record ModelOptions
 /// <summary>SketchUp's dimension endpoint styles.</summary>
 public enum DimensionEndpoint { None, Slash, Dot, ClosedArrow, OpenArrow }
 
+/// <summary>Model Info › Dimensions › Align to dimension line: where the text sits.</summary>
+public enum DimensionTextPosition { Above, Centered, Outside }
+
+/// <summary>
+/// How a dimension is drawn (Model Info › Dimensions). New dimensions take the model's; Update Selected Dimensions
+/// gives selected ones the current settings, as in SketchUp.
+/// </summary>
+public sealed record DimensionStyle
+{
+    /// <summary>Font family; empty for the interface font.</summary>
+    public string Font { get; init; } = "";
+    public int FontSize { get; init; } = 12;
+    public Rgba Color { get; init; } = new(0, 0, 0);
+    public DimensionEndpoint Endpoints { get; init; } = DimensionEndpoint.ClosedArrow;
+    public bool AlignToScreen { get; init; } = true;
+    public DimensionTextPosition Position { get; init; } = DimensionTextPosition.Above;
+    public bool ShowRadialPrefix { get; init; } = true;
+}
+
+/// <summary>Model Info › Dimensions › Expert Dimension Settings: dimensions hidden when seen badly.</summary>
+public sealed record DimensionDisplay
+{
+    public bool HideForeshortened { get; init; } = true;
+    /// <summary>Hidden below this share of their true on-screen length.</summary>
+    public double ForeshortenedLimit { get; init; } = 0.2;
+    public bool HideSmall { get; init; } = true;
+    /// <summary>Hidden below this length on screen, in pixels.</summary>
+    public int SmallPixels { get; init; } = 8;
+}
+
 /// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
 public sealed class Model
 {
@@ -196,9 +226,11 @@ public sealed class Model
     public int UnitPrecision { get; set; } = 1;
     public ShadowSettings Shadows { get; set; } = new();
 
-    /// <summary>Model Info › Dimensions and Text: text sizes (points) and how dimension lines end.</summary>
-    public int DimensionFontSize { get; set; } = 12;
-    public DimensionEndpoint DimensionEndpoints { get; set; } = DimensionEndpoint.ClosedArrow;
+    /// <summary>Model Info › Dimensions: the style new dimensions take, and when dimensions hide.</summary>
+    public DimensionStyle Dimensions { get; set; } = new();
+    public DimensionDisplay DimensionDisplay { get; set; } = new();
+
+    /// <summary>Model Info › Text: text size in points.</summary>
     public int TextFontSize { get; set; } = 12;
 
     /// <summary>Model Info › Animation: scene transitions (and their length in seconds) and the pause on each scene.</summary>

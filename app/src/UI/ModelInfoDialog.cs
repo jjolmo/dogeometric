@@ -216,15 +216,95 @@ public partial class ModelInfoDialog : AcceptDialog
     private void Dimensions()
     {
         var model = _doc.Model;
+        void Style(Func<DimensionStyle, DimensionStyle> change) => Set("Dimensions", () => model.Dimensions = change(model.Dimensions));
+        void Display(Func<DimensionDisplay, DimensionDisplay> change) => Set("Dimensions", () => model.DimensionDisplay = change(model.DimensionDisplay));
+        _pane.AddChild(new Label { Text = "Text", ThemeTypeVariation = "HeaderSmall" });
         var grid = Grid();
-        Number(grid, "Text size", model.DimensionFontSize, 6, 72, 1, "pt").ValueChanged += v => Set("Dimensions", () => model.DimensionFontSize = (int)v);
-        grid.AddChild(new Label { Text = "Endpoints" });
+        grid.AddChild(new Label { Text = "Font" });
+        grid.AddChild(FontChoice(model.Dimensions.Font, f => Style(s => s with { Font = f })));
+        Number(grid, "Size", model.Dimensions.FontSize, 6, 72, 1, "pt").ValueChanged += v => Style(s => s with { FontSize = (int)v });
+        grid.AddChild(new Label { Text = "Color" });
+        var color = new ColorPickerButton { Color = Color.Color8(model.Dimensions.Color.R, model.Dimensions.Color.G, model.Dimensions.Color.B), EditAlpha = false, CustomMinimumSize = new Vector2(48, 22) };
+        color.PopupClosed += () => Style(s => s with { Color = new Rgba((byte)color.Color.R8, (byte)color.Color.G8, (byte)color.Color.B8) });
+        grid.AddChild(color);
+
+        _pane.AddChild(new Label { Text = "Leader Lines", ThemeTypeVariation = "HeaderSmall" });
+        var leaders = Grid();
+        leaders.AddChild(new Label { Text = "Endpoints" });
         var ends = new OptionButton();
         foreach (var e in Enum.GetValues<DimensionEndpoint>())
             ends.AddItem(e switch { DimensionEndpoint.ClosedArrow => "Closed Arrow", DimensionEndpoint.OpenArrow => "Open Arrow", _ => e.ToString() }, (int)e);
-        ends.Select((int)model.DimensionEndpoints);
-        ends.ItemSelected += i => Set("Dimensions", () => model.DimensionEndpoints = (DimensionEndpoint)ends.GetItemId((int)i));
-        grid.AddChild(ends);
+        ends.Select((int)model.Dimensions.Endpoints);
+        ends.ItemSelected += i => Style(s => s with { Endpoints = (DimensionEndpoint)ends.GetItemId((int)i) });
+        leaders.AddChild(ends);
+
+        _pane.AddChild(new Label { Text = "Dimension", ThemeTypeVariation = "HeaderSmall" });
+        var group = new ButtonGroup();
+        var screen = new CheckBox { Text = "Align to screen", ButtonGroup = group, ButtonPressed = model.Dimensions.AlignToScreen };
+        var line = new CheckBox { Text = "Align to dimension line", ButtonGroup = group, ButtonPressed = !model.Dimensions.AlignToScreen };
+        var position = new OptionButton();
+        foreach (var p in Enum.GetValues<DimensionTextPosition>())
+            position.AddItem(p.ToString(), (int)p);
+        position.Select((int)model.Dimensions.Position);
+        position.Disabled = model.Dimensions.AlignToScreen;
+        screen.Toggled += on =>
+        {
+            position.Disabled = on;
+            Style(s => s with { AlignToScreen = on });
+        };
+        position.ItemSelected += i => Style(s => s with { Position = (DimensionTextPosition)i });
+        _pane.AddChild(screen);
+        var lineRow = new HBoxContainer();
+        lineRow.AddChild(line);
+        lineRow.AddChild(position);
+        _pane.AddChild(lineRow);
+        var prefix = new CheckBox { Text = "Show radius/diameter prefix", ButtonPressed = model.Dimensions.ShowRadialPrefix };
+        prefix.Toggled += on => Style(s => s with { ShowRadialPrefix = on });
+        _pane.AddChild(prefix);
+
+        var row = new HBoxContainer();
+        var selectAll = new Button { Text = "Select all dimensions" };
+        selectAll.Pressed += () => _doc.Selection.Set(_doc.Context.Entities.Dimensions.Where(d => !d.Hidden));
+        row.AddChild(selectAll);
+        var update = new Button { Text = "Update selected dimensions" };
+        update.Pressed += () =>
+        {
+            var chosen = _doc.Selection.Items.OfType<LinearDimension>().ToList();
+            if (chosen.Count > 0)
+                _doc.Operation("Update Dimensions", _ => chosen.ForEach(d => d.Style = model.Dimensions));
+        };
+        row.AddChild(update);
+        _pane.AddChild(row);
+
+        _pane.AddChild(new Label { Text = "Expert Dimension Settings", ThemeTypeVariation = "HeaderSmall" });
+        var foreshortened = new CheckBox { Text = "Hide when foreshortened", ButtonPressed = model.DimensionDisplay.HideForeshortened };
+        foreshortened.Toggled += on => Display(d => d with { HideForeshortened = on });
+        _pane.AddChild(foreshortened);
+        var limit = new HSlider { MinValue = 0.05, MaxValue = 0.9, Step = 0.05, Value = model.DimensionDisplay.ForeshortenedLimit, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        limit.DragEnded += changed =>
+        {
+            if (changed)
+                Display(d => d with { ForeshortenedLimit = limit.Value });
+        };
+        _pane.AddChild(limit);
+        var small = new CheckBox { Text = "Hide when too small", ButtonPressed = model.DimensionDisplay.HideSmall };
+        small.Toggled += on => Display(d => d with { HideSmall = on });
+        _pane.AddChild(small);
+        var expert = Grid();
+        Number(expert, "Smaller than", model.DimensionDisplay.SmallPixels, 1, 200, 1, "px").ValueChanged += v => Display(d => d with { SmallPixels = (int)v });
+    }
+
+    /// <summary>The system's font families, the interface font first.</summary>
+    private static OptionButton FontChoice(string current, Action<string> chosen)
+    {
+        var list = new OptionButton { FitToLongestItem = false, CustomMinimumSize = new Vector2(200, 0) };
+        list.AddItem("(Default)");
+        var fonts = OS.GetSystemFonts().Distinct().Order().ToList();
+        foreach (var f in fonts)
+            list.AddItem(f);
+        list.Select(Math.Max(0, fonts.IndexOf(current) + 1));
+        list.ItemSelected += i => chosen(i == 0 ? "" : fonts[(int)i - 1]);
+        return list;
     }
 
     private void Text()

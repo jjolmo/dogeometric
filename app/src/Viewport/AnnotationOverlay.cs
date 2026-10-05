@@ -20,6 +20,18 @@ public sealed class AnnotationOverlay
 
     private static Color ToColor(Rgba c) => Color.Color8(c.R, c.G, c.B);
 
+    private static readonly Dictionary<string, Font> Fonts = [];
+
+    /// <summary>A system font by family name (Model Info's font), or null for the interface font.</summary>
+    public static Font? FontNamed(string name)
+    {
+        if (name.Length == 0)
+            return null;
+        if (!Fonts.TryGetValue(name, out var f))
+            Fonts[name] = f = new SystemFont { FontNames = [name] };
+        return f;
+    }
+
     public void Draw(ModelViewport view, Control canvas)
     {
         _drawn.Clear();
@@ -91,8 +103,21 @@ public sealed class AnnotationOverlay
         if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } p1 || view.ToScreen(xf.ApplyPoint(d.End)) is not { } p2 ||
             view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } q1 || view.ToScreen(xf.ApplyPoint(d.End + d.Offset)) is not { } q2)
             return;
-        var color = doc.Selection.Contains(d) ? _selected : Ink;
+        var model = doc.Model;
+        var style = d.Style ?? model.Dimensions;
+        var dimLength = (q2 - q1).Length();
+        if (model.DimensionDisplay.HideSmall && dimLength < model.DimensionDisplay.SmallPixels)
+            return;
+        if (model.DimensionDisplay.HideForeshortened && d.Length > 1e-9)
+        {
+            var mid3 = xf.ApplyPoint(d.Start + d.Offset + (d.End - d.Start) * 0.5);
+            var expected = d.Length * xf.ApplyVector((d.End - d.Start).Normalized()).Length / view.Camera.WorldPerPixel(view.Size.Y, view.Camera.DepthOf(mid3));
+            if (dimLength < expected * model.DimensionDisplay.ForeshortenedLimit)
+                return;
+        }
+        var color = doc.Selection.Contains(d) ? _selected : ToColor(style.Color);
         var lines = new List<(Vector2, Vector2)>();
+        font = FontNamed(style.Font) ?? font;
 
         // Extension lines run from the measured points past the dimension line by a few pixels.
         foreach (var (p, q) in new[] { (p1, q1), (p2, q2) })
@@ -101,23 +126,62 @@ public sealed class AnnotationOverlay
             canvas.DrawLine(p, q + dir * 4, color, 1, true);
             lines.Add((p, q));
         }
-        canvas.DrawLine(q1, q2, color, 1, true);
         lines.Add((q1, q2));
-        if ((q2 - q1).Length() > 2 * ArrowLength)
+        if (dimLength > 2 * ArrowLength)
         {
-            Endpoint(canvas, q1, (q1 - q2).Normalized(), color, doc.Model.DimensionEndpoints);
-            Endpoint(canvas, q2, (q2 - q1).Normalized(), color, doc.Model.DimensionEndpoints);
+            Endpoint(canvas, q1, (q1 - q2).Normalized(), color, style.Endpoints);
+            Endpoint(canvas, q2, (q2 - q1).Normalized(), color, style.Endpoints);
         }
 
-        var model = doc.Model;
-        var fontSize = Pixels(model.DimensionFontSize);
+        var fontSize = Pixels(style.FontSize);
         var measured = Length.Format(d.Length, model.Units, model.UnitPrecision);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
         var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var mid = (q1 + q2) / 2;
-        // Screen-aligned text centred over the middle of the dimension line.
-        var box = new Rect2(mid - new Vector2(size.X / 2, size.Y + 2), size);
-        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, fontSize, color);
+        Rect2 box;
+        if (style.AlignToScreen)
+        {
+            // Screen-aligned text centred over the middle of the dimension line.
+            canvas.DrawLine(q1, q2, color, 1, true);
+            box = new Rect2(mid - new Vector2(size.X / 2, size.Y + 2), size);
+            canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, fontSize, color);
+        }
+        else
+        {
+            // Along the line, kept readable (never upside down).
+            var along = dimLength > 1e-3 ? (q2 - q1) / dimLength : Vector2.Right;
+            if (along.X < 0)
+                along = -along;
+            var normal = new Vector2(along.Y, -along.X);
+            var away = mid - (p1 + p2) / 2;
+            var side = style.Position switch
+            {
+                DimensionTextPosition.Centered => 0f,
+                DimensionTextPosition.Outside => away.Dot(normal) >= 0 ? 1f : -1f,
+                _ => 1f,
+            };
+            var centre = mid + normal * side * (size.Y / 2 + 2);
+            if (style.Position == DimensionTextPosition.Centered)
+            {
+                // The line breaks around centred text.
+                var gap = size.X / 2 + 3;
+                if (dimLength > 2 * gap)
+                {
+                    var dirLine = (q2 - q1) / dimLength;
+                    canvas.DrawLine(q1, mid - dirLine * gap, color, 1, true);
+                    canvas.DrawLine(mid + dirLine * gap, q2, color, 1, true);
+                }
+            }
+            else
+            {
+                canvas.DrawLine(q1, q2, color, 1, true);
+            }
+            canvas.DrawSetTransform(centre, along.Angle());
+            canvas.DrawString(font, new Vector2(-size.X / 2, size.Y / 2 - 3), text, HorizontalAlignment.Left, -1, fontSize, color);
+            canvas.DrawSetTransform(Vector2.Zero, 0);
+            var half = new Vector2(Math.Abs(along.X) * size.X + Math.Abs(along.Y) * size.Y, Math.Abs(along.Y) * size.X + Math.Abs(along.X) * size.Y) / 2;
+            box = new Rect2(centre - half, half * 2);
+        }
         _drawn.Add((d, owners, box, [.. lines]));
     }
 
@@ -126,13 +190,15 @@ public sealed class AnnotationOverlay
     {
         if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } tip || view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } end)
             return;
-        var color = doc.Selection.Contains(d) ? _selected : Ink;
+        var model = doc.Model;
+        var style = d.Style ?? model.Dimensions;
+        var color = doc.Selection.Contains(d) ? _selected : ToColor(style.Color);
+        font = FontNamed(style.Font) ?? font;
         canvas.DrawLine(tip, end, color, 1, true);
         if ((end - tip).Length() > ArrowLength)
-            Endpoint(canvas, tip, (tip - end).Normalized(), color, doc.Model.DimensionEndpoints);
-        var model = doc.Model;
-        var fontSize = Pixels(model.DimensionFontSize);
-        var measured = d.Prefix + Length.Format(d.Length, model.Units, model.UnitPrecision);
+            Endpoint(canvas, tip, (tip - end).Normalized(), color, style.Endpoints);
+        var fontSize = Pixels(style.FontSize);
+        var measured = (style.ShowRadialPrefix ? d.Prefix : "") + Length.Format(d.Length, model.Units, model.UnitPrecision);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
         var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var left = end.X < tip.X;

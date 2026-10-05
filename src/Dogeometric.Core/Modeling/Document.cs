@@ -373,7 +373,7 @@ public static class Transforming
 
         foreach (var d in list.OfType<LinearDimension>())
         {
-            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag };
+            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag, Kind = d.Kind, Style = d.Style };
             e.Dimensions.Add(c);
             copies.Add(c);
         }
@@ -486,7 +486,7 @@ public static class Grouping
         }
         foreach (var d in src.Dimensions)
         {
-            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag, Hidden = d.Hidden };
+            var c = new LinearDimension(t.ApplyPoint(d.Start), t.ApplyPoint(d.End), t.ApplyVector(d.Offset)) { Text = d.Text, Tag = d.Tag, Hidden = d.Hidden, Kind = d.Kind, Style = d.Style };
             dst.Dimensions.Add(c);
             created.Add(c);
         }

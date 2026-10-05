@@ -137,10 +137,10 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (int, DimensionEndpoint, int) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, int) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
         (string Name, Rgba Color, double Opacity, TextureImage? Texture)[] MaterialState, StyleSettings Style)
     {
-        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.DimensionFontSize, m.DimensionEndpoints, m.TextFontSize), m.Options,
+        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.TextFontSize), m.Options,
             m.Tags.Select(t => (t.Color, t.Dashes)).ToArray(),
             m.Definitions.Select(d => d.Attributes.Select(a => (a.Name, a.Value, a.UserCanEdit)).ToArray()).ToArray(),
             m.Materials.Select(x => (x.Name, x.Color, x.Opacity, x.Texture)).ToArray(), m.Style);
@@ -155,7 +155,7 @@ public sealed class UndoStack(Model model)
             m.UnitPrecision = Precision;
             m.Shadows = Shadows;
             m.ShowSectionFill = SectionFill;
-            (m.DimensionFontSize, m.DimensionEndpoints, m.TextFontSize) = Annotation;
+            (m.Dimensions, m.DimensionDisplay, m.TextFontSize) = Annotation;
             m.Options = Options;
             // The View menu's switches change outside operations, so undo keeps them as they are.
             m.Style = Style.WithViewOf(m.Style);
@@ -191,7 +191,7 @@ public sealed class UndoStack(Model model)
         private ComponentInstance[] _instances = [];
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
-        private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden, DimensionKind Kind)[] _dimensions = [];
+        private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden, DimensionKind Kind, DimensionStyle? Style)[] _dimensions = [];
         private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, string Symbol, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
         private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
@@ -214,7 +214,7 @@ public sealed class UndoStack(Model model)
             _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked, i.GluedTo)).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
-            _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind)).ToArray(),
+            _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind, d.Style)).ToArray(),
             _sections = e.SectionPlanes.Select(s => (s, s.Point, s.Normal, s.Name, s.Symbol, s.Tag, s.Hidden)).ToArray(),
             _activeSection = e.ActiveSection,
             _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden)).ToArray(),
@@ -234,7 +234,7 @@ public sealed class UndoStack(Model model)
             foreach (var (g, pos) in _guidePoints)
                 g.Position = pos;
             Replace(_target.Dimensions, _dimensions.Select(d => d.Dim).ToArray());
-            foreach (var (d, start, end, offset, text, tag, hidden, kind) in _dimensions)
+            foreach (var (d, start, end, offset, text, tag, hidden, kind, style) in _dimensions)
             {
                 d.Start = start;
                 d.End = end;
@@ -243,6 +243,7 @@ public sealed class UndoStack(Model model)
                 d.Tag = tag;
                 d.Hidden = hidden;
                 d.Kind = kind;
+                d.Style = style;
             }
             Replace(_target.SectionPlanes, _sections.Select(s => s.Plane).ToArray());
             foreach (var (s, point, normal, name, symbol, tag, hidden) in _sections)

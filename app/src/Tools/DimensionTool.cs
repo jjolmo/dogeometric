@@ -38,6 +38,7 @@ public sealed class DimensionTool : DrawingTool
         if (_radial is { } radial)
         {
             radial.Offset = RadialOffset(doc, radial);
+            radial.Style = doc.Model.Dimensions;
             doc.Operation("Dimension", ent => ent.Dimensions.Add(radial));
             _radial = null;
             RefreshStatus();
@@ -127,7 +128,7 @@ public sealed class DimensionTool : DrawingTool
         var s = toLocal.ApplyPoint(_start!.Value);
         var e = toLocal.ApplyPoint(_end!.Value);
         var offset = toLocal.ApplyVector(Offset());
-        doc.Operation("Dimension", ent => ent.Dimensions.Add(new LinearDimension(s, e, offset)));
+        doc.Operation("Dimension", ent => ent.Dimensions.Add(new LinearDimension(s, e, offset) { Style = doc.Model.Dimensions }));
         _start = null;
         _end = null;
         ResetLocks();

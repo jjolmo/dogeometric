@@ -81,8 +81,11 @@ public static class DogFile
                 w.WriteString("fogColor", $"{fog.R},{fog.G},{fog.B}");
             w.WriteEndObject();
             w.WriteStartObject("annotation");
-            w.WriteNumber("dimensionFontSize", model.DimensionFontSize);
-            w.WriteString("dimensionEndpoints", model.DimensionEndpoints.ToString());
+            WriteDimensionStyle(w, "dimensionStyle", model.Dimensions);
+            w.WriteBoolean("hideForeshortened", model.DimensionDisplay.HideForeshortened);
+            w.WriteNumber("foreshortenedLimit", model.DimensionDisplay.ForeshortenedLimit);
+            w.WriteBoolean("hideSmall", model.DimensionDisplay.HideSmall);
+            w.WriteNumber("smallPixels", model.DimensionDisplay.SmallPixels);
             w.WriteNumber("textFontSize", model.TextFontSize);
             w.WriteEndObject();
             w.WriteStartObject("animation");
@@ -362,6 +365,34 @@ public static class DogFile
         };
     }
 
+    private static void WriteDimensionStyle(Utf8JsonWriter w, string name, DimensionStyle s)
+    {
+        w.WriteStartObject(name);
+        w.WriteString("font", s.Font);
+        w.WriteNumber("fontSize", s.FontSize);
+        w.WriteString("color", RgbaText(s.Color));
+        w.WriteString("endpoints", s.Endpoints.ToString());
+        w.WriteBoolean("alignToScreen", s.AlignToScreen);
+        w.WriteString("position", s.Position.ToString());
+        w.WriteBoolean("radialPrefix", s.ShowRadialPrefix);
+        w.WriteEndObject();
+    }
+
+    private static DimensionStyle ReadDimensionStyle(JsonElement j)
+    {
+        var d = new DimensionStyle();
+        return new DimensionStyle
+        {
+            Font = j.TryGetProperty("font", out var f) ? f.GetString() ?? "" : d.Font,
+            FontSize = j.TryGetProperty("fontSize", out var fs) ? fs.GetInt32() : d.FontSize,
+            Color = ReadRgba(j, "color", d.Color),
+            Endpoints = j.TryGetProperty("endpoints", out var e) && Enum.TryParse<DimensionEndpoint>(e.GetString(), out var end) ? end : d.Endpoints,
+            AlignToScreen = j.TryGetProperty("alignToScreen", out var a) ? a.GetBoolean() : d.AlignToScreen,
+            Position = j.TryGetProperty("position", out var p) && Enum.TryParse<DimensionTextPosition>(p.GetString(), out var pos) ? pos : d.Position,
+            ShowRadialPrefix = j.TryGetProperty("radialPrefix", out var r) ? r.GetBoolean() : d.ShowRadialPrefix,
+        };
+    }
+
     private static Watermark ReadWatermark(JsonElement j)
     {
         var d = new Watermark();
@@ -576,6 +607,8 @@ public static class DogFile
                     w.WriteString("text", d.Text);
                 if (d.Kind != DimensionKind.Linear)
                     w.WriteString("kind", d.Kind.ToString());
+                if (d.Style is { } ds)
+                    WriteDimensionStyle(w, "style", ds);
                 w.WriteNumber("tag", Ref(tags, d.Tag));
                 if (d.Hidden)
                     w.WriteBoolean("hidden", true);
@@ -674,8 +707,21 @@ public static class DogFile
         };
         if (r.TryGetProperty("annotation", out var ann))
         {
-            model.DimensionFontSize = ann.TryGetProperty("dimensionFontSize", out var dfs) ? dfs.GetInt32() : 12;
-            model.DimensionEndpoints = ann.TryGetProperty("dimensionEndpoints", out var de) && Enum.TryParse<DimensionEndpoint>(de.GetString(), out var end) ? end : DimensionEndpoint.ClosedArrow;
+            // Older files kept only the size and endpoints.
+            var style = ann.TryGetProperty("dimensionStyle", out var ds) ? ReadDimensionStyle(ds) : new DimensionStyle();
+            if (ann.TryGetProperty("dimensionFontSize", out var dfs))
+                style = style with { FontSize = dfs.GetInt32() };
+            if (ann.TryGetProperty("dimensionEndpoints", out var de) && Enum.TryParse<DimensionEndpoint>(de.GetString(), out var end))
+                style = style with { Endpoints = end };
+            model.Dimensions = style;
+            var display = new DimensionDisplay();
+            model.DimensionDisplay = display with
+            {
+                HideForeshortened = ann.TryGetProperty("hideForeshortened", out var hf) ? hf.GetBoolean() : display.HideForeshortened,
+                ForeshortenedLimit = ann.TryGetProperty("foreshortenedLimit", out var fl) ? fl.GetDouble() : display.ForeshortenedLimit,
+                HideSmall = ann.TryGetProperty("hideSmall", out var hs) ? hs.GetBoolean() : display.HideSmall,
+                SmallPixels = ann.TryGetProperty("smallPixels", out var sp) ? sp.GetInt32() : display.SmallPixels,
+            };
             model.TextFontSize = ann.TryGetProperty("textFontSize", out var tfs) ? tfs.GetInt32() : 12;
         }
         if (r.TryGetProperty("animation", out var anim))
@@ -957,6 +1003,7 @@ public static class DogFile
                     Tag = TagAt(model, d.GetProperty("tag").GetInt32()),
                     Hidden = d.TryGetProperty("hidden", out var h) && h.GetBoolean(),
                     Kind = d.TryGetProperty("kind", out var k) && Enum.TryParse<DimensionKind>(k.GetString(), out var kind) ? kind : DimensionKind.Linear,
+                    Style = d.TryGetProperty("style", out var ds) ? ReadDimensionStyle(ds) : null,
                 });
             }
         }

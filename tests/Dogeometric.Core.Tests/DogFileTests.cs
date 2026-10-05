@@ -192,13 +192,17 @@ public class DogFileTests
     [Fact]
     public void Dimension_and_text_settings_are_saved_and_undone()
     {
-        var m = new Model { DimensionFontSize = 20, DimensionEndpoints = DimensionEndpoint.Dot, TextFontSize = 9 };
+        var m = new Model { Dimensions = new DimensionStyle { FontSize = 20, Endpoints = DimensionEndpoint.Dot, Font = "Serif", AlignToScreen = false, Position = DimensionTextPosition.Centered, ShowRadialPrefix = false }, TextFontSize = 9 };
+        m.DimensionDisplay = m.DimensionDisplay with { HideSmall = false, ForeshortenedLimit = 0.5 };
+        var styled = new LinearDimension(Vec3.Zero, new Vec3(100, 0, 0), new Vec3(0, 50, 0)) { Style = new DimensionStyle { Color = new Rgba(200, 0, 0) } };
+        m.Entities.Dimensions.Add(styled);
         var path = Path.Combine(Path.GetTempPath(), $"ann-{Guid.NewGuid():N}.dog");
         try
         {
             DogFile.Save(m, path);
             var back = DogFile.Load(path);
-            Assert.Equal((20, DimensionEndpoint.Dot, 9), (back.DimensionFontSize, back.DimensionEndpoints, back.TextFontSize));
+            Assert.Equal((m.Dimensions, m.DimensionDisplay, 9), (back.Dimensions, back.DimensionDisplay, back.TextFontSize));
+            Assert.Equal(styled.Style, back.Entities.Dimensions.Single().Style);
         }
         finally
         {
@@ -206,10 +210,10 @@ public class DogFileTests
         }
         var doc = new Document(m);
         doc.Undo.Begin("Dimensions");
-        m.DimensionEndpoints = DimensionEndpoint.Slash;
+        m.Dimensions = m.Dimensions with { Endpoints = DimensionEndpoint.Slash };
         doc.Undo.Commit();
         doc.Undo.Undo();
-        Assert.Equal(DimensionEndpoint.Dot, m.DimensionEndpoints);
+        Assert.Equal(DimensionEndpoint.Dot, m.Dimensions.Endpoints);
     }
 
     [Fact]

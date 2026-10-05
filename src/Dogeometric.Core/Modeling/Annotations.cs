@@ -23,6 +23,9 @@ public sealed class LinearDimension(Vec3 start, Vec3 end, Vec3 offset)
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
 
+    /// <summary>Its own look, set when it was made or last updated; null follows the model's.</summary>
+    public DimensionStyle? Style { get; set; }
+
     public double Length => Start.DistanceTo(End);
 
     /// <summary>SketchUp's prefix for radial dimensions ("R", "DIA").</summary>
