@@ -283,7 +283,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.3ds ; 3D Studio", "*.step, *.stp ; STEP", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.3ds ; 3D Studio", "*.step, *.stp ; STEP", "*.ifc ; IFC", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
@@ -479,6 +479,16 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".skp" or ".dog")
             {
                 PlaceModel(path);
+                return;
+            }
+            if (System.IO.Path.GetExtension(path).Equals(".ifc", StringComparison.OrdinalIgnoreCase))
+            {
+                var ifc = IfcImport.Load(path);
+                Merge(ifc.Model);
+                Document.Undo.Clear();
+                Rebuild();
+                Changed?.Invoke();
+                status.SetHint($"Imported {ifc.Elements} IFC elements" + (ifc.SkippedItems > 0 ? $", {ifc.SkippedItems} items of unsupported kinds left out or approximated" : ""));
                 return;
             }
             if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".step" or ".stp")
