@@ -42,4 +42,14 @@ public class HiddenLineTests
         Assert.Contains("0 50 m 10 40 l S", pdf);
         Assert.EndsWith("%%EOF\n", pdf);
     }
+
+    [Fact]
+    public void A_dxf_drawing_reads_back_at_full_scale()
+    {
+        List<HiddenLine.Segment> square = [new(10, 10, 50, 10, false), new(50, 10, 50, 50, false), new(50, 50, 10, 50, false), new(10, 50, 10, 10, false)];
+        var dxf = HiddenLine.ToDxf(square, 100, 0.5);
+        var e = DxfImport.Read(dxf).Definitions[0].Entities;
+        Assert.Equal(new Vec3(20, 20, 0), e.Bounds().Size);
+        Assert.Single(e.Faces);
+    }
 }

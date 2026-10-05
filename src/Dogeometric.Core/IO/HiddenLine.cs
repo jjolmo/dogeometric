@@ -108,7 +108,7 @@ public static class HiddenLine
 
     // ------------------------------------------------------------------ writers
 
-    private static string N(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string N(double v) => v.ToString("0.####", CultureInfo.InvariantCulture);
 
     /// <summary>An SVG drawing <paramref name="width"/> × <paramref name="height"/> pixels; profiles drawn thicker.</summary>
     public static string ToSvg(IEnumerable<Segment> segments, double width, double height)
@@ -154,5 +154,22 @@ public static class HiddenLine
             pdf.Append($"{o:D10} 00000 n \n");
         pdf.Append($"trailer\n<< /Size {objects.Length + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
         return Encoding.ASCII.GetBytes(pdf.ToString());
+    }
+
+    /// <summary>
+    /// A DXF drawing of LINEs in millimetres: <paramref name="mmPerPixel"/> turns screen pixels into model size (a
+    /// parallel view at full scale), with y turned upwards; profiles on their own layer.
+    /// </summary>
+    public static string ToDxf(IEnumerable<Segment> segments, double height, double mmPerPixel)
+    {
+        var sb = new StringBuilder("0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n");
+        foreach (var s in segments)
+        {
+            sb.Append($"0\nLINE\n8\n{(s.Profile ? "Profiles" : "Edges")}\n");
+            sb.Append($"10\n{N(s.X1 * mmPerPixel)}\n20\n{N((height - s.Y1) * mmPerPixel)}\n30\n0\n");
+            sb.Append($"11\n{N(s.X2 * mmPerPixel)}\n21\n{N((height - s.Y2) * mmPerPixel)}\n31\n0\n");
+        }
+        sb.Append("0\nENDSEC\n0\nEOF\n");
+        return sb.ToString();
     }
 }

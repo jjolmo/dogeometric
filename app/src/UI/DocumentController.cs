@@ -280,11 +280,11 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     /// <summary>File › Export › 2D Graphic: the view as it is drawn (PNG, JPEG) or as a hidden-line drawing (SVG, PDF).</summary>
     public void ShowExport2D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 2D Graphic",
-        ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image", "*.svg ; SVG drawing", "*.pdf ; PDF drawing"], path =>
+        ["*.png ; PNG image", "*.jpg, *.jpeg ; JPEG image", "*.svg ; SVG drawing", "*.pdf ; PDF drawing", "*.dxf ; DXF drawing (full scale in parallel views)"], path =>
         {
             var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
             Error error;
-            if (ext is ".svg" or ".pdf")
+            if (ext is ".svg" or ".pdf" or ".dxf")
             {
                 var segments = viewport.HiddenLineDrawing();
                 var (w, h) = (viewport.Size.X, viewport.Size.Y);
@@ -292,6 +292,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 {
                     if (ext == ".svg")
                         System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToSvg(segments, w, h));
+                    else if (ext == ".dxf")
+                        System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.ToDxf(segments, h, viewport.MillimetresPerPixel));
                     else
                         System.IO.File.WriteAllBytes(path, Dogeometric.Core.IO.HiddenLine.ToPdf(segments, w, h));
                     error = Error.Ok;

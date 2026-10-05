@@ -361,6 +361,9 @@ public partial class ModelViewport : Control
 
     public void QueueOverlayRedraw() => _overlay.QueueRedraw();
 
+    /// <summary>Model size of one pixel in a parallel view (1 in perspective, where there is no single scale).</summary>
+    public double MillimetresPerPixel => Camera.Perspective ? 1 : Camera.OrthoHeight / Math.Max(Size.Y, 1);
+
     /// <summary>The view as a hidden-line drawing, in viewport pixels.</summary>
     public List<Core.IO.HiddenLine.Segment> HiddenLineDrawing()
     {
