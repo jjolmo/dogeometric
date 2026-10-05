@@ -118,6 +118,10 @@ public sealed class AppPreferences
     /// <summary>Window › Manage Trays: the trays, each with its panels and whether it shows.</summary>
     public List<TrayLayout> Trays { get; set; } = [];
 
+    /// <summary>Components panel: the local collections (folders of models) and the one shown, "" for In Model.</summary>
+    public List<string> ComponentCollections { get; set; } = [];
+    public string ComponentCollection { get; set; } = "";
+
     /// <summary>File › Recent File, newest first.</summary>
     public List<string> RecentFiles { get; set; } = [];
 

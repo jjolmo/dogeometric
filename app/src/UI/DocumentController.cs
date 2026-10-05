@@ -435,6 +435,26 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>A model file as one component placed with the cursor, as SketchUp imports a model or takes one from a collection.</summary>
+    public void PlaceModel(string path)
+    {
+        Model other;
+        try
+        {
+            other = Load(path);
+        }
+        catch (Exception ex)
+        {
+            Alert("Import", $"Could not import {System.IO.Path.GetFileName(path)}:\n{ex.Message}");
+            return;
+        }
+        ComponentDefinition? def = null;
+        Document.Operation("Import", _ => def = Grouping.ImportAsComponent(Model, other, System.IO.Path.GetFileNameWithoutExtension(path)));
+        Rebuild();
+        Changed?.Invoke();
+        ComponentImportRequested?.Invoke(def!);
+    }
+
     private void Import(string path)
     {
         if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
@@ -447,13 +467,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         {
             if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".skp" or ".dog")
             {
-                // As SketchUp imports a model: one component, placed with the cursor.
-                var other = Load(path);
-                ComponentDefinition? def = null;
-                Document.Operation("Import", _ => def = Grouping.ImportAsComponent(Model, other, System.IO.Path.GetFileNameWithoutExtension(path)));
-                Rebuild();
-                Changed?.Invoke();
-                ComponentImportRequested?.Invoke(def!);
+                PlaceModel(path);
                 return;
             }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)

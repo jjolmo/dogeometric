@@ -1,3 +1,4 @@
+using Dogeometric.Core.IO;
 using Dogeometric.Core.Modeling;
 using Godot;
 
@@ -7,14 +8,20 @@ namespace Dogeometric.App.UI.Tray;
 /// SketchUp's Components panel, In Model: the model's component definitions with their instance counts. Clicking
 /// one places a copy with the cursor; the panel also selects a definition's instances and purges unused ones. The
 /// chosen one's Edit tab (name, description, gluing and facing) and Statistics (what it is made of) follow.
+/// Local collections (folders of models) are browsed and searched here too; clicking a model places it.
 /// </summary>
 public partial class ComponentsPanel : VBoxContainer
 {
     private Func<Document> _doc = null!;
     private Action<ComponentDefinition> _place = null!;
+    private Action<string> _placeModel = null!;
     private ComponentDefinition? _current;
+    private string? _folder;
+    private string _search = "";
+    private readonly Dictionary<string, Texture2D?> _thumbnails = [];
 
-    public static ComponentsPanel Create(Func<Document> doc, Action<ComponentDefinition> place) => new() { _doc = doc, _place = place };
+    public static ComponentsPanel Create(Func<Document> doc, Action<ComponentDefinition> place, Action<string> placeModel) =>
+        new() { _doc = doc, _place = place, _placeModel = placeModel };
 
     /// <summary>Save As was pressed for this definition (the main window asks where).</summary>
     public event Action<ComponentDefinition>? SaveAsRequested;
@@ -27,11 +34,17 @@ public partial class ComponentsPanel : VBoxContainer
             c.QueueFree();
         }
         var doc = _doc();
+        AddChild(CollectionPicker());
+        var collection = AppPreferences.Current.ComponentCollection;
+        if (collection.Length > 0)
+        {
+            ShowCollection(collection);
+            return;
+        }
         var definitions = doc.Model.Definitions.Where(d => !d.IsGroup && !d.IsImage).OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         if (_current != null && !definitions.Contains(_current))
             _current = null;
 
-        AddChild(new Label { Text = "In Model" });
         if (definitions.Count == 0)
             AddChild(new Label { Text = "No components", Modulate = new Color(1, 1, 1, 0.6f) });
         // One pass for every count: big models have hundreds of definitions.
@@ -101,6 +114,150 @@ public partial class ComponentsPanel : VBoxContainer
             Edit(doc, current);
             Statistics(current);
         }
+    }
+
+    /// <summary>In Model, the local collections, and Open or create a local collection.</summary>
+    private OptionButton CollectionPicker()
+    {
+        var prefs = AppPreferences.Current;
+        var picker = new OptionButton { FocusMode = FocusModeEnum.None, ClipText = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        picker.AddItem("In Model");
+        foreach (var folder in prefs.ComponentCollections)
+        {
+            picker.AddItem(System.IO.Path.GetFileName(folder.TrimEnd('/', '\\')));
+            picker.SetItemTooltip(picker.ItemCount - 1, folder);
+        }
+        picker.AddSeparator();
+        picker.AddItem("Open or create a local collection...");
+        var openIndex = picker.ItemCount - 1;
+        picker.Selected = prefs.ComponentCollection.Length == 0 ? 0 : prefs.ComponentCollections.IndexOf(prefs.ComponentCollection) + 1;
+        picker.ItemSelected += i =>
+        {
+            if (i == openIndex)
+            {
+                PickFolder();
+                picker.Selected = prefs.ComponentCollection.Length == 0 ? 0 : prefs.ComponentCollections.IndexOf(prefs.ComponentCollection) + 1;
+                return;
+            }
+            ShowFolder(i == 0 ? "" : prefs.ComponentCollections[(int)i - 1]);
+        };
+        return picker;
+    }
+
+    private void PickFolder()
+    {
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.OpenDir,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Title = "Open or create a local collection",
+            UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
+            CurrentDir = AppPreferences.Current.ComponentCollections.LastOrDefault() is { } last && System.IO.Directory.Exists(last)
+                ? System.IO.Path.GetDirectoryName(last) : OS.GetSystemDir(OS.SystemDir.Documents),
+        };
+        dialog.DirSelected += dir =>
+        {
+            if (!AppPreferences.Current.ComponentCollections.Contains(dir))
+                AppPreferences.Current.ComponentCollections.Add(dir);
+            ShowFolder(dir);
+            dialog.QueueFree();
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        dialog.PopupCentered(new Vector2I(800, 520));
+    }
+
+    private void ShowFolder(string collection)
+    {
+        AppPreferences.Current.ComponentCollection = collection;
+        AppPreferences.Save();
+        (_folder, _search) = (null, "");
+        Refresh();
+    }
+
+    /// <summary>A collection's folder (or the search results under it) as thumbnails; folders open, models place.</summary>
+    private void ShowCollection(string root)
+    {
+        if (_folder == null || !_folder.StartsWith(root))
+            _folder = root;
+        var search = new LineEdit { PlaceholderText = "Search this collection", Text = _search, ClearButtonEnabled = true };
+        search.TextSubmitted += text =>
+        {
+            _search = text;
+            Refresh();
+        };
+        AddChild(search);
+
+        var nav = new HBoxContainer();
+        var up = new Button { Text = "Up", FocusMode = FocusModeEnum.None, Disabled = _folder == root || _search.Length > 0 };
+        up.Pressed += () =>
+        {
+            _folder = System.IO.Path.GetDirectoryName(_folder);
+            Refresh();
+        };
+        nav.AddChild(up);
+        var where = _search.Length > 0 ? $"Results for \"{_search}\"" : System.IO.Path.GetRelativePath(System.IO.Path.GetDirectoryName(root) ?? root, _folder);
+        nav.AddChild(new Label { Text = where, ClipText = true, SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = _folder });
+        var remove = new Button { Text = "Remove", FocusMode = FocusModeEnum.None, TooltipText = "Remove this collection from the list (the folder stays)" };
+        remove.Pressed += () =>
+        {
+            AppPreferences.Current.ComponentCollections.Remove(root);
+            ShowFolder("");
+        };
+        nav.AddChild(remove);
+        AddChild(nav);
+
+        var entries = _search.Length > 0 ? ComponentCollection.Search(root, _search) : ComponentCollection.Browse(_folder);
+        if (!System.IO.Directory.Exists(root))
+            AddChild(new Label { Text = "The folder is missing", Modulate = new Color(1, 1, 1, 0.6f) });
+        else if (entries.Count == 0)
+            AddChild(new Label { Text = _search.Length > 0 ? "No models found" : "No models in this folder", Modulate = new Color(1, 1, 1, 0.6f) });
+        var list = new ItemList
+        {
+            IconMode = ItemList.IconModeEnum.Top,
+            FixedIconSize = new Vector2I(72, 72),
+            FixedColumnWidth = 92,
+            MaxColumns = 0,
+            SameColumnWidth = true,
+            MaxTextLines = 2,
+            FocusMode = FocusModeEnum.None,
+            CustomMinimumSize = new Vector2(0, 320),
+        };
+        foreach (var e in entries)
+        {
+            var i = list.AddItem(e.Name, e.IsFolder ? Icon("res://icons/open.svg") : Thumbnail(e.Path) ?? Icon("res://icons/make_component.svg"));
+            list.SetItemTooltip(i, e.IsFolder ? "Open the folder" : $"{e.Path}\nClick to place it in the model");
+        }
+        list.ItemClicked += (index, _, button) =>
+        {
+            if (button != (long)MouseButton.Left)
+                return;
+            var e = entries[(int)index];
+            if (e.IsFolder)
+            {
+                _folder = e.Path;
+                Refresh();
+            }
+            else
+                _placeModel(e.Path);
+        };
+        AddChild(list);
+    }
+
+    private static Texture2D? Icon(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+
+    private Texture2D? Thumbnail(string path)
+    {
+        if (_thumbnails.TryGetValue(path, out var cached))
+            return cached;
+        Texture2D? texture = null;
+        if (ComponentCollection.Thumbnail(path) is { } png)
+        {
+            var image = new Image();
+            if (image.LoadPngFromBuffer(png) == Error.Ok)
+                texture = ImageTexture.CreateFromImage(image);
+        }
+        return _thumbnails[path] = texture;
     }
 
     /// <summary>The Edit tab: what the definition is called and how its copies sit in the model.</summary>
