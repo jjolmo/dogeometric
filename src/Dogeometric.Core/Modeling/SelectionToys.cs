@@ -6,7 +6,7 @@ namespace Dogeometric.Core.Modeling;
 public enum SelectionKind
 {
     Edges, Faces, Groups, Components, Guides, GuidePoints, Text, Images, SectionPlanes,
-    Curves, Arcs, Circles, Polygons, LinearDimensions,
+    Curves, Arcs, Circles, Polygons, LinearDimensions, RadialDimensions,
     FrontDefaultMaterial, BackDefaultMaterial, Hidden, SoftEdges, SmoothEdges, BorderEdges, SelectionBorder,
 }
 
@@ -21,6 +21,7 @@ public static class SelectionToys
         SelectionKind.GuidePoints => "Guide Points",
         SelectionKind.SectionPlanes => "Section Planes",
         SelectionKind.LinearDimensions => "Linear Dimensions",
+        SelectionKind.RadialDimensions => "Radial Dimensions",
         SelectionKind.FrontDefaultMaterial => "Front Default Material",
         SelectionKind.BackDefaultMaterial => "Back Default Material",
         SelectionKind.SoftEdges => "Soft Edges",
@@ -44,7 +45,8 @@ public static class SelectionToys
             case SelectionKind.GuidePoints: return item is GuidePoint;
             case SelectionKind.Text: return item is TextLabel;
             case SelectionKind.SectionPlanes: return item is SectionPlane;
-            case SelectionKind.LinearDimensions: return item is LinearDimension;
+            case SelectionKind.LinearDimensions: return item is LinearDimension { Kind: DimensionKind.Linear };
+            case SelectionKind.RadialDimensions: return item is LinearDimension { Kind: not DimensionKind.Linear };
             case SelectionKind.Curves: return item is Edge { Curve: not null };
             case SelectionKind.Polygons: return item is Edge { Curve.IsPolygon: true };
             case SelectionKind.Arcs or SelectionKind.Circles:
@@ -275,5 +277,82 @@ public static class SelectionToys
                 inside = !inside;
         }
         return inside;
+    }
+
+    /// <summary>Select Edge Loops: the whole loops of the selected faces, and of the faces on each selected edge that the
+    /// edge belongs to.</summary>
+    public static List<object> EdgeLoops(Entities context, IReadOnlyCollection<object> selection)
+    {
+        var result = new HashSet<Edge>();
+        foreach (var f in selection.OfType<Face>())
+            result.UnionWith(Topology.EdgesOf(f));
+        foreach (var edge in selection.OfType<Edge>())
+            foreach (var f in Topology.FacesOf(context, edge))
+                foreach (var loop in f.Loops.Where(l => l.Edges.Any(x => x.Edge == edge)))
+                    result.UnionWith(loop.Edges.Select(x => x.Edge));
+        return [.. result];
+    }
+
+    /// <summary>Connected Faces by Angle: faces reached across edges where neighbours turn by at most
+    /// <paramref name="degrees"/> (a whole smooth surface from one of its faces).</summary>
+    public static List<object> ConnectedFacesByAngle(Entities context, IReadOnlyCollection<object> selection, double degrees)
+    {
+        var cos = Math.Cos(degrees * Math.PI / 180);
+        var facesOf = FacesByEdge(context);
+        var result = new HashSet<Face>(selection.OfType<Face>());
+        var stack = new Stack<Face>(result);
+        while (stack.Count > 0)
+        {
+            var f = stack.Pop();
+            var n = f.Normal.Normalized();
+            foreach (var e in Topology.EdgesOf(f))
+                foreach (var g in facesOf[e])
+                    if (!result.Contains(g) && n.Dot(g.Normal.Normalized()) >= cos - 1e-12)
+                    {
+                        result.Add(g);
+                        stack.Push(g);
+                    }
+        }
+        return result.Cast<object>().ToList();
+    }
+
+    /// <summary>
+    /// Quad-face Loops: from each selected edge between quads, the ring of quads crossed by walking to each quad's
+    /// opposite edge, both ways, until the ring closes or meets a face that is not a quad.
+    /// </summary>
+    public static List<object> QuadFaceLoops(Entities context, IReadOnlyCollection<object> selection)
+    {
+        var facesOf = FacesByEdge(context);
+        static bool Quad(Face f) => f.Loops.Count == 1 && f.OuterLoop.Edges.Count == 4;
+        Edge Opposite(Face q, Edge e) => q.OuterLoop.Edges.Select(x => x.Edge)
+            .First(x => x != e && x.Start != e.Start && x.Start != e.End && x.End != e.Start && x.End != e.End);
+        var result = new HashSet<Face>();
+        foreach (var edge in selection.OfType<Edge>())
+            foreach (var first in facesOf.GetValueOrDefault(edge, []).Where(Quad))
+            {
+                var (face, entered) = (first, edge);
+                while (result.Add(face))
+                {
+                    var across = Opposite(face, entered);
+                    var next = facesOf[across].FirstOrDefault(g => g != face);
+                    if (next == null || !Quad(next))
+                        break;
+                    (face, entered) = (next, across);
+                }
+            }
+        return result.Cast<object>().ToList();
+    }
+
+    private static Dictionary<Edge, List<Face>> FacesByEdge(Entities context)
+    {
+        var facesOf = new Dictionary<Edge, List<Face>>();
+        foreach (var f in context.Faces)
+            foreach (var e in Topology.EdgesOf(f))
+            {
+                if (!facesOf.TryGetValue(e, out var list))
+                    facesOf[e] = list = [];
+                list.Add(f);
+            }
+        return facesOf;
     }
 }

@@ -208,6 +208,7 @@ public static class ContextMenu
                 ("Connected Parallel Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.Parallel))),
                 ("Connected Perpendicular Faces", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.Perpendicular))),
                 ("Connected Faces by Area", () => Set(SelectionToys.ConnectedFaces(context, sel, SelectionToys.FaceRelation.SameArea))),
+                ("Connected Faces by Angle", () => AskAngle(menu, angle => Set(SelectionToys.ConnectedFacesByAngle(context, sel, angle)))),
                 ("-", () => { }),
                 ("Coplanar Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.Coplanar))),
                 ("Same Direction Faces", () => Set(SelectionToys.Faces(context, sel, SelectionToys.FaceRelation.SameDirection))),
@@ -217,10 +218,39 @@ public static class ContextMenu
                 ("-", () => { }),
                 ("Opposite Faces", () => Set(SelectionToys.OppositeFaces(context, sel))),
             ]);
+        if (faces || sel.OfType<Edge>().Any())
+            select.AddRange([
+                ("-", () => { }),
+                ("Select Edge Loops", () => Set(SelectionToys.EdgeLoops(context, sel))),
+                ("Quad-face Loops", () => Set(SelectionToys.QuadFaceLoops(context, sel))),
+            ]);
         Sub("Select ", select);
         var kinds = Enum.GetValues<SelectionKind>();
         Sub("Select Only", kinds.Select(k => (SelectionToys.Label(k), (Action)(() => Set(SelectionToys.Only(k, context, sel))))));
         Sub("Deselect", kinds.Select(k => (SelectionToys.Label(k), (Action)(() => Set(SelectionToys.Without(k, context, sel))))));
+    }
+
+    // Selection Toys asks for the angle each time; it remembers the last one.
+    private static double _lastAngle = 15;
+
+    private static void AskAngle(Node near, Action<double> run)
+    {
+        var host = near.GetParent() ?? near;
+        var dialog = new ConfirmationDialog { Title = "Connected Faces by Angle" };
+        var row = new HBoxContainer();
+        row.AddChild(new Label { Text = "Maximum angle between faces:" });
+        var spin = new SpinBox { MinValue = 0, MaxValue = 180, Step = 0.5, Value = _lastAngle, Suffix = "°" };
+        row.AddChild(spin);
+        dialog.AddChild(row);
+        dialog.Confirmed += () =>
+        {
+            _lastAngle = spin.Value;
+            run(spin.Value);
+            dialog.QueueFree();
+        };
+        dialog.Canceled += dialog.QueueFree;
+        host.AddChild(dialog);
+        dialog.PopupCentered();
     }
 
     private static void AlignView(Document doc, ModelViewport view, Face face)

@@ -58,4 +58,51 @@ public class SelectionToysTests
         Assert.False(copy.IsGroup);
         Assert.True(b.IsGroup);
     }
+
+    /// <summary>A 12-sided prism: 12 quads around, 12-gon caps.</summary>
+    private static Entities Prism()
+    {
+        var e = new Entities();
+        var w = new Welder(e);
+        var bottom = Shapes.RegularPolygon(Vec3.Zero, Vec3.UnitZ, Vec3.UnitX, 10, 12);
+        var top = bottom.Select(p => p + new Vec3(0, 0, 20)).ToList();
+        for (var i = 0; i < 12; i++)
+        {
+            var j = (i + 1) % 12;
+            w.Face([bottom[i], bottom[j], top[j], top[i]], []);
+        }
+        w.Face(bottom, []);
+        w.Face(top, []);
+        return e;
+    }
+
+    private static Edge Vertical(Entities e) => e.Edges.First(x => Math.Abs(x.Start.Position.Z - x.End.Position.Z) > 1);
+
+    [Fact]
+    public void A_quad_face_loop_goes_round_the_prism_and_stops_at_its_caps()
+    {
+        var e = Prism();
+        Assert.Equal(12, SelectionToys.QuadFaceLoops(e, [Vertical(e)]).Count);
+        var rim = e.Edges.First(x => x.Start.Position.Z == 0 && x.End.Position.Z == 0);
+        Assert.Single(SelectionToys.QuadFaceLoops(e, [rim]));
+    }
+
+    [Fact]
+    public void Connected_faces_by_angle_take_the_curved_side_but_not_the_caps()
+    {
+        var e = Prism();
+        var side = e.Faces.First(f => f.OuterLoop.Edges.Count == 4);
+        Assert.Equal(12, SelectionToys.ConnectedFacesByAngle(e, [side], 31).Count);
+        Assert.Single(SelectionToys.ConnectedFacesByAngle(e, [side], 29));
+        Assert.Equal(14, SelectionToys.ConnectedFacesByAngle(e, [side], 91).Count);
+    }
+
+    [Fact]
+    public void Edge_loops_take_the_loops_through_the_selection()
+    {
+        var e = new Entities();
+        TestModels.Box(e, Vec3.Zero, new Vec3(10, 10, 10));
+        Assert.Equal(4, SelectionToys.EdgeLoops(e, [e.Faces[0]]).Count);
+        Assert.Equal(7, SelectionToys.EdgeLoops(e, [e.Edges[0]]).Count);
+    }
 }
