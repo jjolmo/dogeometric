@@ -203,6 +203,20 @@ public sealed record DimensionStyle
     public bool ShowRadialPrefix { get; init; } = true;
 }
 
+/// <summary>Model Info › Text › Leader: View Based keeps the leader's direction on screen, Pushpin fixes it in the model.</summary>
+public enum LeaderType { ViewBased, Pushpin, Hidden }
+
+/// <summary>How a text is drawn (Model Info › Text): new texts take the model's, Update Selected Text restamps.</summary>
+public sealed record TextStyle
+{
+    /// <summary>Font family; empty for the interface font.</summary>
+    public string Font { get; init; } = "";
+    public int FontSize { get; init; } = 12;
+    public Rgba Color { get; init; } = new(0, 0, 0);
+    public DimensionEndpoint Endpoint { get; init; } = DimensionEndpoint.Dot;
+    public LeaderType Leader { get; init; } = LeaderType.Pushpin;
+}
+
 /// <summary>Model Info › Dimensions › Expert Dimension Settings: dimensions hidden when seen badly.</summary>
 public sealed record DimensionDisplay
 {
@@ -230,8 +244,9 @@ public sealed class Model
     public DimensionStyle Dimensions { get; set; } = new();
     public DimensionDisplay DimensionDisplay { get; set; } = new();
 
-    /// <summary>Model Info › Text: text size in points.</summary>
-    public int TextFontSize { get; set; } = 12;
+    /// <summary>Model Info › Text: the styles new screen texts and leader texts take.</summary>
+    public TextStyle ScreenText { get; set; } = new();
+    public TextStyle LeaderText { get; set; } = new();
 
     /// <summary>Model Info › Animation: scene transitions (and their length in seconds) and the pause on each scene.</summary>
     public bool SceneTransitions { get; set; } = true;

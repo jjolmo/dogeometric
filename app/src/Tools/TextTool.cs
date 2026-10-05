@@ -37,6 +37,7 @@ public sealed class TextTool : DrawingTool
                 Edit(doc, position, "Enter text", text => doc.Operation("Text", e => e.Texts.Add(new TextLabel(text)
                 {
                     ScreenPosition = (position.X / View.Size.X, position.Y / View.Size.Y),
+                    Style = doc.Model.ScreenText,
                 })));
                 return;
             }
@@ -49,10 +50,14 @@ public sealed class TextTool : DrawingTool
         var anchor = _anchor.Value;
         var end = TextPoint();
         var toLocal = doc.Context.ToWorld.Inverse();
+        var style = doc.Model.LeaderText;
+        (double, double)? pixels = View.ToScreen(anchor) is { } a && View.ToScreen(end) is { } b ? (b.X - a.X, b.Y - a.Y) : null;
         Edit(doc, position, _default, text => doc.Operation("Text", e => e.Texts.Add(new TextLabel(text)
         {
             Point = toLocal.ApplyPoint(anchor),
             Offset = toLocal.ApplyVector(end - anchor),
+            Style = style,
+            LeaderPixels = style.Leader == LeaderType.ViewBased ? pixels : null,
         })));
         _anchor = null;
         RefreshStatus();

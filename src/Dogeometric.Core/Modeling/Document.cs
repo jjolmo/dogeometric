@@ -379,7 +379,7 @@ public static class Transforming
         }
         foreach (var x in list.OfType<TextLabel>())
         {
-            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag };
+            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag, Style = x.Style, LeaderPixels = x.LeaderPixels };
             e.Texts.Add(c);
             copies.Add(c);
         }
@@ -492,7 +492,7 @@ public static class Grouping
         }
         foreach (var x in src.Texts)
         {
-            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag, Hidden = x.Hidden };
+            var c = new TextLabel(x.Text) { Point = t.ApplyPoint(x.Point), Offset = t.ApplyVector(x.Offset), ScreenPosition = x.ScreenPosition, Tag = x.Tag, Hidden = x.Hidden, Style = x.Style, LeaderPixels = x.LeaderPixels };
             dst.Texts.Add(c);
             created.Add(c);
         }

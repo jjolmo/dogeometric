@@ -192,16 +192,20 @@ public class DogFileTests
     [Fact]
     public void Dimension_and_text_settings_are_saved_and_undone()
     {
-        var m = new Model { Dimensions = new DimensionStyle { FontSize = 20, Endpoints = DimensionEndpoint.Dot, Font = "Serif", AlignToScreen = false, Position = DimensionTextPosition.Centered, ShowRadialPrefix = false }, TextFontSize = 9 };
+        var m = new Model { Dimensions = new DimensionStyle { FontSize = 20, Endpoints = DimensionEndpoint.Dot, Font = "Serif", AlignToScreen = false, Position = DimensionTextPosition.Centered, ShowRadialPrefix = false }, LeaderText = new TextStyle { FontSize = 9, Leader = LeaderType.Hidden, Endpoint = DimensionEndpoint.OpenArrow } };
         m.DimensionDisplay = m.DimensionDisplay with { HideSmall = false, ForeshortenedLimit = 0.5 };
         var styled = new LinearDimension(Vec3.Zero, new Vec3(100, 0, 0), new Vec3(0, 50, 0)) { Style = new DimensionStyle { Color = new Rgba(200, 0, 0) } };
         m.Entities.Dimensions.Add(styled);
+        m.Entities.Texts.Add(new TextLabel("Note") { Point = Vec3.Zero, Offset = new Vec3(10, 0, 0), LeaderPixels = (30, -20), Style = new TextStyle { Color = new Rgba(0, 0, 200) } });
         var path = Path.Combine(Path.GetTempPath(), $"ann-{Guid.NewGuid():N}.dog");
         try
         {
             DogFile.Save(m, path);
             var back = DogFile.Load(path);
-            Assert.Equal((m.Dimensions, m.DimensionDisplay, 9), (back.Dimensions, back.DimensionDisplay, back.TextFontSize));
+            Assert.Equal((m.Dimensions, m.DimensionDisplay, m.LeaderText, m.ScreenText), (back.Dimensions, back.DimensionDisplay, back.LeaderText, back.ScreenText));
+            var note = back.Entities.Texts.Single();
+            Assert.Equal((30.0, -20.0), note.LeaderPixels);
+            Assert.Equal(new Rgba(0, 0, 200), note.Style!.Color);
             Assert.Equal(styled.Style, back.Entities.Dimensions.Single().Style);
         }
         finally

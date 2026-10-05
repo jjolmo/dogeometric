@@ -209,8 +209,10 @@ public sealed class AnnotationOverlay
 
     private void DrawText(ModelViewport view, Control canvas, Font font, Document doc, TextLabel t, Transform xf, IReadOnlyList<Entities> owners)
     {
-        var color = doc.Selection.Contains(t) ? _selected : Ink;
-        var fontSize = Pixels(doc.Model.TextFontSize);
+        var style = t.Style ?? (t.ScreenPosition != null ? doc.Model.ScreenText : doc.Model.LeaderText);
+        var color = doc.Selection.Contains(t) ? _selected : ToColor(style.Color);
+        font = FontNamed(style.Font) ?? font;
+        var fontSize = Pixels(style.FontSize);
         var size = font.GetStringSize(t.Text, HorizontalAlignment.Left, -1, fontSize);
         if (t.ScreenPosition is { } sp)
         {
@@ -220,15 +222,29 @@ public sealed class AnnotationOverlay
             _drawn.Add((t, owners, screenBox, []));
             return;
         }
-        if (view.ToScreen(xf.ApplyPoint(t.Point)) is not { } anchor || view.ToScreen(xf.ApplyPoint(t.Point + t.Offset)) is not { } end)
+        if (view.ToScreen(xf.ApplyPoint(t.Point)) is not { } anchor)
             return;
-        // Leader with a dot on the model; the text sits beyond the leader's end, on the side it points to.
-        canvas.DrawLine(anchor, end, color, 1, true);
-        canvas.DrawCircle(anchor, 2.5f, color);
+        // A view-based leader keeps its run on screen; a pushpin one ends at a point in the model.
+        Vector2 end;
+        if (style.Leader == LeaderType.ViewBased && t.LeaderPixels is { } lp)
+            end = anchor + new Vector2((float)lp.X, (float)lp.Y);
+        else if (view.ToScreen(xf.ApplyPoint(t.Point + t.Offset)) is { } e)
+            end = e;
+        else
+            return;
+        (Vector2, Vector2)[] leader = [];
+        if (style.Leader != LeaderType.Hidden)
+        {
+            canvas.DrawLine(anchor, end, color, 1, true);
+            if ((end - anchor).Length() > 1e-3)
+                Endpoint(canvas, anchor, (anchor - end).Normalized(), color, style.Endpoint);
+            leader = [(anchor, end)];
+        }
+        // The text sits beyond the leader's end, on the side it points to.
         var left = end.X < anchor.X;
         var box = new Rect2(new Vector2(left ? end.X - size.X - 3 : end.X + 3, end.Y - size.Y / 2), size);
         canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, fontSize, color);
-        _drawn.Add((t, owners, box, [(anchor, end)]));
+        _drawn.Add((t, owners, box, leader));
     }
 
     /// <summary>Half the side of the square drawn for section planes: a bit larger than the model.</summary>

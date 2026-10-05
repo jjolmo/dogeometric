@@ -137,10 +137,10 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, int) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, TextStyle, TextStyle) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
         (string Name, Rgba Color, double Opacity, TextureImage? Texture)[] MaterialState, StyleSettings Style)
     {
-        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.TextFontSize), m.Options,
+        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText), m.Options,
             m.Tags.Select(t => (t.Color, t.Dashes)).ToArray(),
             m.Definitions.Select(d => d.Attributes.Select(a => (a.Name, a.Value, a.UserCanEdit)).ToArray()).ToArray(),
             m.Materials.Select(x => (x.Name, x.Color, x.Opacity, x.Texture)).ToArray(), m.Style);
@@ -155,7 +155,7 @@ public sealed class UndoStack(Model model)
             m.UnitPrecision = Precision;
             m.Shadows = Shadows;
             m.ShowSectionFill = SectionFill;
-            (m.Dimensions, m.DimensionDisplay, m.TextFontSize) = Annotation;
+            (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText) = Annotation;
             m.Options = Options;
             // The View menu's switches change outside operations, so undo keeps them as they are.
             m.Style = Style.WithViewOf(m.Style);
@@ -194,7 +194,7 @@ public sealed class UndoStack(Model model)
         private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden, DimensionKind Kind, DimensionStyle? Style)[] _dimensions = [];
         private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, string Symbol, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
-        private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
+        private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden, TextStyle? Style, (double, double)? Leader)[] _texts = [];
         private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked, Face? Glued)[] _instanceData = [];
 
         public static EntitiesState Capture(Entities e) => new()
@@ -217,7 +217,7 @@ public sealed class UndoStack(Model model)
             _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind, d.Style)).ToArray(),
             _sections = e.SectionPlanes.Select(s => (s, s.Point, s.Normal, s.Name, s.Symbol, s.Tag, s.Hidden)).ToArray(),
             _activeSection = e.ActiveSection,
-            _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden)).ToArray(),
+            _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden, t.Style, t.LeaderPixels)).ToArray(),
         };
 
         public void Restore()
@@ -257,8 +257,10 @@ public sealed class UndoStack(Model model)
             }
             _target.ActiveSection = _activeSection;
             Replace(_target.Texts, _texts.Select(t => t.Label).ToArray());
-            foreach (var (t, text, point, offset, screen, tag, hidden) in _texts)
+            foreach (var (t, text, point, offset, screen, tag, hidden, style, leader) in _texts)
             {
+                t.Style = style;
+                t.LeaderPixels = leader;
                 t.Text = text;
                 t.Point = point;
                 t.Offset = offset;

@@ -45,8 +45,14 @@ public sealed class TextLabel(string text)
     /// <summary>Screen text position (0..1 of the view), or null for a text attached to the model.</summary>
     public (double X, double Y)? ScreenPosition { get; set; }
 
+    /// <summary>A view-based leader's run on screen, in pixels from the point; null measures it from <see cref="Offset"/>.</summary>
+    public (double X, double Y)? LeaderPixels { get; set; }
+
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
+
+    /// <summary>Its own look, set when it was made or last updated; null follows the model's.</summary>
+    public TextStyle? Style { get; set; }
 }
 
 /// <summary>

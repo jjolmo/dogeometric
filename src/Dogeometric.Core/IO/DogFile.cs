@@ -86,7 +86,8 @@ public static class DogFile
             w.WriteNumber("foreshortenedLimit", model.DimensionDisplay.ForeshortenedLimit);
             w.WriteBoolean("hideSmall", model.DimensionDisplay.HideSmall);
             w.WriteNumber("smallPixels", model.DimensionDisplay.SmallPixels);
-            w.WriteNumber("textFontSize", model.TextFontSize);
+            WriteTextStyle(w, "screenText", model.ScreenText);
+            WriteTextStyle(w, "leaderText", model.LeaderText);
             w.WriteEndObject();
             w.WriteStartObject("animation");
             w.WriteBoolean("transitions", model.SceneTransitions);
@@ -393,6 +394,30 @@ public static class DogFile
         };
     }
 
+    private static void WriteTextStyle(Utf8JsonWriter w, string name, TextStyle s)
+    {
+        w.WriteStartObject(name);
+        w.WriteString("font", s.Font);
+        w.WriteNumber("fontSize", s.FontSize);
+        w.WriteString("color", RgbaText(s.Color));
+        w.WriteString("endpoint", s.Endpoint.ToString());
+        w.WriteString("leader", s.Leader.ToString());
+        w.WriteEndObject();
+    }
+
+    private static TextStyle ReadTextStyle(JsonElement j)
+    {
+        var d = new TextStyle();
+        return new TextStyle
+        {
+            Font = j.TryGetProperty("font", out var f) ? f.GetString() ?? "" : d.Font,
+            FontSize = j.TryGetProperty("fontSize", out var fs) ? fs.GetInt32() : d.FontSize,
+            Color = ReadRgba(j, "color", d.Color),
+            Endpoint = j.TryGetProperty("endpoint", out var e) && Enum.TryParse<DimensionEndpoint>(e.GetString(), out var end) ? end : d.Endpoint,
+            Leader = j.TryGetProperty("leader", out var l) && Enum.TryParse<LeaderType>(l.GetString(), out var leader) ? leader : d.Leader,
+        };
+    }
+
     private static Watermark ReadWatermark(JsonElement j)
     {
         var d = new Watermark();
@@ -656,6 +681,15 @@ public static class DogFile
                     WriteVec(w, "point", t.Point);
                     WriteVec(w, "offset", t.Offset);
                 }
+                if (t.LeaderPixels is { } lp)
+                {
+                    w.WriteStartArray("leaderPixels");
+                    w.WriteNumberValue(lp.X);
+                    w.WriteNumberValue(lp.Y);
+                    w.WriteEndArray();
+                }
+                if (t.Style is { } ts)
+                    WriteTextStyle(w, "style", ts);
                 w.WriteNumber("tag", Ref(tags, t.Tag));
                 if (t.Hidden)
                     w.WriteBoolean("hidden", true);
@@ -722,7 +756,13 @@ public static class DogFile
                 HideSmall = ann.TryGetProperty("hideSmall", out var hs) ? hs.GetBoolean() : display.HideSmall,
                 SmallPixels = ann.TryGetProperty("smallPixels", out var sp) ? sp.GetInt32() : display.SmallPixels,
             };
-            model.TextFontSize = ann.TryGetProperty("textFontSize", out var tfs) ? tfs.GetInt32() : 12;
+            model.ScreenText = ann.TryGetProperty("screenText", out var st) ? ReadTextStyle(st) : new TextStyle();
+            model.LeaderText = ann.TryGetProperty("leaderText", out var lt) ? ReadTextStyle(lt) : new TextStyle();
+            if (ann.TryGetProperty("textFontSize", out var tfs))
+            {
+                model.ScreenText = model.ScreenText with { FontSize = tfs.GetInt32() };
+                model.LeaderText = model.LeaderText with { FontSize = tfs.GetInt32() };
+            }
         }
         if (r.TryGetProperty("animation", out var anim))
         {
@@ -1031,6 +1071,8 @@ public static class DogFile
                 {
                     Tag = TagAt(model, t.GetProperty("tag").GetInt32()),
                     Hidden = t.TryGetProperty("hidden", out var h) && h.GetBoolean(),
+                    Style = t.TryGetProperty("style", out var ts) ? ReadTextStyle(ts) : null,
+                    LeaderPixels = t.TryGetProperty("leaderPixels", out var lp) ? (lp[0].GetDouble(), lp[1].GetDouble()) : null,
                 };
                 if (t.TryGetProperty("screen", out var sp))
                 {

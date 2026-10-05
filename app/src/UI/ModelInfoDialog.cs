@@ -310,20 +310,53 @@ public partial class ModelInfoDialog : AcceptDialog
     private void Text()
     {
         var model = _doc.Model;
-        var grid = Grid();
-        Number(grid, "Text size", model.TextFontSize, 6, 72, 1, "pt").ValueChanged += v => Set("Text", () => model.TextFontSize = (int)v);
-        var row = new HBoxContainer();
-        Button Action(string text, Action run)
-        {
-            var b = new Button { Text = text };
-            b.Pressed += run;
-            row.AddChild(b);
-            return b;
-        }
         var texts = _doc.Context.Entities.Texts;
-        Action("Select all screen text", () => _doc.Selection.Set(texts.Where(t => t.ScreenPosition != null)));
-        Action("Select all leader text", () => _doc.Selection.Set(texts.Where(t => t.ScreenPosition == null)));
-        _pane.AddChild(row);
+        void Block(string title, Func<TextStyle> get, Action<TextStyle> put, string selectLabel, Func<TextLabel, bool> which)
+        {
+            void Style(Func<TextStyle, TextStyle> change) => Set("Text", () => put(change(get())));
+            _pane.AddChild(new Label { Text = title, ThemeTypeVariation = "HeaderSmall" });
+            var grid = Grid();
+            grid.AddChild(new Label { Text = "Font" });
+            grid.AddChild(FontChoice(get().Font, f => Style(s => s with { Font = f })));
+            Number(grid, "Size", get().FontSize, 6, 72, 1, "pt").ValueChanged += v => Style(s => s with { FontSize = (int)v });
+            grid.AddChild(new Label { Text = "Color" });
+            var c = get().Color;
+            var color = new ColorPickerButton { Color = Color.Color8(c.R, c.G, c.B), EditAlpha = false, CustomMinimumSize = new Vector2(48, 22) };
+            color.PopupClosed += () => Style(s => s with { Color = new Rgba((byte)color.Color.R8, (byte)color.Color.G8, (byte)color.Color.B8) });
+            grid.AddChild(color);
+            var select = new Button { Text = selectLabel, SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+            select.Pressed += () => _doc.Selection.Set(texts.Where(which));
+            _pane.AddChild(select);
+        }
+        Block("Screen Text", () => model.ScreenText, s => model.ScreenText = s, "Select all screen text", t => t.ScreenPosition != null);
+        Block("Leader Text", () => model.LeaderText, s => model.LeaderText = s, "Select all leader text", t => t.ScreenPosition == null);
+
+        void Leader(Func<TextStyle, TextStyle> change) => Set("Text", () => model.LeaderText = change(model.LeaderText));
+        _pane.AddChild(new Label { Text = "Leader Lines", ThemeTypeVariation = "HeaderSmall" });
+        var lines = Grid();
+        lines.AddChild(new Label { Text = "End point" });
+        var ends = new OptionButton();
+        foreach (var e in Enum.GetValues<DimensionEndpoint>())
+            ends.AddItem(e switch { DimensionEndpoint.ClosedArrow => "Closed Arrow", DimensionEndpoint.OpenArrow => "Open Arrow", _ => e.ToString() }, (int)e);
+        ends.Select((int)model.LeaderText.Endpoint);
+        ends.ItemSelected += i => Leader(s => s with { Endpoint = (DimensionEndpoint)ends.GetItemId((int)i) });
+        lines.AddChild(ends);
+        lines.AddChild(new Label { Text = "Leader" });
+        var kind = new OptionButton();
+        foreach (var l in new[] { "View based", "Pushpin", "Hidden" })
+            kind.AddItem(l);
+        kind.Select((int)model.LeaderText.Leader);
+        kind.ItemSelected += i => Leader(s => s with { Leader = (LeaderType)i });
+        lines.AddChild(kind);
+
+        var update = new Button { Text = "Update selected text", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+        update.Pressed += () =>
+        {
+            var chosen = _doc.Selection.Items.OfType<TextLabel>().ToList();
+            if (chosen.Count > 0)
+                _doc.Operation("Update Text", _ => chosen.ForEach(t => t.Style = t.ScreenPosition != null ? model.ScreenText : model.LeaderText));
+        };
+        _pane.AddChild(update);
     }
 
     private void Options(string name, Func<ModelOptions, ModelOptions> change) => Set(name, () => _doc.Model.Options = change(_doc.Model.Options));
