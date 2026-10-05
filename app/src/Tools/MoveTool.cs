@@ -26,6 +26,8 @@ public sealed class MoveTool : DrawingTool
     private ComponentInstance? _gripsOf;
     private List<(Vec3 Center, Vec3 Normal)> _grips = [];
     private int _hotGrip = -1;
+    // Alt over an object cycles the grips: rotation crosshairs, or points on its box to pick it up by.
+    private bool _pointGrips;
 
     // Groups and components follow the cursor: their drawn nodes (or copies of them) and where those started.
     private readonly List<(Node3D Node, Transform3D Start, bool Ghost)> _following = [];
@@ -147,9 +149,21 @@ public sealed class MoveTool : DrawingTool
             return;
         if (_from == null && _hotGrip >= 0 && _gripsOf is { } gripped)
         {
-            // A rotation grip: rotate that object about the box face the grip is on.
             var (center, normal) = _grips[_hotGrip];
-            Manager.Activate(new RotateTool([gripped], center, normal));
+            if (!_pointGrips)
+            {
+                // A rotation grip: rotate that object about the box face the grip is on.
+                Manager.Activate(new RotateTool([gripped], center, normal));
+                return;
+            }
+            // A point grip: pick the object up by that point of its box.
+            _items = [gripped];
+            _from = center;
+            _lastCopy = null;
+            _gripsOf = null;
+            Follow();
+            OnInferenceChanged();
+            RefreshStatus();
             return;
         }
         if (_from == null)
@@ -170,7 +184,29 @@ public sealed class MoveTool : DrawingTool
         Finish(doc, Slide(inf.Point - _from.Value));
     }
 
-    /// <summary>The red crosshairs on the box faces of the group or component under the cursor, and which one it is on.</summary>
+    /// <summary>Rotation crosshairs at the box's face centres, or (point grips) its corners and edge midpoints.</summary>
+    private List<(Vec3 Center, Vec3 Normal)> BuildGrips(Bounds3 b, Transform xf)
+    {
+        var grips = new List<(Vec3, Vec3)>();
+        if (b.IsEmpty)
+            return grips;
+        Vec3 Corner(int i) => new((i & 1) == 0 ? b.Min.X : b.Max.X, (i & 2) == 0 ? b.Min.Y : b.Max.Y, (i & 4) == 0 ? b.Min.Z : b.Max.Z);
+        if (_pointGrips)
+        {
+            for (var i = 0; i < 8; i++)
+                grips.Add((xf.ApplyPoint(Corner(i)), Vec3.Zero));
+            foreach (var (i, j) in new[] { (0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7) })
+                grips.Add((xf.ApplyPoint((Corner(i) + Corner(j)) * 0.5), Vec3.Zero));
+            return grips;
+        }
+        var c = b.Center;
+        foreach (var (axis, half) in new[] { (Vec3.UnitX, b.Size.X / 2), (Vec3.UnitY, b.Size.Y / 2), (Vec3.UnitZ, b.Size.Z / 2) })
+            foreach (var sign in new[] { 1, -1 })
+                grips.Add((xf.ApplyPoint(c + axis * (sign * half)), xf.ApplyNormal(axis * sign).Normalized()));
+        return grips;
+    }
+
+    /// <summary>The grips of the group or component under the cursor, and which one it is on.</summary>
     private void UpdateGrips(Vector2 position)
     {
         _hotGrip = -1;
@@ -188,14 +224,7 @@ public sealed class MoveTool : DrawingTool
             _gripsOf = over;
             var b = over.Definition.Entities.Bounds();
             var xf = over.Transform.Then(doc.Context.ToWorld);
-            _grips = [];
-            if (!b.IsEmpty)
-            {
-                var c = b.Center;
-                foreach (var (axis, half) in new[] { (Vec3.UnitX, b.Size.X / 2), (Vec3.UnitY, b.Size.Y / 2), (Vec3.UnitZ, b.Size.Z / 2) })
-                    foreach (var sign in new[] { 1, -1 })
-                        _grips.Add((xf.ApplyPoint(c + axis * (sign * half)), xf.ApplyNormal(axis * sign).Normalized()));
-            }
+            _grips = BuildGrips(b, xf);
         }
         if (_gripsOf == null)
             return;
@@ -320,6 +349,14 @@ public sealed class MoveTool : DrawingTool
             RefreshStatus();
             return true;
         }
+        if (key.Keycode == Key.Alt && !key.Echo && _from == null && _gripsOf is { } hovered && View.Document is { } d)
+        {
+            _pointGrips = !_pointGrips;
+            _grips = BuildGrips(hovered.Definition.Entities.Bounds(), hovered.Transform.Then(d.Context.ToWorld));
+            _hotGrip = -1;
+            View.QueueOverlayRedraw();
+            return true;
+        }
         if (key.Keycode == Key.Alt && !key.Echo)
         {
             _autofold = !_autofold;
@@ -359,16 +396,21 @@ public sealed class MoveTool : DrawingTool
             {
                 if (View.ToScreen(center) is not { } at)
                     continue;
+                var color = i == _hotGrip ? new Color(1, 0.1f, 0.1f) : new Color(0.85f, 0.2f, 0.2f, 0.85f);
+                if (_pointGrips)
+                {
+                    overlay.DrawCircle(at, i == _hotGrip ? 5 : 3.5f, color);
+                    continue;
+                }
                 // A small cross in the box face's plane, brighter under the cursor.
                 var (u, v) = Polygon.PlaneAxes(normal);
                 var size = 9 * View.Camera.WorldPerPixel(View.Size.Y, View.Camera.DepthOf(center));
-                var color = i == _hotGrip ? new Color(1, 0.1f, 0.1f) : new Color(0.85f, 0.2f, 0.2f, 0.85f);
                 DrawWorldLine(overlay, center - u * size, center + u * size, color, i == _hotGrip ? 3 : 2);
                 DrawWorldLine(overlay, center - v * size, center + v * size, color, i == _hotGrip ? 3 : 2);
             }
         if (_hotGrip >= 0 && View.ToScreen(_grips[_hotGrip].Center) is { } tip)
         {
-            DrawTooltip(overlay, tip, "Rotate");
+            DrawTooltip(overlay, tip, _pointGrips ? "Move" : "Rotate");
             return;
         }
         DrawInference(overlay);
