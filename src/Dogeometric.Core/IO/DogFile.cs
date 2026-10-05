@@ -59,6 +59,10 @@ public static class DogFile
             w.WriteStartObject("options");
             w.WriteString("author", model.Options.Author);
             w.WriteString("name", model.Options.Name);
+            w.WriteString("glueTo", model.Options.GlueTo.ToString());
+            w.WriteBoolean("cutsOpening", model.Options.CutsOpening);
+            w.WriteBoolean("alwaysFaceCamera", model.Options.AlwaysFaceCamera);
+            w.WriteBoolean("shadowsFaceSun", model.Options.ShadowsFaceSun);
             w.WriteString("description", model.Options.Description);
             w.WriteNumber("fadeRest", model.Options.FadeRest);
             w.WriteNumber("fadeSimilar", model.Options.FadeSimilar);
@@ -537,6 +541,10 @@ public static class DogFile
             {
                 Author = opts.GetProperty("author").GetString() ?? "",
                 Name = opts.TryGetProperty("name", out var mn) ? mn.GetString() ?? "" : "",
+                GlueTo = opts.TryGetProperty("glueTo", out var gt) && Enum.TryParse<GlueTo>(gt.GetString(), out var glue) ? glue : GlueTo.None,
+                CutsOpening = opts.TryGetProperty("cutsOpening", out var co) && co.GetBoolean(),
+                AlwaysFaceCamera = opts.TryGetProperty("alwaysFaceCamera", out var afc) && afc.GetBoolean(),
+                ShadowsFaceSun = opts.TryGetProperty("shadowsFaceSun", out var sfs) && sfs.GetBoolean(),
                 Description = opts.TryGetProperty("description", out var md2) ? md2.GetString() ?? "" : "",
                 FadeRest = opts.GetProperty("fadeRest").GetDouble(),
                 FadeSimilar = opts.GetProperty("fadeSimilar").GetDouble(),

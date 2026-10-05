@@ -81,6 +81,7 @@ public partial class MainWindow : Control
 
         _document = new DocumentController(this, _viewport, _status);
         _document.Changed += () => GetWindow().Title = _document.Title;
+        _document.ComponentImportRequested += def => _viewport.Tools.Activate(new ComponentPlaceTool(def));
         _document.ImageImportRequested += path =>
         {
             var data = File.ReadAllBytes(path);

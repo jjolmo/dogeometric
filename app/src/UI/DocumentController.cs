@@ -287,6 +287,9 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private FileDialog? _importOptionsDialog;
 
     /// <summary>File › Import of a picture: the main window hands it to the texture placing tool.</summary>
+    /// <summary>A model imported as a component, to be placed with the cursor.</summary>
+    public event Action<ComponentDefinition>? ComponentImportRequested;
+
     public event Action<string>? ImageImportRequested;
 
     public void Save() => Save(null);
@@ -422,6 +425,17 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
         try
         {
+            if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".skp" or ".dog")
+            {
+                // As SketchUp imports a model: one component, placed with the cursor.
+                var other = Load(path);
+                ComponentDefinition? def = null;
+                Document.Operation("Import", _ => def = Grouping.ImportAsComponent(Model, other, System.IO.Path.GetFileNameWithoutExtension(path)));
+                Rebuild();
+                Changed?.Invoke();
+                ComponentImportRequested?.Invoke(def!);
+                return;
+            }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Core.IO.DxfImport.Load(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj"

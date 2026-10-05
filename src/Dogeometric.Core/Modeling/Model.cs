@@ -26,6 +26,12 @@ public sealed record ModelOptions
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
 
+    /// <summary>Model Info › File › Alignment: how the model behaves when it is placed in another as a component.</summary>
+    public GlueTo GlueTo { get; init; }
+    public bool CutsOpening { get; init; }
+    public bool AlwaysFaceCamera { get; init; }
+    public bool ShadowsFaceSun { get; init; }
+
     /// <summary>Credits › Model author.</summary>
     public string Author { get; init; } = "";
 

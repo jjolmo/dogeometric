@@ -109,6 +109,23 @@ public partial class ModelInfoDialog : AcceptDialog
         }
         Text("Name", model.Options.Name, (m, v) => m with { Name = v });
         Text("Description", model.Options.Description, (m, v) => m with { Description = v });
+        grid.AddChild(new Label { Text = "Glue to" });
+        var glue = new OptionButton();
+        foreach (var g in Enum.GetValues<GlueTo>())
+            glue.AddItem(g.ToString(), (int)g);
+        glue.Select((int)model.Options.GlueTo);
+        glue.ItemSelected += i => Options("Model Info", m => m with { GlueTo = (GlueTo)glue.GetItemId((int)i) });
+        grid.AddChild(glue);
+        void Flag(string label, bool value, Func<ModelOptions, bool, ModelOptions> set)
+        {
+            grid.AddChild(new Control());
+            var check = new CheckBox { Text = label, ButtonPressed = value };
+            check.Toggled += on => Options("Model Info", m => set(m, on));
+            grid.AddChild(check);
+        }
+        Flag("Cut opening", model.Options.CutsOpening, (m, v) => m with { CutsOpening = v });
+        Flag("Always face camera", model.Options.AlwaysFaceCamera, (m, v) => m with { AlwaysFaceCamera = v });
+        Flag("Shadows face sun", model.Options.ShadowsFaceSun, (m, v) => m with { ShadowsFaceSun = v });
         Row(grid, "Version", model.SourceVersion.Length > 0 ? model.SourceVersion : "Dogeometric");
         if (_path != null && System.IO.File.Exists(_path))
             Row(grid, "Size", $"{new System.IO.FileInfo(_path).Length / 1024.0:0.#} KB");

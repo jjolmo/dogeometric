@@ -522,6 +522,37 @@ public static class Grouping
     /// <summary>
     /// Purge Unused: removes definitions no instance uses (repeatedly, as removing one can orphan the ones it
     /// contained). Returns how many went.
+    /// <summary>File › Import of a model: <paramref name="other"/> joins <paramref name="into"/> as one component
+    /// definition, named and aligned as its Model Info says, its materials, tags and components merged in.</summary>
+    public static ComponentDefinition ImportAsComponent(Model into, Model other, string fallbackName)
+    {
+        into.Materials.AddRange(other.Materials.Where(m => !into.Materials.Contains(m)));
+        foreach (var t in other.Tags.Skip(1))
+            into.Tags.Add(t);
+        into.Definitions.AddRange(other.Definitions);
+        var o = other.Options;
+        var def = new ComponentDefinition
+        {
+            Name = o.Name.Length > 0 ? o.Name : fallbackName,
+            Description = o.Description,
+            GlueTo = o.GlueTo,
+            CutsOpening = o.CutsOpening,
+            AlwaysFaceCamera = o.AlwaysFaceCamera,
+            ShadowsFaceSun = o.ShadowsFaceSun,
+        };
+        var e = def.Entities;
+        e.Vertices.AddRange(other.Entities.Vertices);
+        e.Edges.AddRange(other.Entities.Edges);
+        e.Faces.AddRange(other.Entities.Faces);
+        e.Instances.AddRange(other.Entities.Instances);
+        e.GuideLines.AddRange(other.Entities.GuideLines);
+        e.GuidePoints.AddRange(other.Entities.GuidePoints);
+        e.Dimensions.AddRange(other.Entities.Dimensions);
+        e.Texts.AddRange(other.Entities.Texts);
+        into.Definitions.Add(def);
+        return def;
+    }
+
     /// <summary>Tags › Purge: removes the tags nothing uses (Untagged stays). Returns how many went.</summary>
     public static int PurgeTags(Model model)
     {

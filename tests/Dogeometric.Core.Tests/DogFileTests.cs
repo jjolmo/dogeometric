@@ -298,4 +298,20 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Empty(def.Attributes);
     }
+
+    [Fact]
+    public void An_imported_model_becomes_one_component_named_and_aligned_by_its_model_info()
+    {
+        var part = new Model { Options = new ModelOptions { Name = "Vent", GlueTo = GlueTo.Vertical, CutsOpening = true } };
+        TestModels.Box(part.Entities, Vec3.Zero, new Vec3(20, 5, 10));
+        var host = new Model();
+        var def = Grouping.ImportAsComponent(host, part, "vent.dog");
+        Assert.Equal(("Vent", GlueTo.Vertical, true), (def.Name, def.GlueTo, def.CutsOpening));
+        Assert.Equal(6, def.Entities.Faces.Count);
+        Assert.Contains(def, host.Definitions);
+        Assert.Empty(host.Entities.Faces);
+
+        var unnamed = Grouping.ImportAsComponent(host, new Model(), "lid.dog");
+        Assert.Equal("lid.dog", unnamed.Name);
+    }
 }
