@@ -241,4 +241,118 @@ public static class PolygonOffset
         }
         return result;
     }
+
+    /// <summary>
+    /// Offset as SketchUp's Offset draws it by default: the mitred outline with the parts that cross over themselves
+    /// trimmed away (a notch that closes up, an arm too thin for the distance), possibly leaving several loops.
+    /// </summary>
+    public static List<List<Vec3>> Trimmed(IReadOnlyList<Vec3> loop, Vec3 normal, double distance)
+    {
+        var raw = Offset(loop, normal, distance);
+        var (u, v) = Polygon.PlaneAxes(normal);
+        var origin = loop[0];
+        (double X, double Y) Flat(Vec3 p) => ((p - origin).Dot(u), (p - origin).Dot(v));
+        Vec3 Back((double X, double Y) q) => origin + u * q.X + v * q.Y + normal * (raw[0] - origin).Dot(normal);
+        var source = loop.Select(Flat).ToList();
+        var sign = Math.Sign(SignedArea(source));
+        var result = new List<List<Vec3>>();
+        foreach (var piece in SplitAtCrossings(raw.Select(Flat).ToList()))
+        {
+            // A piece belongs to the offset when it keeps the outline's winding and the whole distance from it.
+            if (piece.Count < 3 || Math.Sign(SignedArea(piece)) != sign || Math.Abs(SignedArea(piece)) < 1e-9)
+                continue;
+            var samples = piece.Select((p, i) => ((p.X + piece[(i + 1) % piece.Count].X) / 2, (p.Y + piece[(i + 1) % piece.Count].Y) / 2));
+            if (samples.Any(p => DistanceToLoop(p, source) < Math.Abs(distance) * (1 - 1e-6) - 1e-9))
+                continue;
+            result.Add(piece.Select(Back).ToList());
+        }
+        return result;
+    }
+
+    /// <summary>Offsets an open chain of points sideways (left of its direction around <paramref name="normal"/>), mitred.</summary>
+    public static List<Vec3> OffsetOpen(IReadOnlyList<Vec3> chain, Vec3 normal, double distance)
+    {
+        var result = new List<Vec3>(chain.Count);
+        for (var i = 0; i < chain.Count; i++)
+        {
+            var d1 = i > 0 ? (chain[i] - chain[i - 1]).Normalized() : (chain[1] - chain[0]).Normalized();
+            var d2 = i + 1 < chain.Count ? (chain[i + 1] - chain[i]).Normalized() : d1;
+            var in1 = normal.Cross(d1).Normalized();
+            var in2 = normal.Cross(d2).Normalized();
+            var bisector = (in1 + in2).Normalized();
+            var cos = bisector.Dot(in1);
+            result.Add(bisector.IsZero(1e-12) || Math.Abs(cos) < 1e-6 ? chain[i] + in1 * distance : chain[i] + bisector * (distance / Math.Max(cos, 0.1)));
+        }
+        return result;
+    }
+
+    private static double SignedArea(IReadOnlyList<(double X, double Y)> p)
+    {
+        var a = 0.0;
+        for (var i = 0; i < p.Count; i++)
+        {
+            var (x1, y1) = p[i];
+            var (x2, y2) = p[(i + 1) % p.Count];
+            a += x1 * y2 - x2 * y1;
+        }
+        return a / 2;
+    }
+
+    private static double Dist2((double X, double Y) a, (double X, double Y) b) => (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
+
+    private static double DistanceToLoop((double X, double Y) p, IReadOnlyList<(double X, double Y)> loop)
+    {
+        var best = double.PositiveInfinity;
+        for (var i = 0; i < loop.Count; i++)
+        {
+            var a = loop[i];
+            var b = loop[(i + 1) % loop.Count];
+            var (dx, dy) = (b.X - a.X, b.Y - a.Y);
+            var t = Math.Clamp(((p.X - a.X) * dx + (p.Y - a.Y) * dy) / Math.Max(dx * dx + dy * dy, 1e-18), 0, 1);
+            var (cx, cy) = (a.X + dx * t - p.X, a.Y + dy * t - p.Y);
+            best = Math.Min(best, Math.Sqrt(cx * cx + cy * cy));
+        }
+        return best;
+    }
+
+    /// <summary>Splits a closed outline where two of its sides cross into simple loops (recursively).</summary>
+    private static List<List<(double X, double Y)>> SplitAtCrossings(List<(double X, double Y)> points)
+    {
+        var p = new List<(double X, double Y)>();
+        foreach (var q in points)
+            if (p.Count == 0 || Dist2(p[^1], q) > 1e-18)
+                p.Add(q);
+        while (p.Count > 1 && Dist2(p[0], p[^1]) <= 1e-18)
+            p.RemoveAt(p.Count - 1);
+        var n = p.Count;
+        for (var i = 0; i < n; i++)
+            for (var j = i + 2; j < n; j++)
+            {
+                if (i == 0 && j == n - 1)
+                    continue;
+                if (Crossing(p[i], p[(i + 1) % n], p[j], p[(j + 1) % n]) is not { } x)
+                    continue;
+                var a = new List<(double X, double Y)> { x };
+                a.AddRange(p.GetRange(i + 1, j - i));
+                var b = p.GetRange(0, i + 1);
+                b.Add(x);
+                b.AddRange(p.GetRange(j + 1, n - j - 1));
+                return [.. SplitAtCrossings(a), .. SplitAtCrossings(b)];
+            }
+        return [p];
+    }
+
+    private static (double X, double Y)? Crossing((double X, double Y) a, (double X, double Y) b, (double X, double Y) c, (double X, double Y) d)
+    {
+        var (rx, ry) = (b.X - a.X, b.Y - a.Y);
+        var (sx, sy) = (d.X - c.X, d.Y - c.Y);
+        var den = rx * sy - ry * sx;
+        if (Math.Abs(den) < 1e-15)
+            return null;
+        var t = ((c.X - a.X) * sy - (c.Y - a.Y) * sx) / den;
+        var w = ((c.X - a.X) * ry - (c.Y - a.Y) * rx) / den;
+        // Ends count: offsets of symmetric shapes cross exactly at corners.
+        const double e = 1e-9;
+        return t >= -e && t <= 1 + e && w >= -e && w <= 1 + e ? (a.X + rx * t, a.Y + ry * t) : null;
+    }
 }
