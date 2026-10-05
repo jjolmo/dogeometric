@@ -7,8 +7,9 @@ namespace Dogeometric.App.UI;
 /// <summary>
 /// SketchUp's toolbar docking: toolbars sit in docks along the top, bottom, left and right of the drawing area,
 /// or float in small windows. Drag a toolbar by its grip: dropped on a dock it joins it where the cursor is
-/// (lying down on top and bottom, standing on the sides); dropped anywhere else it floats there. View › Toolbars
-/// shows and hides them. The layout is kept for the next session.
+/// (lying down on top and bottom, standing on the sides); dropped anywhere else it floats there. A floating one
+/// also docks when its window is dragged by the title onto a dock. View › Toolbars shows and hides them. The
+/// layout is kept for the next session.
 /// </summary>
 public sealed partial class ToolbarDocks : Control
 {
@@ -115,13 +116,18 @@ public sealed partial class ToolbarDocks : Control
         bar.SetVertical(false);
         s.Window ??= MakeWindow(s);
         s.Window.AddChild(bar);
+        // It keeps its place from the dock row otherwise, and the window grows to reach it.
+        bar.Position = Vector2.Zero;
         s.Window.Position = s.FloatPosition;
         // Sized once the toolbar has laid out (its minimum size is only known after a frame).
         var window = s.Window;
         Callable.From(() =>
         {
-            if (GodotObject.IsInstanceValid(window))
-                window.Size = (Vector2I)bar.GetCombinedMinimumSize() + new Vector2I(4, 4);
+            if (!GodotObject.IsInstanceValid(window))
+                return;
+            // A side dock stretched it to the drawing area's height, with its icons in the middle of that.
+            bar.Size = bar.GetCombinedMinimumSize();
+            window.Size = (Vector2I)bar.GetCombinedMinimumSize() + new Vector2I(4, 4);
         }).CallDeferred();
         UpdateDockVisibility();
     }
@@ -131,10 +137,20 @@ public sealed partial class ToolbarDocks : Control
         var window = new Window
         {
             Title = s.Bar.Title,
+            Theme = LightTheme.Create(),
             Unresizable = true,
             Transient = true,
             WrapControls = true,
             AlwaysOnTop = false,
+        };
+        // The window is its own viewport: a drag begun on its grip goes on through its events.
+        window.WindowInput += e =>
+        {
+            if (_dragging != null && e is InputEventMouse mouse)
+            {
+                DragInput(e, window.Position + mouse.Position);
+                window.SetInputAsHandled();
+            }
         };
         window.CloseRequested += () =>
         {
@@ -168,33 +184,85 @@ public sealed partial class ToolbarDocks : Control
 
     public override void _Input(InputEvent e)
     {
+        if (_dragging != null && DragInput(e, GetGlobalMousePosition()))
+            GetViewport().SetInputAsHandled();
+    }
+
+    /// <summary>A step of a grip drag, at <paramref name="p"/> in the main window; true when it used the event.</summary>
+    private bool DragInput(InputEvent e, Vector2 p)
+    {
         if (_dragging is not { } s)
-            return;
+            return false;
         switch (e)
         {
             case InputEventMouseMotion:
-                ShowIndicator(Target(GetGlobalMousePosition()));
-                GetViewport().SetInputAsHandled();
-                break;
+                ShowIndicator(Target(p));
+                return true;
             case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }:
-                var (dock, index, _) = Target(GetGlobalMousePosition());
+                var (dock, index, _) = Target(p);
                 _dragging = null;
                 _indicator.Visible = false;
                 Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
                 s.Dock = dock;
+                // Floating windows are embedded: their position is in the main window's coordinates.
                 if (dock == Dock.Float)
-                    s.FloatPosition = (Vector2I)(GetWindow().Position + GetGlobalMousePosition()) - new Vector2I(10, 10);
+                    s.FloatPosition = (Vector2I)p - new Vector2I(10, 10);
                 Place(s, index);
                 Save();
-                GetViewport().SetInputAsHandled();
-                break;
+                return true;
             case InputEventKey { Keycode: Key.Escape, Pressed: true }:
                 _dragging = null;
                 _indicator.Visible = false;
                 Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
-                GetViewport().SetInputAsHandled();
-                break;
+                return true;
         }
+        return false;
+    }
+
+    private State? _moving;
+    private readonly Dictionary<State, Vector2I> _settled = [];
+
+    /// <summary>A floating toolbar's window dragged by its title: over a dock the strip lights up, and letting go
+    /// there docks it, as SketchUp's floating toolbars do.</summary>
+    public override void _Process(double delta)
+    {
+        var pressed = Input.IsMouseButtonPressed(MouseButton.Left);
+        if (_moving == null)
+        {
+            // Where each window rests between presses; one that moves while the button is held is being dragged.
+            foreach (var f in _states.Where(f => f.Window != null))
+                if (!pressed || !_settled.ContainsKey(f))
+                    _settled[f] = f.Window!.Position;
+                else if (_dragging == null && f.Window!.Position != _settled[f])
+                    _moving = f;
+            if (_moving == null)
+                return;
+        }
+        var s = _moving;
+        if (s.Window == null)
+        {
+            _moving = null;
+            return;
+        }
+        var target = Target(GetGlobalMousePosition());
+        if (pressed)
+        {
+            _indicator.Visible = target.Dock != Dock.Float;
+            if (_indicator.Visible)
+                ShowIndicator(target);
+            return;
+        }
+        _moving = null;
+        _indicator.Visible = false;
+        _settled.Remove(s);
+        if (target.Dock == Dock.Float)
+            s.FloatPosition = s.Window.Position;
+        else
+        {
+            s.Dock = target.Dock;
+            Place(s, target.Index);
+        }
+        Save();
     }
 
     /// <summary>Where a toolbar dropped at <paramref name="p"/> goes, and the strip to highlight.</summary>
