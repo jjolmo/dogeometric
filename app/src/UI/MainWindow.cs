@@ -25,6 +25,7 @@ public partial class MainWindow : Control
     private EntityInfoPanel _entityInfo = null!;
     private MaterialsPanel _materials = null!;
     private FogPanel _fog = null!;
+    private InstructorPanel _instructor = null!;
     private TagsPanel _tags = null!;
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
@@ -1199,6 +1200,9 @@ public partial class MainWindow : Control
         _document.DocumentReplaced += _shadows.Refresh;
         _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
         _fog = FogPanel.Create(() => _document.Document, _viewport, () => _fog.Refresh());
+        _instructor = InstructorPanel.Create(_commands);
+        _viewport.Tools.Changed += () => _instructor.Show(_viewport.Tools.Active);
+        _instructor.Show(_viewport.Tools.Active);
         _document.DocumentReplaced += () =>
         {
             _fog.Refresh();
@@ -1208,7 +1212,7 @@ public partial class MainWindow : Control
         {
             ("Entity Info", _entityInfo, true), ("Materials", _materials, true), ("Components", _components, false),
             ("Styles", _styles, false), ("Tags", _tags, false), ("Scenes", ScenesPanel.Create(() => _document.Document, _scenes), false), ("Shadows", _shadows, false),
-            ("Fog", _fog, false),
+            ("Fog", _fog, false), ("Instructor", _instructor, false),
             ("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), false), ("Outliner", _outliner, false),
         })
             _panels[name] = TraySection.Create(name, panel, expanded);
