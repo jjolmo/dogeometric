@@ -232,4 +232,20 @@ public class SkpRoundTripTests
         var back = RoundTrip(model);
         Assert.Contains(back.Tags, t => t.Name == "Lid");
     }
+
+    [Fact]
+    public void Classified_definitions_keep_their_ifc_type()
+    {
+        var model = new Model();
+        foreach (var (name, type) in new[] { ("Wall", "IfcWall"), ("Plain", "") })
+        {
+            var def = new ComponentDefinition { Name = name, IsGroup = false, IfcType = type };
+            def.Entities.AddFace([new Vec3(0, 0, 0), new Vec3(10, 0, 0), new Vec3(10, 10, 0), new Vec3(0, 10, 0)]);
+            model.Definitions.Add(def);
+            model.Entities.AddInstance(def, Transform.Identity);
+        }
+        var back = RoundTrip(model);
+        Assert.Equal("IfcWall", back.Definitions.Single(d => d.Name == "Wall").IfcType);
+        Assert.Equal("", back.Definitions.Single(d => d.Name == "Plain").IfcType);
+    }
 }

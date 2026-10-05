@@ -74,4 +74,6 @@ boilerplate, no user content). It is part of the upstream MIT package; Dogeometr
     `AttributeDictionaries`, read with the existing `ExtractAttributeDictionaries` from the D007 a definition (7C15)
     carries in its 8813 child. SketchUp keeps a definition's classification there (`AppliedSchemaTypes`:
     `"IFC 2x3" → "IfcWall"`), and Dynamic Components their definition-level `dynamic_attributes`. Checked on a file
-    SketchUp 2021 saved after `add_classification("IFC 2x3", "IfcWall")`.
+    SketchUp 2021 saved after `add_classification("IFC 2x3", "IfcWall")`. The legacy (2017) reader keeps the
+    definition's `CAttributeContainer` from its preamble the same way (`Legacy.cs` `ReadDefinition`), which is how
+    Dogeometric's own `.skp` files carry the classification back.

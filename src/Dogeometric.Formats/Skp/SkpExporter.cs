@@ -41,7 +41,9 @@ public static class SkpExporter
             {
                 if (ctx.IsEmpty(def))
                     continue;
-                var cb = b.AddComponentDefinition(string.IsNullOrEmpty(def.Name) ? "Component" : def.Name);
+                // The Classifier's type as SketchUp keeps it, under its default schema (IFC 2x3 shares these names).
+                var cb = b.AddComponentDefinition(string.IsNullOrEmpty(def.Name) ? "Component" : def.Name,
+                    def.IfcType.Length > 0 ? new Dictionary<string, object> { ["IFC 2x3"] = def.IfcType } : null, "AppliedSchemaTypes");
                 cb.IsGroupDefinition = def.IsGroup;
                 cb.IsImageDefinition = def.IsImage;
                 cb.AlwaysFacesCamera = def.AlwaysFaceCamera;

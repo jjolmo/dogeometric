@@ -591,6 +591,7 @@ namespace OpenSkp
         public bool FacesCamera;
         public bool IsGroup; // Dogeometric patch 4
         public bool ShadowsFaceSun;
+        public AttrsRec? Attrs; // Dogeometric patch 10
     }
     internal sealed class InstanceRec
     {
@@ -1378,7 +1379,7 @@ namespace OpenSkp
 
         public static object ReadDefinition(Archive ar, LR r)
         {
-            Preamble(ar, r);
+            var pre = Preamble(ar, r);
             r.Raw(ar.Ver >= 17 ? 22 : 20);
             uint nlayers = r.U32();
             if (nlayers > 10000)
@@ -1522,6 +1523,7 @@ namespace OpenSkp
                 FacesCamera = (behavior & 1) != 0,
                 ShadowsFaceSun = (behavior & 2) != 0,
                 IsGroup = isGroup,
+                Attrs = pre.Attrs as AttrsRec,
             };
         }
 
@@ -2261,6 +2263,9 @@ namespace OpenSkp
                             AlwaysFacesCamera = d.FacesCamera,
                             ShadowsFaceSun = d.ShadowsFaceSun,
                             Builder = ToGeometryBuilder(b),
+                            // Dogeometric patch 10: the definition's attribute dictionaries.
+                            AttributeDictionaries = d.Attrs?.Children.Select(c => c.Value).OfType<DictRec>()
+                                .GroupBy(x => x.Name).ToDictionary(g => g.Key, g => g.First().Entries),
                         };
                         processed++;
                         if (processed % ParseTuning.ProgressInterval == 0)
