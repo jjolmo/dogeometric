@@ -42,6 +42,9 @@ public static class ExtensionIds
     public static int FredoScale(Dogeometric.Core.Modeling.Deformation kind) => 90081 + (int)kind;
 
     public const int SubdSubdivided = 90091;
+    public const int JointPushPullLauncher = 90060;
+    public const int FredoScaleLauncher = 90080;
+    public const int SurfaceGeneric = 90130;
     public const int SubdIncrease = 90121;
     public const int SubdDecrease = 90122;
     public const int SubdCrease = 90123;

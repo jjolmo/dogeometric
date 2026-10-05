@@ -285,6 +285,7 @@ public partial class MainWindow : Control
             () => _viewport.Tools.Active is SelectCurveTool);
         _commands.AddToMenu("Tools", ExtensionIds.LoopSubdivision, "Loop subdivision smooth", "Smooth the selected faces by Loop subdivision.");
         _commands.Register(ExtensionIds.LoopSubdivision, LoopSubdivide);
+        Launcher(ExtensionIds.JointPushPullLauncher, "JointPushPull - Quick Launcher...", "Launch JointPushPull tools from a list", Toolbars.JointPushPull);
         foreach (var (id, label, tip, m) in new[]
         {
             (ExtensionIds.JointPushPull, "Joint Push Pull", "Push-pull or thicken a surface.", JointPushPullMode.Joint),
@@ -295,7 +296,7 @@ public partial class MainWindow : Control
             (ExtensionIds.FollowPushPull, "Follow Push Pull", "Push pull following the directions at borders (multi-face smart push-pull).", JointPushPullMode.Follow),
         })
         {
-            _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection", groupStart: id == ExtensionIds.JointPushPull);
+            _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection");
             _commands.Register(id, () => _viewport.Tools.Activate(new JointPushPullTool(m)), () => _viewport.Tools.Active.CommandId == id);
         }
         foreach (var kind in Enum.GetValues<SplineKind>())
@@ -335,11 +336,12 @@ public partial class MainWindow : Control
         _commands.Register(ExtensionIds.SandboxStamp, () => _viewport.Tools.Activate(new StampTool()), () => _viewport.Tools.Active is StampTool);
         _commands.AddToMenu("Tools", ExtensionIds.SandboxDrape, "Drape", "Drape the selected edges onto a surface below them.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxDrape, () => _viewport.Tools.Activate(new DrapeTool()), () => _viewport.Tools.Active is DrapeTool);
+        Launcher(ExtensionIds.SurfaceGeneric, "Generic Tools on Surface", "Start any tool and keep it persistent during session", Toolbars.ToolsOnSurface);
         foreach (var shape in Enum.GetValues<SurfaceShape>())
         {
             var id = ExtensionIds.SurfaceShape(shape);
             _commands.AddToMenu("Tools", id, $"{shape.Label()} on Surface", $"Tools on Surface: draw a {shape.Label().ToLowerInvariant()} on a surface.",
-                submenu: "Fredo6 Collection", groupStart: shape == SurfaceShape.Line);
+                submenu: "Fredo6 Collection");
             _commands.Register(id, () => _viewport.Tools.Activate(new SurfaceShapeTool(shape)), () => _viewport.Tools.Active.CommandId == id);
         }
         _commands.AddToMenu("Tools", ExtensionIds.SurfaceOffset, "Offset on Surface", "Tools on Surface: offset a curve drawn on a surface.", submenu: "Fredo6 Collection");
@@ -356,6 +358,7 @@ public partial class MainWindow : Control
         });
         _commands.AddToMenu("Tools", ExtensionIds.SandboxFlipEdge, "Flip Edge", "Flip the diagonal between two triangles.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxFlipEdge, () => _viewport.Tools.Activate(new FlipEdgeTool()), () => _viewport.Tools.Active is FlipEdgeTool);
+        Launcher(ExtensionIds.FredoScaleLauncher, "FredoScale - Quick Launcher...", "Launch FredoScale tools from a list", Toolbars.FredoScale);
         foreach (var (kind, label) in new[]
         {
             (Deformation.Scale, "Box Scaling"), (Deformation.Taper, "Box Tapering"), (Deformation.Shear, "Planar Shearing"),
@@ -364,8 +367,7 @@ public partial class MainWindow : Control
         })
         {
             var id = ExtensionIds.FredoScale(kind);
-            _commands.AddToMenu("Tools", id, label, $"FredoScale: {label.ToLowerInvariant()} of the selection.", submenu: "Fredo6 Collection",
-                groupStart: kind == Deformation.Scale);
+            _commands.AddToMenu("Tools", id, label, $"FredoScale: {label.ToLowerInvariant()} of the selection.", submenu: "Fredo6 Collection");
             _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
         _commands.AddToMenu("Tools", ExtensionIds.CurviloftLoft, "Curviloft - Loft by Spline", "Create loft junctions between curves, along splines through them.",
@@ -586,6 +588,28 @@ public partial class MainWindow : Control
         _scenes.Go(_document.Model.Scenes.Count - 1, instant: true);
         _viewport.Tools.Activate(new MatchPhotoTool(scene));
     });
+
+    /// <summary>Fredo6's Quick Launcher: the button lists its toolbar's tools at the cursor, to start one.</summary>
+    private void Launcher(int id, string label, string tip, int[] tools)
+    {
+        _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection", groupStart: true);
+        _commands.Register(id, () =>
+        {
+            var menu = new PopupMenu();
+            foreach (var tool in tools.Where(t => t != id))
+            {
+                var cmd = _commands.Get(tool);
+                if (Toolbars.Icons.TryGetValue(tool, out var icon) && ResourceLoader.Exists($"res://icons/{icon}.svg"))
+                    menu.AddIconItem(GD.Load<Texture2D>($"res://icons/{icon}.svg"), cmd.Label, tool);
+                else
+                    menu.AddItem(cmd.Label, tool);
+            }
+            menu.IdPressed += tool => _commands.Execute((int)tool);
+            menu.PopupHide += menu.QueueFree;
+            AddChild(menu);
+            menu.Popup(new Rect2I((Vector2I)GetWindow().GetMousePosition() + GetWindow().Position, Vector2I.Zero));
+        });
+    }
 
     private static int _subdLevels = 2;
 

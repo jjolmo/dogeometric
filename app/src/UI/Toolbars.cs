@@ -19,18 +19,18 @@ public static class Toolbars
         Tools.SurfaceShape.Line, Tools.SurfaceShape.Rectangle, Tools.SurfaceShape.Circle, Tools.SurfaceShape.Polygon, Tools.SurfaceShape.Ellipse,
         Tools.SurfaceShape.Parallelogram, Tools.SurfaceShape.Arc, Tools.SurfaceShape.Circle3P, Tools.SurfaceShape.Sector,
         Tools.SurfaceShape.Polyline, Tools.SurfaceShape.Freehand,
-    }.Select(Commands.ExtensionIds.SurfaceShape).Append(Commands.ExtensionIds.SurfaceOffset).Append(Commands.ExtensionIds.SurfaceEraser).ToArray();
+    }.Select(Commands.ExtensionIds.SurfaceShape).Prepend(Commands.ExtensionIds.SurfaceGeneric).Append(Commands.ExtensionIds.SurfaceOffset).Append(Commands.ExtensionIds.SurfaceEraser).ToArray();
     public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftPath, Commands.ExtensionIds.CurviloftSkin];
     // In the original toolbar's order.
     public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }
-        .Select(Commands.ExtensionIds.FredoScale).ToArray();
+        .Select(Commands.ExtensionIds.FredoScale).Prepend(Commands.ExtensionIds.FredoScaleLauncher).ToArray();
     public static readonly int[] Sandbox =
     [
         Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
         Commands.ExtensionIds.SandboxStamp, Commands.ExtensionIds.SandboxDrape, Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
     ];
     public static readonly int[] BezierSpline = [.. Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline), Commands.ExtensionIds.SplineEdit];
-    public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.RoundPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
+    public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPullLauncher, Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.RoundPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] Subd = [Commands.ExtensionIds.SubdSubdivided, Commands.ExtensionIds.SubdIncrease, Commands.ExtensionIds.SubdDecrease, Commands.ExtensionIds.SubdCrease];
     public static readonly int[] SelectionToys =
@@ -125,6 +125,9 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SandboxDrape] = "sandbox_drape";
         Icons[Commands.ExtensionIds.SandboxStamp] = "sandbox_stamp";
         Icons[Commands.ExtensionIds.SplineEdit] = "spline_edit";
+        Icons[Commands.ExtensionIds.JointPushPullLauncher] = "jpp_launcher";
+        Icons[Commands.ExtensionIds.FredoScaleLauncher] = "fredoscale_launcher";
+        Icons[Commands.ExtensionIds.SurfaceGeneric] = "tos_generic";
         Icons[Commands.ExtensionIds.SubdSubdivided] = "subd_subdivided";
         Icons[Commands.ExtensionIds.SubdIncrease] = "subd_increase";
         Icons[Commands.ExtensionIds.SubdDecrease] = "subd_decrease";
