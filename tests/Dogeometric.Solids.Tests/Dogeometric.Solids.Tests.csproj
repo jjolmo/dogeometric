@@ -18,6 +18,6 @@
   </ItemGroup>
   <!-- Manifold's native library, as the app ships it. -->
   <ItemGroup>
-    <None Include="../../app/native/linux-x64/libmanifold*" CopyToOutputDirectory="PreserveNewest" LinkBase="native" />
+    <None Include="../../app/native/linux-x64/libmanifold*" CopyToOutputDirectory="Always" LinkBase="native" />
   </ItemGroup>
 </Project>
