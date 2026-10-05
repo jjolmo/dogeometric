@@ -46,7 +46,7 @@ public sealed record ModelOptions
     public bool AngleSnapping { get; init; } = true;
     public double AngleSnap { get; init; } = 15;
 
-    /// <summary>Model Info › Units › Length snapping: typed and dragged lengths round to this step when enabled.</summary>
+    /// <summary>Model Info › Units › Length snapping: lengths drawn by dragging round to this step when enabled.</summary>
     public bool LengthSnapping { get; init; }
     public double LengthSnap { get; init; } = 1;
 
