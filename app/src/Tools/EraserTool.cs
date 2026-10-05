@@ -5,8 +5,8 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Eraser: click or drag over edges, groups and components; everything touched is highlighted and
-/// erased on release (an edge takes the faces it bounds with it). Shift hides instead, Ctrl softens/smooths
-/// edges, Ctrl+Shift unsoftens.
+/// erased on release (an edge takes the faces it bounds with it). Ctrl softens/smooths edges, Alt unsmooths and
+/// unhides, Shift hides, Ctrl+Shift only deselects.
 /// </summary>
 public sealed class EraserTool : Tool
 {
@@ -17,11 +17,23 @@ public sealed class EraserTool : Tool
     public override string CursorImage => "eraser";
     public override Input.CursorShape Cursor => Input.CursorShape.Cross;
 
-    public override string StatusText => (Input.IsKeyPressed(Key.Ctrl), Input.IsKeyPressed(Key.Shift)) switch
+    private enum Mode { Erase, Soften, Unsoften, Hide, Deselect }
+
+    private static Mode Current => (Input.IsKeyPressed(Key.Ctrl), Input.IsKeyPressed(Key.Shift), Input.IsKeyPressed(Key.Alt)) switch
     {
-        (true, true) => "Click or drag to unsmooth/unhide items.",
-        (true, false) => "Click or drag to soften/smooth edges.",
-        (false, true) => "Click or drag to hide items.",
+        (true, true, _) => Mode.Deselect,
+        (true, false, _) => Mode.Soften,
+        (false, true, _) => Mode.Hide,
+        (false, false, true) => Mode.Unsoften,
+        _ => Mode.Erase,
+    };
+
+    public override string StatusText => Current switch
+    {
+        Mode.Soften => "Click or drag to soften/smooth edges.",
+        Mode.Unsoften => "Click or drag to unsmooth/unhide items.",
+        Mode.Hide => "Click or drag to hide items.",
+        Mode.Deselect => "Click or drag to deselect items.",
         _ => "Click or drag to erase items.",
     };
 
@@ -49,38 +61,58 @@ public sealed class EraserTool : Tool
             return;
         var items = _marked.ToList();
         _marked.Clear();
-        var ctrl = Input.IsKeyPressed(Key.Ctrl);
-        var shift = Input.IsKeyPressed(Key.Shift);
-        if (ctrl || shift)
+        var mode = Current;
+        switch (mode)
         {
-            doc.Operation(ctrl && !shift ? "Soften Edges" : shift && !ctrl ? "Hide" : "Unsoften", _ =>
-            {
-                foreach (var item in items)
+            case Mode.Erase:
+                doc.Selection.Remove(items);
+                doc.Operation("Erase", e => Editing.Erase(e, items));
+                break;
+            case Mode.Deselect:
+                doc.Selection.Remove(items);
+                break;
+            default:
+                doc.Operation(mode switch { Mode.Soften => "Soften Edges", Mode.Hide => "Hide", _ => "Unsoften" }, _ =>
                 {
-                    switch (item)
+                    foreach (var item in items)
                     {
-                        case Edge e when ctrl && !shift:
-                            e.Flags |= EdgeFlags.Soft | EdgeFlags.Smooth;
-                            break;
-                        case Edge e when ctrl && shift:
-                            e.Flags &= ~(EdgeFlags.Soft | EdgeFlags.Smooth | EdgeFlags.Hidden);
-                            break;
-                        case Edge e:
-                            e.Flags |= EdgeFlags.Hidden;
-                            break;
-                        case ComponentInstance i:
-                            i.Hidden = !ctrl;
-                            break;
+                        switch (item, mode)
+                        {
+                            case (Edge e, Mode.Soften):
+                                e.Flags |= EdgeFlags.Soft | EdgeFlags.Smooth;
+                                break;
+                            case (Edge e, Mode.Unsoften):
+                                e.Flags &= ~(EdgeFlags.Soft | EdgeFlags.Smooth | EdgeFlags.Hidden);
+                                break;
+                            case (Edge e, Mode.Hide):
+                                e.Flags |= EdgeFlags.Hidden;
+                                break;
+                            case (ComponentInstance i, Mode.Hide):
+                                i.Hidden = true;
+                                break;
+                            case (ComponentInstance i, Mode.Unsoften):
+                                i.Hidden = false;
+                                break;
+                        }
                     }
-                }
-            });
-        }
-        else
-        {
-            doc.Selection.Remove(items);
-            doc.Operation("Erase", e => Editing.Erase(e, items));
+                });
+                break;
         }
         View.QueueOverlayRedraw();
+    }
+
+    public override bool KeyDown(InputEventKey key)
+    {
+        if (key.Keycode is Key.Ctrl or Key.Shift or Key.Alt)
+            RefreshStatus();
+        return base.KeyDown(key);
+    }
+
+    public override bool KeyUp(InputEventKey key)
+    {
+        if (key.Keycode is Key.Ctrl or Key.Shift or Key.Alt)
+            RefreshStatus();
+        return base.KeyUp(key);
     }
 
     private void Mark(Vector2 position)
