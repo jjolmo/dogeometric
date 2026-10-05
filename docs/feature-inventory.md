@@ -48,7 +48,7 @@ Items marked *(verify)* come from general SketchUp knowledge and still need chec
 
 ## 2. Camera and navigation
 
-Mouse defaults *(verify)*: middle-drag orbits, Shift+middle-drag pans, the wheel zooms to the cursor, double-click with the middle button re-centres.
+Mouse defaults (checked on screen): middle-drag orbits, Shift+middle-drag pans, the wheel zooms to the cursor, double-click with the middle button re-centres.
 
 | Command | Shortcut | Modifiers / notes | Prio |
 |---|---|---|---|
