@@ -72,7 +72,11 @@ public static class WatermarkCompositor
             }
             default:
             {
-                var s = Scaled(size, mark.Scale);
+                // SketchUp scales a positioned picture to a share of the view's width.
+                var width = mark.Scale * view.X;
+                var s = new Vector2I((int)Math.Round(width), (int)Math.Round(width * size.Y / Math.Max(size.X, 1)));
+                if (s.X < 1 || s.Y < 1)
+                    break;
                 var column = (int)mark.Position % 3;
                 var row = (int)mark.Position / 3;
                 Blend(target, Resized(picture, s), new Vector2I(column * (view.X - s.X) / 2, row * (view.Y - s.Y) / 2));

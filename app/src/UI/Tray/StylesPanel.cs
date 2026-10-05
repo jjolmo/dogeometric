@@ -1,4 +1,5 @@
 using Dogeometric.App.Commands;
+using Dogeometric.Core.IO;
 using Dogeometric.Core.Modeling;
 using Godot;
 
@@ -19,6 +20,7 @@ public partial class StylesPanel : VBoxContainer
     {
         var p = new StylesPanel { _commands = commands, _style = style, _setStyle = setStyle };
         var group = new ButtonGroup();
+        p.StyleFiles();
         p.Section("Edge Settings");
         p.Switch("Edges", CommandIds.Edges);
         p.Switch("Back Edges", CommandIds.BackEdges);
@@ -154,6 +156,55 @@ public partial class StylesPanel : VBoxContainer
         _readers.Add(() => slider.Value = get(_style()));
     }
 
+    /// <summary>Loading a SketchUp .style file as the model's style, and saving the model's style as one.</summary>
+    private void StyleFiles()
+    {
+        var row = new HBoxContainer();
+        var load = new Button { Text = "Load Style…", FocusMode = FocusModeEnum.None, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        load.Pressed += () => PickFile("Load Style", FileDialog.FileModeEnum.OpenFile, "*.style ; SketchUp Styles", path =>
+        {
+            try
+            {
+                var loaded = StyleFile.Load(path);
+                _setStyle(_ => loaded);
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException or System.Xml.XmlException)
+            {
+                OS.Alert($"Could not read {System.IO.Path.GetFileName(path)}: {e.Message}", "Load Style");
+            }
+        });
+        row.AddChild(load);
+        var save = new Button { Text = "Save Style As…", FocusMode = FocusModeEnum.None, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        save.Pressed += () => PickFile("Save Style As", FileDialog.FileModeEnum.SaveFile, "*.style ; SketchUp Styles", path =>
+            StyleFile.Save(_style(), path.EndsWith(".style", StringComparison.OrdinalIgnoreCase) ? path : path + ".style"), _style().Name + ".style");
+        row.AddChild(save);
+        AddChild(row);
+        var name = new Label { ThemeTypeVariation = "HeaderSmall", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        AddChild(name);
+        _readers.Add(() => name.Text = _style().Name);
+    }
+
+    private void PickFile(string title, FileDialog.FileModeEnum mode, string filter, Action<string> picked, string file = "")
+    {
+        var picker = new FileDialog
+        {
+            FileMode = mode,
+            Access = FileDialog.AccessEnum.Filesystem,
+            Filters = [filter],
+            Title = title,
+            CurrentFile = file,
+            UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
+        };
+        picker.FileSelected += path =>
+        {
+            picker.QueueFree();
+            picked(path);
+        };
+        picker.Canceled += picker.QueueFree;
+        AddChild(picker);
+        picker.PopupCentered(new Vector2I(800, 500));
+    }
+
     /// <summary>The style's watermarks, drawn in list order (later ones on top), with Add, Edit, Move Up and Delete.</summary>
     private void Watermarks()
     {
@@ -189,27 +240,15 @@ public partial class StylesPanel : VBoxContainer
         var add = new Button { Text = "Add Watermark…", FocusMode = FocusModeEnum.None };
         add.Pressed += () =>
         {
-            var picker = new FileDialog
+            PickFile("Choose Watermark Image", FileDialog.FileModeEnum.OpenFile, "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images", path =>
             {
-                FileMode = FileDialog.FileModeEnum.OpenFile,
-                Access = FileDialog.AccessEnum.Filesystem,
-                Filters = ["*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"],
-                Title = "Choose Watermark Image",
-                UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
-            };
-            picker.FileSelected += path =>
-            {
-                picker.QueueFree();
                 var mark = new Watermark
                 {
                     Name = System.IO.Path.GetFileNameWithoutExtension(path),
                     Image = new TextureImage { FileName = System.IO.Path.GetFileName(path), Data = System.IO.File.ReadAllBytes(path) },
                 };
                 WatermarkDialog.Show(this, mark, "Create Watermark", m => Change(l => { l.Add(m); return l; }));
-            };
-            picker.Canceled += picker.QueueFree;
-            AddChild(picker);
-            picker.PopupCentered(new Vector2I(800, 500));
+            });
         };
         AddChild(add);
     }

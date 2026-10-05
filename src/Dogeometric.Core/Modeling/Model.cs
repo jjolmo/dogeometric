@@ -38,7 +38,7 @@ public sealed record Watermark
     public bool Mask { get; init; }
     public WatermarkLayout Layout { get; init; } = WatermarkLayout.Stretched;
     public bool LockAspect { get; init; } = true;
-    /// <summary>Tiled and positioned pictures: 1 shows them at their own pixel size.</summary>
+    /// <summary>Tiled: a share of the picture's own pixel size; positioned: a share of the view's width.</summary>
     public double Scale { get; init; } = 1;
     public WatermarkPosition Position { get; init; } = WatermarkPosition.BottomRight;
 }
