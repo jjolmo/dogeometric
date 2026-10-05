@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>Dogeometric.App</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- Run on whatever newer .NET runtime is installed (lumina only has .NET 10). -->
+    <!-- Run on whatever newer .NET runtime is installed (a machine may only have .NET 10). -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
   <ItemGroup>

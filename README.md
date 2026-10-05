@@ -15,7 +15,6 @@ Main use: precise 3D modelling of electronic enclosures and similar parts for 3D
 | `docs/feature-inventory.md` | Every SketchUp feature, with priority. |
 | `docs/architecture.md` | How the pieces fit. |
 | `research/` | Extraction scripts and data pulled from the SketchUp 2021 install. |
-| `scripts/undine-run.sh` | Sync to undine, build, launch and screenshot. |
 
 ## Build and run
 
@@ -32,7 +31,7 @@ Linux release: `scripts/release-linux.sh` (needs Godot's .NET export templates a
 
 - Native format `.dog`; open `.skp`; import/export open formats (STL, OBJ, glTF…); STL export of the selection or the whole model.
 - Metric and imperial units (Architectural, Engineering, Fractional), as SketchUp's Model Info › Units.
-- SketchUp's behaviour is the spec. When in doubt, check SketchUp 2021 (installed in the `SketchUp` Bottles bottle on undine) and measure it.
+- SketchUp's behaviour is the spec. When in doubt, check SketchUp 2021 and measure it.
 
 ## Third-party libraries
 

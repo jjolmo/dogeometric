@@ -1,6 +1,6 @@
 # Remaining gaps against SketchUp 2021
 
-Compared on 2026-10-05 against the reference SketchUp 2021 on undine: its menu tree (Win32 dump), toolbars,
+Compared on 2026-10-05 against a reference SketchUp 2021 install: its menu tree (Win32 dump), toolbars,
 Instructor pages (modifier keys of every tool), dialog strings and shipped extensions. Trimble services are left
 out on purpose (3D Warehouse, Extension Warehouse, Send to LayOut, PreDesign, Share Model/Component, Manage
 Licensing, Show Terrain): their menu entries exist and are disabled.

@@ -1,6 +1,6 @@
 # Dogeometric — SketchUp feature inventory
 
-Reference: **SketchUp Pro 2021** (21.1.332), running in the Bottles bottle `SketchUp` on undine.
+Reference: **SketchUp Pro 2021** (21.1.332).
 
 ## Sources
 
@@ -10,7 +10,7 @@ Reference: **SketchUp Pro 2021** (21.1.332), running in the Bottles bottle `Sket
 | `resources/en-US/helpcontent/tool/<id>/index.html` (Instructor panel) | Step-by-step operation and **modifier keys** of every tool |
 | `ShippedExtensions/*/Resources/en-US/*.strings` | Sandbox, Advanced Camera Tools, Dynamic Components |
 | `AppData/Roaming/SketchUp/SketchUp 2021/SketchUp/Plugins` | Third-party extensions in the reference user's setup |
-| Live session on undine (screenshots + xdotool) | Context menu, UI layout |
+| Live session of the reference install (screenshots) | Context menu, UI layout |
 
 Items marked *(verify)* come from general SketchUp knowledge and still need checking against the running app.
 
