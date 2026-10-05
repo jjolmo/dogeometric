@@ -21,9 +21,6 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Notes |
 |---|---|
-| Transparency quality "Nicer" | The far-then-near second pass was committed but not confirmed on screen. |
-| Rotate: axis set by dragging from the centre | The protractor turns along the drag; a full rotation about a dragged axis is not yet checked. |
-| Image Igloo: Shift/Ctrl + arrows | Implemented, not checked on screen (needs a model with several matched photos from one spot). |
 | Ruby Console and Ruby API | SketchUp's extension mechanism. Our extensions are rebuilt natively; no scripting yet. A console with a small command language (or an embedded scripting host) would cover macros. |
 | Classifier tool and Model Info › Classifications | IFC types on components; only matters with IFC export. |
 
@@ -41,4 +38,5 @@ Styles (edges, faces, background, modelling colours, watermarks, `.style` load/s
 from the Instructor pages, VCB coordinates/arrays/offsets, imperial units and formats, Outliner editing, section
 plane naming/symbol/fill troubleshooting/slice to group, Dimension and Text options, 2D image and vector export
 options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture, STEP export,
-Solid Tools tests (Outer Shell now fills cavities).
+Solid Tools tests (Outer Shell now fills cavities), Transparency quality Nicer, Rotate about a dragged axis and Image
+Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STEP.
