@@ -226,7 +226,12 @@ public partial class MainWindow : Control
         if (OS.GetCmdlineUserArgs().FirstOrDefault(a => File.Exists(a)) is { } file)
             CallDeferred(MethodName.OpenFromCommandLine, file);
         else if (crashed == null)
+        {
             _document.NewFrom(Templates.Create(Templates.Default));
+            // Scripted test sessions set DOGEOMETRIC_NO_WELCOME so the window does not cover the view.
+            if (AppPreferences.Current.ShowWelcome && OS.GetEnvironment("DOGEOMETRIC_NO_WELCOME") == "")
+                CallDeferred(MethodName.ShowWelcome);
+        }
     }
 
     /// <summary>The cloned SketchUp extensions: their menu items (where each extension puts them) and commands.</summary>

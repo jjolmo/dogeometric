@@ -10,10 +10,7 @@ public partial class MainWindow
 
     private void RegisterHelp()
     {
-        _commands.Register(HelpIds.Welcome, () => Alert("Welcome to Dogeometric",
-            "Dogeometric is a 3D modeller that works like SketchUp 2021, with its extensions built in. " +
-            "It opens and saves .skp files, and exports STL for 3D printing.\n\n" +
-            "Help › Help Center opens the project page; Help › Search Dogeometric finds any command by name."));
+        _commands.Register(HelpIds.Welcome, ShowWelcome);
         _commands.Register(HelpIds.HelpCenter, () => OS.ShellOpen(Project + "#readme"));
         _commands.Register(HelpIds.ContactUs, () => OS.ShellOpen(Project + "/issues"));
         _commands.Register(HelpIds.CheckForUpdate, () => OS.ShellOpen(Project + "/releases"));

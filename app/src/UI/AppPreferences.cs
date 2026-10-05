@@ -122,6 +122,9 @@ public sealed class AppPreferences
     public List<string> ComponentCollections { get; set; } = [];
     public string ComponentCollection { get; set; } = "";
 
+    /// <summary>Help › Welcome opens at start-up (its "Always show on startup").</summary>
+    public bool ShowWelcome { get; set; } = true;
+
     /// <summary>File › Recent File, newest first.</summary>
     public List<string> RecentFiles { get; set; } = [];
 
