@@ -84,4 +84,15 @@ public class SectionFillTests
         doc.Undo.Undo();
         Assert.True(doc.Model.ShowSectionFill);
     }
+
+    [Fact]
+    public void The_section_slice_exports_flat_at_full_scale()
+    {
+        var dxf = HiddenLine.SectionSliceDxf(HollowBox())!;
+        var e = DxfImport.Read(dxf).Definitions[0].Entities;
+        Assert.Equal(new Vec3(40, 20, 0), e.Bounds().Size);
+        var ring = e.Faces.Single(f => f.Loops.Count == 2);
+        Assert.Equal(40 * 20 - 39 * 19, ring.Area, 6);
+        Assert.Null(HiddenLine.SectionSliceDxf(new Model()));
+    }
 }

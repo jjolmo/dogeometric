@@ -311,6 +311,21 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             status.SetHint(error == Error.Ok ? $"Exported {System.IO.Path.GetFileName(path)}" : $"Could not export: {error}");
         });
 
+    /// <summary>File › Export › Section Slice: the active section's cut as a full-scale DXF.</summary>
+    public void ShowExportSectionSlice()
+    {
+        if (Dogeometric.Core.IO.HiddenLine.SectionSliceDxf(Model) is null)
+        {
+            Alert("Export Section Slice", "There is no active section cut: place a section plane and make it active first.");
+            return;
+        }
+        ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export Section Slice", ["*.dxf ; DXF drawing"], path =>
+        {
+            System.IO.File.WriteAllText(path, Dogeometric.Core.IO.HiddenLine.SectionSliceDxf(Model)!);
+            status.SetHint($"Exported {System.IO.Path.GetFileName(path)}");
+        });
+    }
+
     private FileDialog? _exportOptionsDialog;
 
     public void Open(string path)

@@ -172,4 +172,19 @@ public static class HiddenLine
         sb.Append("0\nENDSEC\n0\nEOF\n");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// File › Export › Section Slice: the active section's cut as DXF lines in millimetres, laid flat in the section
+    /// plane's own axes (seen from the side its arrows point away from). Null without an active section.
+    /// </summary>
+    public static string? SectionSliceDxf(Model model)
+    {
+        if (model.Entities.ActiveSection is not { } plane)
+            return null;
+        var (u, v) = Polygon.PlaneAxes(-plane.Normal);
+        var origin = plane.Point;
+        var segments = Intersect.SectionCut(model).Select(s =>
+            new Segment((s.A - origin).Dot(u), -(s.A - origin).Dot(v), (s.B - origin).Dot(u), -(s.B - origin).Dot(v), false));
+        return ToDxf(segments, 0, 1);
+    }
 }

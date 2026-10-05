@@ -644,6 +644,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Import, _document.ShowImport);
         _commands.Register(CommandIds.Export3DModel, _document.ShowExport3D);
         _commands.Register(CommandIds.Export2DGraphic, _document.ShowExport2D);
+        _commands.Register(CommandIds.ExportSectionSlice, _document.ShowExportSectionSlice);
         _commands.Register(CommandIds.PrintSetup, () => Printing.ShowSetup(this));
         _commands.Register(CommandIds.PrintPreview, () => _status.SetHint(Printing.Preview(_viewport)));
         _commands.Register(CommandIds.Print, () => _status.SetHint(Printing.Print(_viewport)));
