@@ -15,6 +15,12 @@ namespace Dogeometric.App.Tools;
 /// </summary>
 public class CircleTool(bool polygon) : DrawingTool
 {
+    protected override bool ChangeSegments(int delta)
+    {
+        Segments = Math.Clamp(Segments + delta, 3, 999);
+        return true;
+    }
+
     private static int _circleSegments = Shapes.DefaultCircleSegments;
     private static int _polygonSides = Shapes.DefaultPolygonSides;
 

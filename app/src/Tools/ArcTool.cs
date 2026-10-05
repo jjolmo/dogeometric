@@ -14,6 +14,12 @@ namespace Dogeometric.App.Tools;
 /// corner then rounds it with the same radius.</summary>
 public sealed class ArcTool : DrawingTool
 {
+    protected override bool ChangeSegments(int delta)
+    {
+        _segments = Math.Clamp(_segments + delta, 1, 999);
+        return true;
+    }
+
     private static int _segments = Shapes.DefaultArcSegments;
     private static double _filletRadius;
 

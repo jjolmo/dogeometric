@@ -25,7 +25,7 @@ public class CenterArcTool(bool pie) : DrawingTool
     public override int CommandId => pie ? CommandIds.Pie : CommandIds.Arc;
     public override string CursorImage => "arc1";
     protected override Vec3? From => _center;
-    public override string VcbLabel => _start == null ? "Radius" : "Angle";
+    public override string VcbLabel => _center == null ? "Segments" : _start == null ? "Radius" : "Angle";
     public override string StatusText => (_center, _start) switch
     {
         (null, _) => "Select center point.",
@@ -37,6 +37,7 @@ public class CenterArcTool(bool pie) : DrawingTool
     {
         ({ } c, null, { } inf) => UI.Measure.Show(c.DistanceTo(inf.Point)),
         ({ }, { }, _) when Sweep() is { } a => (a * 180 / Math.PI).ToString("0.0", CultureInfo.InvariantCulture),
+        (null, _, _) => _arcSegments.ToString(CultureInfo.InvariantCulture),
         _ => "",
     };
 
@@ -106,7 +107,7 @@ public class CenterArcTool(bool pie) : DrawingTool
     {
         if (View.Document is not { } doc || _center is not { } c || _start is not { } s || sweep <= 1e-9)
             return;
-        var segments = Math.Max(1, (int)Math.Round(Shapes.DefaultArcSegments * sweep / Math.PI));
+        var segments = _arcSegments;
         var points = Shapes.CenterArc(c, _normal, s, sweep, segments).Select(ToLocal).ToList();
         var center = ToLocal(c);
         var normal = doc.Context.ToWorld.Inverse().ApplyVector(_normal).Normalized();
@@ -123,8 +124,25 @@ public class CenterArcTool(bool pie) : DrawingTool
         View.QueueOverlayRedraw();
     }
 
+    // SketchUp's Arc and Pie keep one segment count, typed "12s" or changed with Ctrl +/-.
+    private static int _arcSegments = Shapes.DefaultArcSegments;
+
+    protected override bool ChangeSegments(int delta)
+    {
+        _arcSegments = Math.Clamp(_arcSegments + delta, 1, 999);
+        return true;
+    }
+
     public override bool ApplyVcb(string text)
     {
+        var t = text.Trim().ToLowerInvariant();
+        if (t.EndsWith('s') && int.TryParse(t[..^1], out var n))
+        {
+            if (n < 1 || n > 999)
+                return false;
+            _arcSegments = n;
+            return true;
+        }
         if (_center is not { } c)
             return false;
         if (_start == null)
@@ -192,6 +210,12 @@ public sealed class PieTool() : CenterArcTool(true);
 
 public sealed class ThreePointArcTool : DrawingTool
 {
+    protected override bool ChangeSegments(int delta)
+    {
+        _segments = Math.Clamp(_segments + delta, 1, 999);
+        return true;
+    }
+
     private static int _segments = Shapes.DefaultArcSegments;
     private readonly List<Vec3> _points = [];
 

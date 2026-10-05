@@ -42,8 +42,18 @@ public abstract class DrawingTool : Tool
 
     protected virtual void OnInferenceChanged() { }
 
+    /// <summary>Ctrl + '+' / Ctrl + '-': a tool drawing curves takes one more or one fewer segment. False when it has none.</summary>
+    protected virtual bool ChangeSegments(int delta) => false;
+
     public override bool KeyDown(InputEventKey key)
     {
+        if (key.CtrlPressed && key.Keycode is Key.Plus or Key.Equal or Key.KpAdd or Key.Minus or Key.KpSubtract
+            && ChangeSegments(key.Keycode is Key.Minus or Key.KpSubtract ? -1 : 1))
+        {
+            View.ShowVcbValue(VcbValue);
+            View.QueueOverlayRedraw();
+            return true;
+        }
         // Arrow keys toggle an axis lock (→ red, ← green, ↑ blue), like SketchUp.
         Vec3? axis = key.Keycode switch
         {
