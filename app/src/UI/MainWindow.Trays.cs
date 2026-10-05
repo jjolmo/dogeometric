@@ -43,7 +43,11 @@ public partial class MainWindow
             list.AddThemeConstantOverride("separation", 2);
             scroll.AddChild(list);
             if (titled)
-                list.AddChild(new Label { Text = tray.Name });
+            {
+                var title = new Label { Text = tray.Name, MouseFilter = MouseFilterEnum.Stop };
+                title.GuiInput += e => TrayMenuOn(e, tray, title);
+                list.AddChild(title);
+            }
             foreach (var p in tray.Panels)
                 list.AddChild(_panels[p]);
             return scroll;
@@ -56,8 +60,64 @@ public partial class MainWindow
             tabs.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground));
             foreach (var t in visible)
                 tabs.AddChild(Column(t, false));
+            tabs.GetTabBar().GuiInput += e =>
+            {
+                if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } mb
+                    && tabs.GetTabBar().GetTabIdxAtPoint(mb.Position) is var i and >= 0)
+                    TrayMenuOn(e, visible[i], tabs.GetTabBar());
+            };
             _tray.AddChild(tabs);
         }
+    }
+
+    /// <summary>The tray header's right-click menu: hide, rename or delete the tray, and add or remove its panels.</summary>
+    private void TrayMenuOn(InputEvent e, TrayLayout tray, Control at)
+    {
+        if (e is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } mb)
+            return;
+        var menu = new PopupMenu();
+        var actions = new List<Action>();
+        void Item(string label, Action run, bool enabled = true)
+        {
+            menu.AddItem(label, actions.Count);
+            menu.SetItemDisabled(menu.ItemCount - 1, !enabled);
+            actions.Add(run);
+        }
+        Item("Hide Tray", () =>
+        {
+            tray.Visible = false;
+            SaveTrays();
+        });
+        Item("Rename Tray", () => ShowTrayDialog(tray), tray.Name != DefaultTray);
+        Item("Delete Tray", () =>
+        {
+            AppPreferences.Current.Trays.Remove(tray);
+            SaveTrays();
+        }, tray.Name != DefaultTray);
+        menu.AddSeparator();
+        actions.Add(() => { });
+        foreach (var panel in _panels.Keys)
+        {
+            var id = actions.Count;
+            menu.AddCheckItem(panel, id);
+            menu.SetItemChecked(menu.ItemCount - 1, tray.Panels.Contains(panel));
+            // The Default Tray takes back what others drop, so it can't drop panels itself.
+            menu.SetItemDisabled(menu.ItemCount - 1, tray.Name == DefaultTray && tray.Panels.Contains(panel));
+            actions.Add(() =>
+            {
+                if (!tray.Panels.Remove(panel))
+                {
+                    foreach (var other in Trays().Where(t => t != tray))
+                        other.Panels.Remove(panel);
+                    tray.Panels.Add(panel);
+                }
+                SaveTrays();
+            });
+        }
+        menu.IdPressed += id => actions[(int)id]();
+        menu.PopupHide += menu.QueueFree;
+        AddChild(menu);
+        menu.Popup(new Rect2I((Vector2I)(at.GetScreenPosition() + mb.Position), Vector2I.Zero));
     }
 
     private void SaveTrays()
