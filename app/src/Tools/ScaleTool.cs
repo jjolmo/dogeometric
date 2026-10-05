@@ -327,7 +327,7 @@ public sealed class ScaleTool : DrawingTool
             if (p.Any(char.IsLetter))
             {
                 // A dimension: the new size along that axis.
-                if (!Length.TryParse(p, LengthUnit.Millimeters, out var mm))
+                if (!UI.Measure.Read(p, out var mm))
                     return false;
                 var extent = axis == 0 ? size.X : axis == 1 ? size.Y : size.Z;
                 if (extent <= Tolerance.Length)

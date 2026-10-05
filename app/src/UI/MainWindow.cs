@@ -80,6 +80,7 @@ public partial class MainWindow : Control
         layout.AddChild(_status);
 
         _document = new DocumentController(this, _viewport, _status);
+        Measure.Model = () => _document.Model;
         _document.Changed += () => GetWindow().Title = _document.Title;
         _document.ComponentImportRequested += def => _viewport.Tools.Activate(new ComponentPlaceTool(def));
         _document.ImageImportRequested += (path, use) =>
@@ -529,7 +530,7 @@ public partial class MainWindow : Control
         var d = new ConfirmationDialog { Title = "Sphere", OkButtonText = "OK" };
         var grid = new GridContainer { Columns = 2 };
         grid.AddChild(new Label { Text = "Radius" });
-        var radius = new LineEdit { Text = Dogeometric.Core.Units.Length.Format(_sphereRadius, Dogeometric.Core.Units.LengthUnit.Millimeters, 2), CustomMinimumSize = new Vector2(120, 0) };
+        var radius = new LineEdit { Text = UI.Measure.Show(_sphereRadius), CustomMinimumSize = new Vector2(120, 0) };
         grid.AddChild(radius);
         grid.AddChild(new Label { Text = "Segments" });
         var segments = new SpinBox { MinValue = 4, MaxValue = 360, Value = _sphereSegments };
@@ -539,7 +540,7 @@ public partial class MainWindow : Control
         d.Confirmed += () =>
         {
             d.QueueFree();
-            if (!Dogeometric.Core.Units.Length.TryParse(radius.Text, Dogeometric.Core.Units.LengthUnit.Millimeters, out var r) || r <= 0)
+            if (!UI.Measure.Read(radius.Text, out var r) || r <= 0)
                 return;
             _sphereRadius = r;
             _sphereSegments = (int)segments.Value;

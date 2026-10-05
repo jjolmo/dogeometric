@@ -72,9 +72,9 @@ public partial class Text3DDialog : ConfirmationDialog
         d.Confirmed += () =>
         {
             var text = d._text.Text;
-            if (!Length.TryParse(d._height.Text, LengthUnit.Millimeters, out var height) || height <= 0)
+            if (!UI.Measure.Read(d._height.Text, out var height) || height <= 0)
                 height = 25.4;
-            var depth = d._extruded.ButtonPressed && Length.TryParse(d._depth.Text, LengthUnit.Millimeters, out var e) ? e : 0;
+            var depth = d._extruded.ButtonPressed && UI.Measure.Read(d._depth.Text, out var e) ? e : 0;
             var contours = Outlines(text, d._font.GetItemText(d._font.Selected), d._style.Selected == 1, d._align.Selected, height);
             if (contours.Count > 0)
                 place(new Result(text, contours, d._filled.ButtonPressed, depth));

@@ -43,7 +43,7 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
     public override string VcbLabel => Info.Parameter ?? "Precision";
 
     public override string VcbValue => Info.Parameter != null
-        ? $"{(kind == SplineKind.Segmentor ? Setting.Parameter.ToString("0") : Length.Format(Setting.Parameter, LengthUnit.Millimeters, 2))};{Setting.Precision}s"
+        ? $"{(kind == SplineKind.Segmentor ? Setting.Parameter.ToString("0") : UI.Measure.Show(Setting.Parameter))};{Setting.Precision}s"
         : $"{Setting.Precision}s";
 
     public override string StatusText => _points.Count == 0
@@ -160,7 +160,7 @@ public sealed class BezierSplineTool(SplineKind kind) : DrawingTool
                 Setting = (Setting.Precision, count);
                 any = true;
             }
-            else if (Info.Parameter != null && Length.TryParse(t, LengthUnit.Millimeters, out var mm) && mm > 0)
+            else if (Info.Parameter != null && UI.Measure.Read(t, out var mm) && mm > 0)
             {
                 Setting = (Setting.Precision, mm);
                 any = true;

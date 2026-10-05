@@ -22,7 +22,7 @@ public sealed class DimensionTool : DrawingTool
     public override int CommandId => CommandIds.Dimension;
     public override string CursorImage => "dimension";
     public override string VcbLabel => _end != null ? "Offset" : "";
-    public override string VcbValue => _start is { } && _end is { } ? Core.Units.Length.Format(Offset().Length, Core.Units.LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _start is { } && _end is { } ? UI.Measure.Show(Offset().Length) : "";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
@@ -30,7 +30,7 @@ public sealed class DimensionTool : DrawingTool
     public override bool ApplyVcb(string text)
     {
         if (_start == null || _end == null || View.Document is not { } doc
-            || !Core.Units.Length.TryParse(text, Core.Units.LengthUnit.Millimeters, out var mm) || mm <= 0)
+            || !UI.Measure.Read(text, out var mm) || mm <= 0)
             return false;
         var direction = Offset();
         if (direction.IsZero(1e-9))
@@ -176,7 +176,7 @@ public sealed class DimensionTool : DrawingTool
             DrawWorldLine(overlay, start, end, Colors.Black, 1);
             if (View.ToScreen(end) is { } at)
             {
-                var text = r.Prefix + Core.Units.Length.Format(r.Length, d.Model.Units, d.Model.UnitPrecision);
+                var text = r.Prefix + Core.Units.Length.Format(r.Length, d.Model.UnitSettings);
                 overlay.DrawString(overlay.GetThemeDefaultFont(), at + new Vector2(4, 4), text, HorizontalAlignment.Left, -1, 13, Colors.Black);
             }
         }
@@ -192,7 +192,7 @@ public sealed class DimensionTool : DrawingTool
                 if (View.ToScreen((s + e) * 0.5 + o) is { } mid)
                 {
                     var model = View.Document!.Model;
-                    var text = Core.Units.Length.Format(s.DistanceTo(e), model.Units, model.UnitPrecision);
+                    var text = Core.Units.Length.Format(s.DistanceTo(e), model.UnitSettings);
                     var font = overlay.GetThemeDefaultFont();
                     var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, 13);
                     overlay.DrawString(font, mid - new Vector2(size.X / 2, 4), text, HorizontalAlignment.Left, -1, 13, Colors.Black);

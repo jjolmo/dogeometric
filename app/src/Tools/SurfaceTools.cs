@@ -368,7 +368,7 @@ public sealed class SurfaceOffsetTool : Tool
     public override int CommandId => ExtensionIds.SurfaceOffset;
     public override string CursorImage => "offset";
     public override string VcbLabel => "Distance";
-    public override string VcbValue => _chain.Count > 0 ? Length.Format(Math.Abs(_distance), LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _chain.Count > 0 ? UI.Measure.Show(Math.Abs(_distance)) : "";
     public override string StatusText => _chain.Count == 0
         ? "Offset on Surface: click a curve drawn on a surface."
         : "Move to the side and click, or type the distance.";
@@ -436,7 +436,7 @@ public sealed class SurfaceOffsetTool : Tool
 
     public override bool ApplyVcb(string text)
     {
-        if (_chain.Count == 0 || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+        if (_chain.Count == 0 || View.Document is not { } doc || !UI.Measure.Read(text, out var mm))
             return false;
         Finish(doc, Math.Abs(mm) * _side);
         return true;

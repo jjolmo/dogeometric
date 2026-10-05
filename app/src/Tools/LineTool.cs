@@ -19,7 +19,7 @@ public sealed class LineTool : DrawingTool
     public override string VcbLabel => "Length";
     public override string StatusText => _start == null ? "Select start point." : "Click to set second endpoint or enter length.";
 
-    public override string VcbValue => _start is { } s && Current is { } c ? Length.Format(s.DistanceTo(c.Point), LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _start is { } s && Current is { } c ? UI.Measure.Show(s.DistanceTo(c.Point)) : "";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
@@ -53,7 +53,7 @@ public sealed class LineTool : DrawingTool
             }
             return true;
         }
-        if (_start is not { } start || Current is not { } inf || !Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm == 0)
+        if (_start is not { } start || Current is not { } inf || !UI.Measure.Read(text, out var mm) || mm == 0)
             return false;
         var dir = (inf.Point - start).Normalized();
         if (dir.IsZero(1e-12))

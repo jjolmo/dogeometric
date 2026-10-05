@@ -81,8 +81,8 @@ public partial class CreateMaterialDialog : ConfirmationDialog
                 d._imageName = tex.FileName;
                 d._file.Text = tex.FileName;
                 d._useTexture.ButtonPressed = true;
-                d._width.Text = Length.Format(tex.WidthMm, LengthUnit.Millimeters, 1);
-                d._height.Text = Length.Format(tex.HeightMm, LengthUnit.Millimeters, 1);
+                d._width.Text = UI.Measure.Show(tex.WidthMm);
+                d._height.Text = UI.Measure.Show(tex.HeightMm);
                 d._aspect = tex.HeightMm / Math.Max(tex.WidthMm, 1e-9);
             }
         }
@@ -119,8 +119,8 @@ public partial class CreateMaterialDialog : ConfirmationDialog
                 m.Texture = null;
                 if (d._useTexture.ButtonPressed && d._image != null)
                 {
-                    Length.TryParse(d._width.Text, LengthUnit.Millimeters, out var w);
-                    Length.TryParse(d._height.Text, LengthUnit.Millimeters, out var h);
+                    UI.Measure.Read(d._width.Text, out var w);
+                    UI.Measure.Read(d._height.Text, out var h);
                     m.Texture = new TextureImage { FileName = d._imageName, Data = d._image, WidthMm = w > 0 ? w : 100, HeightMm = h > 0 ? h : 100 };
                 }
             }
@@ -160,10 +160,10 @@ public partial class CreateMaterialDialog : ConfirmationDialog
     {
         if (!_lockAspect.ButtonPressed || _image == null)
             return;
-        if (fromWidth && Length.TryParse(_width.Text, LengthUnit.Millimeters, out var w))
-            _height.Text = Length.Format(w * _aspect, LengthUnit.Millimeters, 1);
-        else if (!fromWidth && Length.TryParse(_height.Text, LengthUnit.Millimeters, out var h))
-            _width.Text = Length.Format(h / _aspect, LengthUnit.Millimeters, 1);
+        if (fromWidth && UI.Measure.Read(_width.Text, out var w))
+            _height.Text = UI.Measure.Show(w * _aspect);
+        else if (!fromWidth && UI.Measure.Read(_height.Text, out var h))
+            _width.Text = UI.Measure.Show(h / _aspect);
     }
 
     public static Color AverageColor(Image image)

@@ -103,7 +103,7 @@ public sealed class ImagePlaceTool(string name, byte[] data, int pixelsWide, int
 
     public override bool ApplyVcb(string text)
     {
-        if (_origin == null || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm <= 0)
+        if (_origin == null || View.Document is not { } doc || !UI.Measure.Read(text, out var mm) || mm <= 0)
             return false;
         var (w, h, _) = Rectangle();
         var ratio = w > Tolerance.Length ? h / w : Aspect;

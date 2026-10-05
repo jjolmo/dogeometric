@@ -137,10 +137,10 @@ public sealed class UndoStack(Model model)
 
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
-    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, TextStyle, TextStyle) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
+    private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, (Units.UnitFormat, bool, bool) UnitLook, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, TextStyle, TextStyle) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
         (string Name, Rgba Color, double Opacity, TextureImage? Texture)[] MaterialState, StyleSettings Style)
     {
-        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText), m.Options,
+        public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, (m.UnitFormat, m.ShowUnitSymbol, m.ForceZeroFeet), m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText), m.Options,
             m.Tags.Select(t => (t.Color, t.Dashes)).ToArray(),
             m.Definitions.Select(d => d.Attributes.Select(a => (a.Name, a.Value, a.UserCanEdit)).ToArray()).ToArray(),
             m.Materials.Select(x => (x.Name, x.Color, x.Opacity, x.Texture)).ToArray(), m.Style);
@@ -153,6 +153,7 @@ public sealed class UndoStack(Model model)
             m.Axes = Axes;
             m.Units = Units;
             m.UnitPrecision = Precision;
+            (m.UnitFormat, m.ShowUnitSymbol, m.ForceZeroFeet) = UnitLook;
             m.Shadows = Shadows;
             m.ShowSectionFill = SectionFill;
             (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText) = Annotation;

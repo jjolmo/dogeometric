@@ -316,6 +316,13 @@ public sealed class Model
     public List<Scene> Scenes { get; } = [];
     public LengthUnit Units { get; set; } = LengthUnit.Millimeters;
     public int UnitPrecision { get; set; } = 1;
+
+    /// <summary>Model Info › Units: the format, whether the unit symbol shows, and whether lengths under a foot show 0'.</summary>
+    public UnitFormat UnitFormat { get; set; } = UnitFormat.Decimal;
+    public bool ShowUnitSymbol { get; set; } = true;
+    public bool ForceZeroFeet { get; set; }
+
+    public UnitSettings UnitSettings => new(UnitFormat, Units, UnitPrecision, ShowUnitSymbol, ForceZeroFeet);
     public ShadowSettings Shadows { get; set; } = new();
 
     /// <summary>Model Info › Dimensions: the style new dimensions take, and when dimensions hide.</summary>

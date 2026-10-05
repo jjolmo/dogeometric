@@ -26,7 +26,7 @@ public sealed class TapeMeasureTool : DrawingTool
         ? "Click an item to measure from" + (_guides ? ".  Ctrl = toggle create guide (on)." : ".  Ctrl = toggle create guide (off).")
         : "Click an item to measure to or enter distance.";
 
-    public override string VcbValue => Measured() is { } d ? Length.Format(d, LengthUnit.Millimeters, 2) : "";
+    public override string VcbValue => Measured() is { } d ? UI.Measure.Show(d) : "";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
@@ -104,7 +104,7 @@ public sealed class TapeMeasureTool : DrawingTool
     public override bool ApplyVcb(string text)
     {
         // After a measurement, a typed length resizes the model (or the open group) so that it measures that.
-        if (_start == null && _lastMeasured is { } measured && View.Document is { } d && Length.TryParse(text, LengthUnit.Millimeters, out var wanted) && wanted > 0)
+        if (_start == null && _lastMeasured is { } measured && View.Document is { } d && UI.Measure.Read(text, out var wanted) && wanted > 0)
         {
             var factor = wanted / measured;
             var what = d.Context.Path.Count == 0 ? "model" : d.Context.Path[^1].IsGroup ? "group" : "component";
@@ -134,7 +134,7 @@ public sealed class TapeMeasureTool : DrawingTool
             confirm.PopupCentered();
             return true;
         }
-        if (_start is not { } s || Current is not { } c || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+        if (_start is not { } s || Current is not { } c || View.Document is not { } doc || !UI.Measure.Read(text, out var mm))
             return false;
         Vec3 end;
         if (_startEdge is { } edge)
@@ -193,7 +193,7 @@ public sealed class TapeMeasureTool : DrawingTool
             if (Measured() is { } d && View.ToScreen(c.Point) is { } p)
             {
                 var font = overlay.GetThemeDefaultFont();
-                overlay.DrawString(font, p + new Vector2(14, -10), Length.Format(d, LengthUnit.Millimeters, 2), HorizontalAlignment.Left, -1, 13, Colors.Black);
+                overlay.DrawString(font, p + new Vector2(14, -10), UI.Measure.Show(d), HorizontalAlignment.Left, -1, 13, Colors.Black);
             }
         }
         DrawInference(overlay);

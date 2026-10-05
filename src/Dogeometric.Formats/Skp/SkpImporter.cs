@@ -203,6 +203,8 @@ public static class SkpImporter
     {
         { } u when u.StartsWith("centim") => LengthUnit.Centimeters,
         { } u when u.StartsWith("meter") || u.StartsWith("metre") => LengthUnit.Meters,
+        { } u when u.StartsWith("inch") => LengthUnit.Inches,
+        { } u when u.StartsWith("feet") || u.StartsWith("foot") => LengthUnit.Feet,
         _ => LengthUnit.Millimeters,
     };
 }

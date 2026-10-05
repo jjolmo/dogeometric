@@ -39,8 +39,8 @@ public sealed class RotatedRectangleTool : DrawingTool
 
     public override string VcbValue => (_a, _b, Current) switch
     {
-        ({ } a, null, { } c) => Length.Format(a.DistanceTo(c.Point), LengthUnit.Millimeters, 1),
-        ({ }, { }, { }) => Length.Format(Math.Abs(Width()), LengthUnit.Millimeters, 1),
+        ({ } a, null, { } c) => UI.Measure.Show(a.DistanceTo(c.Point)),
+        ({ }, { }, { }) => UI.Measure.Show(Math.Abs(Width())),
         _ => "",
     };
 
@@ -142,7 +142,7 @@ public sealed class RotatedRectangleTool : DrawingTool
         var parts = text.Split(',', ';');
         angle = null;
         first = 0;
-        if (parts.Length is < 1 or > 2 || !Length.TryParse(parts[0], LengthUnit.Millimeters, out first))
+        if (parts.Length is < 1 or > 2 || !UI.Measure.Read(parts[0], out first))
             return false;
         if (parts.Length == 2)
         {

@@ -127,12 +127,12 @@ public sealed class TexturePlaceTool(string name, byte[] data, int pixelsWide, i
                 face.FrontMapping = mapping;
             }
         });
-        View.ShowVcbValue(Length.Format(width, LengthUnit.Millimeters, 1));
+        View.ShowVcbValue(UI.Measure.Show(width));
     }
 
     public override bool ApplyVcb(string text)
     {
-        if (_face == null || View.Document is not { } doc || !Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm <= 0)
+        if (_face == null || View.Document is not { } doc || !UI.Measure.Read(text, out var mm) || mm <= 0)
             return false;
         // A typed width keeps the proportions the drag gave (non-uniform with Shift), else the picture's.
         var ratio = _material?.Texture is { WidthMm: > 0 } t ? t.HeightMm / t.WidthMm : Aspect;

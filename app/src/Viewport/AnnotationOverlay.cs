@@ -134,7 +134,7 @@ public sealed class AnnotationOverlay
         }
 
         var fontSize = Pixels(style.FontSize);
-        var measured = Length.Format(d.Length, model.Units, model.UnitPrecision);
+        var measured = Length.Format(d.Length, model.UnitSettings);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
         var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var mid = (q1 + q2) / 2;
@@ -198,7 +198,7 @@ public sealed class AnnotationOverlay
         if ((end - tip).Length() > ArrowLength)
             Endpoint(canvas, tip, (tip - end).Normalized(), color, style.Endpoints);
         var fontSize = Pixels(style.FontSize);
-        var measured = (style.ShowRadialPrefix ? d.Prefix : "") + Length.Format(d.Length, model.Units, model.UnitPrecision);
+        var measured = (style.ShowRadialPrefix ? d.Prefix : "") + Length.Format(d.Length, model.UnitSettings);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
         var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var left = end.X < tip.X;

@@ -16,7 +16,7 @@ public sealed class LookAroundTool : Tool
     public override bool IsNavigation => true;
     public override string StatusText => "Drag in direction to turn camera";
     public override string VcbLabel => "Eye Height";
-    public override string VcbValue => Length.Format(View.Camera.Eye.Z, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(View.Camera.Eye.Z);
 
     public override void Activate() => View.ShowVcbValue(VcbValue);
 
@@ -42,7 +42,7 @@ public sealed class LookAroundTool : Tool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var height))
+        if (!UI.Measure.Read(text, out var height))
             return false;
         View.BeginNavigation();
         View.ChangeCamera(c => c.PlaceEye(new Vec3(c.Eye.X, c.Eye.Y, height), c.Direction));
@@ -65,7 +65,7 @@ public sealed class PositionCameraTool : Tool
     public override string CursorImage => "positioncamera";
     public override string StatusText => "Click to stand at eye height, or drag to also set the view direction.";
     public override string VcbLabel => "Height Offset";
-    public override string VcbValue => Length.Format(_height, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(_height);
 
     public override void Activate() => View.ShowVcbValue(VcbValue);
 
@@ -99,7 +99,7 @@ public sealed class PositionCameraTool : Tool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var h))
+        if (!UI.Measure.Read(text, out var h))
             return false;
         _height = h;
         View.ShowVcbValue(VcbValue);
@@ -124,14 +124,14 @@ public sealed class WalkTool : Tool
     public override bool IsNavigation => true;
     public override string StatusText => "Click and drag to walk.  Ctrl = run, Shift = move vertically or sideways, Alt = disable collision detection";
     public override string VcbLabel => "Eye Height";
-    public override string VcbValue => Length.Format(View.Camera.Eye.Z, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(View.Camera.Eye.Z);
 
     public override void Activate() => View.ShowVcbValue(VcbValue);
 
     /// <summary>A typed eye height moves the eye up or down, looking the same way, as in Look Around.</summary>
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var height))
+        if (!UI.Measure.Read(text, out var height))
             return false;
         View.BeginNavigation();
         View.ChangeCamera(c => c.PlaceEye(new Vec3(c.Eye.X, c.Eye.Y, height), c.Direction));

@@ -52,7 +52,7 @@ public partial class EntityInfoPanel : VBoxContainer
             case Edge e:
                 Title("Edge");
                 TagRow(doc, e.Tag, t => doc.Operation("Change Tag", _ => e.Tag = t));
-                Row("Length", Length.Format(e.Length, LengthUnit.Millimeters, 2));
+                Row("Length", UI.Measure.Show(e.Length));
                 Check("Soft", e.Flags.HasFlag(EdgeFlags.Soft), v => doc.Operation("Soften", _ => e.Flags = v ? e.Flags | EdgeFlags.Soft : e.Flags & ~EdgeFlags.Soft));
                 Check("Smooth", e.Flags.HasFlag(EdgeFlags.Smooth), v => doc.Operation("Smooth", _ => e.Flags = v ? e.Flags | EdgeFlags.Smooth : e.Flags & ~EdgeFlags.Smooth));
                 Check("Hidden", e.Flags.HasFlag(EdgeFlags.Hidden), v => doc.Operation("Hide", _ => e.Flags = v ? e.Flags | EdgeFlags.Hidden : e.Flags & ~EdgeFlags.Hidden));
@@ -68,7 +68,7 @@ public partial class EntityInfoPanel : VBoxContainer
                 Title("Dimension");
                 TagRow(doc, d.Tag, t => doc.Operation("Change Tag", _ => d.Tag = t));
                 Edit("Text", d.Text.Length == 0 ? "<>" : d.Text, v => doc.Operation("Edit Text", _ => d.Text = v == "<>" ? "" : v));
-                Row("Length", Length.Format(d.Length, LengthUnit.Millimeters, 2));
+                Row("Length", UI.Measure.Show(d.Length));
                 Check("Hidden", d.Hidden, v => doc.Operation("Hide", _ => d.Hidden = v));
                 break;
             case TextLabel x:
@@ -85,14 +85,14 @@ public partial class EntityInfoPanel : VBoxContainer
                 var size = image.Definition.Entities.Bounds().Size;
                 var (sx, sy) = (image.Transform.X.Length, image.Transform.Y.Length);
                 // Width and height scale the image in its own plane.
-                Edit("Width", Length.Format(size.X * sx, LengthUnit.Millimeters, 1), v =>
+                Edit("Width", UI.Measure.Show(size.X * sx), v =>
                 {
-                    if (Length.TryParse(v, LengthUnit.Millimeters, out var w) && w > 0 && size.X > 0)
+                    if (UI.Measure.Read(v, out var w) && w > 0 && size.X > 0)
                         doc.Operation("Image Size", _ => image.Transform = Transform.Scaling(w / (size.X * sx), 1, 1).Then(image.Transform));
                 });
-                Edit("Height", Length.Format(size.Y * sy, LengthUnit.Millimeters, 1), v =>
+                Edit("Height", UI.Measure.Show(size.Y * sy), v =>
                 {
-                    if (Length.TryParse(v, LengthUnit.Millimeters, out var h) && h > 0 && size.Y > 0)
+                    if (UI.Measure.Read(v, out var h) && h > 0 && size.Y > 0)
                         doc.Operation("Image Size", _ => image.Transform = Transform.Scaling(1, h / (size.Y * sy), 1).Then(image.Transform));
                 });
                 Check("Hidden", image.Hidden, v => doc.Operation("Hide", _ => image.Hidden = v));
@@ -117,7 +117,7 @@ public partial class EntityInfoPanel : VBoxContainer
                     // Along the instance's own axes, including its scale.
                     var t = i.Transform;
                     var s = new Vec3(b.Size.X * t.X.Length, b.Size.Y * t.Y.Length, b.Size.Z * t.Z.Length);
-                    Row("Size", $"{Length.Format(s.X, LengthUnit.Millimeters, 1)} × {Length.Format(s.Y, LengthUnit.Millimeters, 1)} × {Length.Format(s.Z, LengthUnit.Millimeters, 1)}");
+                    Row("Size", $"{UI.Measure.Show(s.X)} × {UI.Measure.Show(s.Y)} × {UI.Measure.Show(s.Z)}");
                 }
                 if (solid)
                     Row("Volume", Volume(Math.Abs(report!.Volume)));
@@ -144,9 +144,9 @@ public partial class EntityInfoPanel : VBoxContainer
                 if (made != null)
                     doc.Selection.Set(made);
             }
-            Edit("Radius", Length.Format(curve.Radius, LengthUnit.Millimeters, 2), v =>
+            Edit("Radius", UI.Measure.Show(curve.Radius), v =>
             {
-                if (Length.TryParse(v, LengthUnit.Millimeters, out var r) && r > 0)
+                if (UI.Measure.Read(v, out var r) && r > 0)
                     Redraw(curve.Segments, r);
             });
             Edit("Segments", (closed ? edges.Count : curve.Segments).ToString(), v =>
@@ -155,7 +155,7 @@ public partial class EntityInfoPanel : VBoxContainer
                     Redraw(n, curve.Radius);
             });
         }
-        Row(closed && round ? "Circumference" : "Length", Length.Format(edges.Sum(x => x.Length), LengthUnit.Millimeters, 2));
+        Row(closed && round ? "Circumference" : "Length", UI.Measure.Show(edges.Sum(x => x.Length)));
         Check("Soft", edges.All(x => x.Flags.HasFlag(EdgeFlags.Soft)), v => doc.Operation("Soften", _ => edges.ForEach(x => x.Flags = v ? x.Flags | EdgeFlags.Soft : x.Flags & ~EdgeFlags.Soft)));
         Check("Hidden", edges.All(x => x.Flags.HasFlag(EdgeFlags.Hidden)), v => doc.Operation("Hide", _ => edges.ForEach(x => x.Flags = v ? x.Flags | EdgeFlags.Hidden : x.Flags & ~EdgeFlags.Hidden)));
     }

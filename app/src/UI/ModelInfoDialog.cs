@@ -461,49 +461,87 @@ public partial class ModelInfoDialog : AcceptDialog
         var model = _doc.Model;
         var grid = Grid();
         grid.AddChild(new Label { Text = "Format" });
-        grid.AddChild(new Label { Text = "Decimal" });
+        var format = new OptionButton();
+        foreach (var f in Enum.GetValues<UnitFormat>())
+            format.AddItem(f.ToString(), (int)f);
+        format.Select((int)model.UnitFormat);
+        grid.AddChild(format);
 
         grid.AddChild(new Label { Text = "Length" });
         var unit = new OptionButton();
         foreach (var u in Enum.GetValues<LengthUnit>())
             unit.AddItem(u.ToString(), (int)u);
-        unit.Select((int)model.Units);
         grid.AddChild(unit);
 
         grid.AddChild(new Label { Text = "Precision" });
         var precision = new OptionButton();
-        for (var i = 0; i <= 6; i++)
-            precision.AddItem(i == 0 ? "0" : "0." + new string('0', i), i);
-        precision.Select(Math.Clamp(model.UnitPrecision, 0, 6));
         grid.AddChild(precision);
 
+        var symbol = new CheckBox { Text = "Display units format", ButtonPressed = model.ShowUnitSymbol };
+        var zero = new CheckBox { Text = "Force display of 0\"", ButtonPressed = model.ForceZeroFeet };
         var sample = new Label();
-        void Update() => sample.Text = "Example: " + Length.Format(1234.5678, model.Units, model.UnitPrecision);
-        Update();
-        unit.ItemSelected += i =>
+        // Architectural, Engineering and Fractional fix the unit; fractional formats count precision in fractions.
+        void Fill()
         {
-            _doc.Operation("Units", _ => model.Units = (LengthUnit)unit.GetItemId((int)i));
-            Update();
-            _changed();
-        };
-        precision.ItemSelected += i =>
+            var f = model.UnitFormat;
+            unit.Disabled = f != UnitFormat.Decimal;
+            unit.Select(f switch
+            {
+                UnitFormat.Architectural or UnitFormat.Fractional => (int)LengthUnit.Inches,
+                UnitFormat.Engineering => (int)LengthUnit.Feet,
+                _ => (int)model.Units,
+            });
+            precision.Clear();
+            for (var i = 0; i <= 6; i++)
+                precision.AddItem(f is UnitFormat.Architectural or UnitFormat.Fractional
+                    ? (i == 0 ? "1\"" : $"1/{1 << i}\"")
+                    : i == 0 ? "0" : "0." + new string('0', i), i);
+            precision.Select(Math.Clamp(model.UnitPrecision, 0, 6));
+            zero.Disabled = f != UnitFormat.Architectural;
+            sample.Text = "Example: " + Length.Format(1234.5678, model.UnitSettings);
+        }
+        Fill();
+        void Change(Action change)
         {
-            _doc.Operation("Units", _ => model.UnitPrecision = (int)i);
-            Update();
+            _doc.Operation("Units", _ => change());
+            Fill();
             _changed();
-        };
+        }
+        format.ItemSelected += i => Change(() =>
+        {
+            model.UnitFormat = (UnitFormat)format.GetItemId((int)i);
+            // SketchUp's defaults for the imperial formats: inches to 1/16", feet to two decimals.
+            if (model.UnitFormat is UnitFormat.Architectural or UnitFormat.Fractional)
+                (model.Units, model.UnitPrecision) = (LengthUnit.Inches, 4);
+            else if (model.UnitFormat == UnitFormat.Engineering)
+                (model.Units, model.UnitPrecision) = (LengthUnit.Feet, 2);
+        });
+        unit.ItemSelected += i => Change(() => model.Units = (LengthUnit)unit.GetItemId((int)i));
+        precision.ItemSelected += i => Change(() => model.UnitPrecision = (int)i);
+        symbol.Toggled += on => Change(() => model.ShowUnitSymbol = on);
+        zero.Toggled += on => Change(() => model.ForceZeroFeet = on);
+        _pane.AddChild(symbol);
+        _pane.AddChild(zero);
         _pane.AddChild(sample);
 
         var o = model.Options;
         var snapRow = new HBoxContainer();
         var lengthSnap = new CheckBox { Text = "Enable length snapping", ButtonPressed = o.LengthSnapping };
-        var lengthStep = new SpinBox { MinValue = 0.01, MaxValue = 10000, Step = 0.01, Value = o.LengthSnap, Suffix = "mm", Editable = o.LengthSnapping, CustomMinimumSize = new Vector2(130, 0) };
+        // In the model's units, as SketchUp shows it.
+        var lengthStep = new LineEdit { Text = Measure.Show(o.LengthSnap), Editable = o.LengthSnapping, CustomMinimumSize = new Vector2(130, 0) };
         lengthSnap.Toggled += on =>
         {
             lengthStep.Editable = on;
             Options("Units", m => m with { LengthSnapping = on });
         };
-        lengthStep.ValueChanged += v => Options("Units", m => m with { LengthSnap = v });
+        void SetStep()
+        {
+            if (Measure.Read(lengthStep.Text, out var mm) && mm > 0)
+                Options("Units", m => m with { LengthSnap = mm });
+            lengthStep.Text = Measure.Show(_doc.Model.Options.LengthSnap);
+        }
+        lengthStep.TextSubmitted += _ => SetStep();
+        lengthStep.FocusExited += SetStep;
         snapRow.AddChild(lengthSnap);
         snapRow.AddChild(lengthStep);
         _pane.AddChild(snapRow);

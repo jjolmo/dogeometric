@@ -30,7 +30,7 @@ public sealed class OffsetTool : DrawingTool
     public override string VcbLabel => "Distance";
     public override string StatusText => (_source == null ? "Select face or edges to offset." : "Pick point to define offset or enter value.")
         + (_allowOverlap ? "  Alt = Trim overlap." : "  Alt = Allow overlap.");
-    public override string VcbValue => _source != null ? Length.Format(_distance, LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _source != null ? UI.Measure.Show(_distance) : "";
 
     public override void Activate()
     {
@@ -74,7 +74,7 @@ public sealed class OffsetTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm) || View.Document is not { } doc)
+        if (!UI.Measure.Read(text, out var mm) || View.Document is not { } doc)
             return false;
         var source = _source ?? (_hover != null ? FromFace(_hover) : null);
         if (source == null)

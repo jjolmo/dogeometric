@@ -22,7 +22,7 @@ public sealed class MatchPhotoTool(Scene scene) : Tool
     public override int CommandId => CommandIds.MatchNewPhoto;
     public override string CursorImage => "select";
     public override string VcbLabel => "Distance";
-    public override string VcbValue => Length.Format(_photo.Distance, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(_photo.Distance);
     public override string StatusText => "Drag the red and green bars onto edges along those axes, and the origin where they meet. Return when done.";
 
     public override void Activate()
@@ -102,7 +102,7 @@ public sealed class MatchPhotoTool(Scene scene) : Tool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm <= 0)
+        if (!UI.Measure.Read(text, out var mm) || mm <= 0)
             return false;
         _photo.Distance = mm;
         Apply();

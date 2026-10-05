@@ -24,7 +24,7 @@ public sealed class RectangleTool : DrawingTool
     public override string StatusText => (_corner == null ? "Click to set first corner." : "Click to set opposite corner or enter length, width.") + LockHint;
 
     public override string VcbValue => Corners() is { } c
-        ? $"{Length.Format(c[0].DistanceTo(c[1]), LengthUnit.Millimeters, 1)}, {Length.Format(c[1].DistanceTo(c[2]), LengthUnit.Millimeters, 1)}"
+        ? $"{UI.Measure.Show(c[0].DistanceTo(c[1]))}, {UI.Measure.Show(c[1].DistanceTo(c[2]))}"
         : "";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
@@ -108,7 +108,7 @@ public sealed class RectangleTool : DrawingTool
     public override bool ApplyVcb(string text)
     {
         var parts = text.Split(',', ';');
-        if (parts.Length != 2 || !Length.TryParse(parts[0], LengthUnit.Millimeters, out var w) || !Length.TryParse(parts[1], LengthUnit.Millimeters, out var h))
+        if (parts.Length != 2 || !UI.Measure.Read(parts[0], out var w) || !UI.Measure.Read(parts[1], out var h))
             return false;
         return Create(Corners(Math.Abs(w), Math.Abs(h)));
     }

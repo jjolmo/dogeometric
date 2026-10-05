@@ -46,6 +46,9 @@ public static class DogFile
             w.WriteStartObject();
             w.WriteString("units", model.Units.ToString());
             w.WriteNumber("unitPrecision", model.UnitPrecision);
+            w.WriteString("unitFormat", model.UnitFormat.ToString());
+            w.WriteBoolean("showUnitSymbol", model.ShowUnitSymbol);
+            w.WriteBoolean("forceZeroFeet", model.ForceZeroFeet);
             if (model.Axes != Transform.Identity)
             {
                 w.WriteStartArray("axes");
@@ -771,6 +774,9 @@ public static class DogFile
         {
             Units = Enum.TryParse<LengthUnit>(r.GetProperty("units").GetString(), out var u) ? u : LengthUnit.Millimeters,
             UnitPrecision = r.GetProperty("unitPrecision").GetInt32(),
+            UnitFormat = r.TryGetProperty("unitFormat", out var uf) && Enum.TryParse<UnitFormat>(uf.GetString(), out var format) ? format : UnitFormat.Decimal,
+            ShowUnitSymbol = !r.TryGetProperty("showUnitSymbol", out var sus) || sus.GetBoolean(),
+            ForceZeroFeet = r.TryGetProperty("forceZeroFeet", out var fzf) && fzf.GetBoolean(),
             SourceVersion = r.TryGetProperty("sourceVersion", out var sv) ? sv.GetString() ?? "" : "",
         };
         if (r.TryGetProperty("annotation", out var ann))

@@ -34,7 +34,7 @@ public sealed class RoundCornerTool(RoundCornerMode mode) : Tool
 
     public override string CursorImage => "select";
     public override string VcbLabel => "Offset";
-    public override string VcbValue => Length.Format(_offset, LengthUnit.Millimeters, 2) + (mode == RoundCornerMode.Bevel ? "" : $";{_segments}s");
+    public override string VcbValue => UI.Measure.Show(_offset) + (mode == RoundCornerMode.Bevel ? "" : $";{_segments}s");
 
     public override string StatusText => _problem.Length > 0
         ? _problem
@@ -208,7 +208,7 @@ public sealed class RoundCornerTool(RoundCornerMode mode) : Tool
                 _segments = segments;
                 any = true;
             }
-            else if (Length.TryParse(part, LengthUnit.Millimeters, out var mm) && mm > 0)
+            else if (UI.Measure.Read(part, out var mm) && mm > 0)
             {
                 _offset = mm;
                 any = true;

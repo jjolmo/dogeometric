@@ -47,7 +47,7 @@ public sealed class PushPullTool : DrawingTool
             PushPull.Apply(e, face, distance, keep);
     }
 
-    public override string VcbValue => _face != null ? Length.Format(_distance, LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _face != null ? UI.Measure.Show(_distance) : "";
 
     public override void MouseMove(Vector2 position, Vector2 relative)
     {
@@ -121,7 +121,7 @@ public sealed class PushPullTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm) || View.Document is not { } doc)
+        if (!UI.Measure.Read(text, out var mm) || View.Document is not { } doc)
             return false;
         // Typed right after a push/pull, SketchUp redoes the last one with the new distance.
         var face = _face ?? _hover;

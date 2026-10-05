@@ -45,7 +45,7 @@ public class CircleTool(bool polygon) : DrawingTool
     }
 
     public override string VcbValue => _center is { } c && Current is { } p
-        ? Length.Format(PlanePoint(p).DistanceTo(c), LengthUnit.Millimeters, 1)
+        ? UI.Measure.Show(PlanePoint(p).DistanceTo(c))
         : Segments.ToString();
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
@@ -89,7 +89,7 @@ public class CircleTool(bool polygon) : DrawingTool
             View.ShowVcbValue(VcbValue);
             return true;
         }
-        if (_center is not { } c || Current is not { } inf || !Length.TryParse(t, LengthUnit.Millimeters, out var r) || r <= 0)
+        if (_center is not { } c || Current is not { } inf || !UI.Measure.Read(t, out var r) || r <= 0)
             return false;
         var dir = PlanePoint(inf) - c;
         Create(r, dir.IsZero(1e-9) ? Polygon.PlaneAxes(_normal).U : dir);

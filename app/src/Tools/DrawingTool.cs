@@ -136,7 +136,7 @@ public abstract class DrawingTool : Tool
             return false;
         var v = new double[3];
         for (var i = 0; i < parts.Length; i++)
-            if (parts[i].Trim().Length > 0 && !Core.Units.Length.TryParse(parts[i], Core.Units.LengthUnit.Millimeters, out v[i]))
+            if (parts[i].Trim().Length > 0 && !UI.Measure.Read(parts[i], out v[i]))
                 return false;
         var along = Red * v[0] + Green * v[1] + Blue * v[2];
         point = absolute ? Axes.Origin + along : from!.Value + along;

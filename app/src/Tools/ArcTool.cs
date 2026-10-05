@@ -34,8 +34,8 @@ public sealed class ArcTool : DrawingTool
 
     public override string VcbValue => (_start, _end, Current) switch
     {
-        ({ } s, null, { } c) => Length.Format(s.DistanceTo(c.Point), LengthUnit.Millimeters, 1),
-        ({ } s, { } e, { } c) => Length.Format(Math.Abs(Arc(s, e, c.Point).Bulge), LengthUnit.Millimeters, 1),
+        ({ } s, null, { } c) => UI.Measure.Show(s.DistanceTo(c.Point)),
+        ({ } s, { } e, { } c) => UI.Measure.Show(Math.Abs(Arc(s, e, c.Point).Bulge)),
         _ => "",
     };
 
@@ -198,7 +198,7 @@ public sealed class ArcTool : DrawingTool
             _segments = n;
             return true;
         }
-        if (!Length.TryParse(t, LengthUnit.Millimeters, out var mm) || Current is not { } c)
+        if (!UI.Measure.Read(t, out var mm) || Current is not { } c)
             return false;
         if (_start is { } s && _end == null)
         {

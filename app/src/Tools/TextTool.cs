@@ -85,7 +85,7 @@ public sealed class TextTool : DrawingTool
     private static string DefaultText(Document doc, InferenceResult inf)
     {
         var model = doc.Model;
-        string L(double mm) => Length.Format(mm, model.Units, model.UnitPrecision);
+        string L(double mm) => Length.Format(mm, model.UnitSettings);
         if (inf.Kind is InferenceKind.Endpoint or InferenceKind.Midpoint or InferenceKind.Center or InferenceKind.Origin)
         {
             var p = inf.Point;

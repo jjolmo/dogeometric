@@ -38,7 +38,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode, bool quad = false)
 
     public override string CursorImage => "pushpull";
     public override string VcbLabel => "Offset";
-    public override string VcbValue => _pushing ? Length.Format(_offset, LengthUnit.Millimeters, 1) : Length.Format(_lastOffset, LengthUnit.Millimeters, 1);
+    public override string VcbValue => _pushing ? UI.Measure.Show(_offset) : UI.Measure.Show(_lastOffset);
 
     public override string StatusText => _pushing
         ? "Move to the offset you want, then click (or type the offset)."
@@ -168,7 +168,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode, bool quad = false)
 
     public override bool ApplyVcb(string text)
     {
-        if (View.Document is not { } doc || _faces.Count == 0 || !Length.TryParse(text, LengthUnit.Millimeters, out var mm) || Math.Abs(mm) < Tolerance.Length)
+        if (View.Document is not { } doc || _faces.Count == 0 || !UI.Measure.Read(text, out var mm) || Math.Abs(mm) < Tolerance.Length)
             return false;
         if (!_pushing)
             _normal = doc.Context.ToWorld.ApplyNormal(mode == JointPushPullMode.Vector ? MostFacingPlane() : Average()).Normalized();

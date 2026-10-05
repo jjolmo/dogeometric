@@ -20,7 +20,7 @@ public sealed class SandboxGridTool : DrawingTool
     public override int CommandId => ExtensionIds.SandboxFromScratch;
     public override string CursorImage => "pencil";
     public override string VcbLabel => _clicks.Count == 0 ? "Grid Spacing" : "Length";
-    public override string VcbValue => Length.Format(_spacing, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(_spacing);
     protected override Vec3? From => _clicks.Count > 0 ? _clicks[^1] : null;
 
     public override string StatusText => _clicks.Count switch
@@ -75,7 +75,7 @@ public sealed class SandboxGridTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm <= 0)
+        if (!UI.Measure.Read(text, out var mm) || mm <= 0)
             return false;
         if (_clicks.Count == 0)
         {
@@ -129,7 +129,7 @@ public sealed class SmooveTool : DrawingTool
     public override int CommandId => ExtensionIds.SandboxSmoove;
     public override string CursorImage => "move";
     public override string VcbLabel => _centre == null ? "Radius" : "Offset";
-    public override string VcbValue => Length.Format(_centre == null ? _radius : _height, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(_centre == null ? _radius : _height);
 
     public override string StatusText => _centre == null
         ? "Click on the terrain to start smooving. Type the radius in the Measurements box."
@@ -183,7 +183,7 @@ public sealed class SmooveTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+        if (!UI.Measure.Read(text, out var mm))
             return false;
         if (_centre == null)
         {
@@ -245,7 +245,7 @@ public sealed class StampTool : DrawingTool
     public override int CommandId => ExtensionIds.SandboxStamp;
     public override string CursorImage => "select";
     public override string VcbLabel => _terrain == null ? "Offset" : "Height";
-    public override string VcbValue => Length.Format(_terrain == null ? _offset : _height, LengthUnit.Millimeters, 0);
+    public override string VcbValue => UI.Measure.Show(_terrain == null ? _offset : _height);
 
     public override string StatusText => _footprint == null ? "Select the group or component to stamp with."
         : _terrain == null ? "Click the terrain to stamp. Type the offset in the Measurements box."
@@ -347,7 +347,7 @@ public sealed class StampTool : DrawingTool
 
     public override bool ApplyVcb(string text)
     {
-        if (!Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+        if (!UI.Measure.Read(text, out var mm))
             return false;
         if (_terrain == null)
         {

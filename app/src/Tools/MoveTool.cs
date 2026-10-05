@@ -41,7 +41,7 @@ public sealed class MoveTool : DrawingTool
         _ => "Click to place the items you're copying or enter a distance.",
     };
 
-    public override string VcbValue => _from is { } f && Current is { } c ? Length.Format(f.DistanceTo(c.Point), LengthUnit.Millimeters, 1) : "";
+    public override string VcbValue => _from is { } f && Current is { } c ? UI.Measure.Show(f.DistanceTo(c.Point)) : "";
 
     protected override void OnInferenceChanged()
     {
@@ -236,7 +236,7 @@ public sealed class MoveTool : DrawingTool
             Finish(doc, Slide(target - picked));
             return true;
         }
-        if (_from is not { } from || Current is not { } c || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
+        if (_from is not { } from || Current is not { } c || !UI.Measure.Read(text, out var mm))
             return false;
         var dir = (c.Point - from).Normalized();
         if (dir.IsZero(1e-12))

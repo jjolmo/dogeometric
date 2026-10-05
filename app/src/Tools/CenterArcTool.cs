@@ -35,7 +35,7 @@ public class CenterArcTool(bool pie) : DrawingTool
 
     public override string VcbValue => (_center, _start, Current) switch
     {
-        ({ } c, null, { } inf) => Length.Format(c.DistanceTo(inf.Point), LengthUnit.Millimeters, 1),
+        ({ } c, null, { } inf) => UI.Measure.Show(c.DistanceTo(inf.Point)),
         ({ }, { }, _) when Sweep() is { } a => (a * 180 / Math.PI).ToString("0.0", CultureInfo.InvariantCulture),
         _ => "",
     };
@@ -129,7 +129,7 @@ public class CenterArcTool(bool pie) : DrawingTool
             return false;
         if (_start == null)
         {
-            if (Current is not { } inf || !Length.TryParse(text, LengthUnit.Millimeters, out var r) || r <= 0)
+            if (Current is not { } inf || !UI.Measure.Read(text, out var r) || r <= 0)
                 return false;
             var dir = (OnPlane(inf) - c).Normalized();
             if (dir.IsZero(1e-9))
@@ -197,7 +197,7 @@ public sealed class ThreePointArcTool : DrawingTool
 
     public override string VcbLabel => _points.Count == 1 ? "Length" : "Segments";
     public override string VcbValue => _points.Count == 1 && Current is { } c
-        ? Length.Format(_points[0].DistanceTo(c.Point), LengthUnit.Millimeters, 1) : $"{_segments}s";
+        ? UI.Measure.Show(_points[0].DistanceTo(c.Point)) : $"{_segments}s";
 
     protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
 
@@ -213,7 +213,7 @@ public sealed class ThreePointArcTool : DrawingTool
             View.ShowVcbValue(VcbValue);
             return true;
         }
-        if (_points.Count != 1 || Current is not { } c || !Length.TryParse(t, LengthUnit.Millimeters, out var mm) || mm <= 0)
+        if (_points.Count != 1 || Current is not { } c || !UI.Measure.Read(t, out var mm) || mm <= 0)
             return false;
         var dir = (c.Point - _points[0]).Normalized();
         if (dir.IsZero(1e-9))
