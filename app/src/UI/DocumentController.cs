@@ -697,6 +697,14 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private static string WithExtension(string path, string ext) =>
         System.IO.Path.GetExtension(path).Length == 0 ? path + ext : path;
 
+    /// <summary>Components › Save As: the definition written as a .dog of its own.</summary>
+    public void SaveComponentAs(ComponentDefinition def) => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Save As", ["*.dog ; Dogeometric"], path =>
+    {
+        path = WithExtension(path, ".dog");
+        if (Write(path, (_, p) => DogFile.Save(Grouping.DefinitionAsModel(Model, def), p)))
+            AppPreferences.AddRecent(path);
+    }, d => d.CurrentFile = def.Name + ".dog");
+
     /// <summary>A save-file picker for exports (File › Export › Animation).</summary>
     public void PickExport(string title, string[] filters, Action<string> onPicked) =>
         ShowDialog(FileDialog.FileModeEnum.SaveFile, title, filters, onPicked);

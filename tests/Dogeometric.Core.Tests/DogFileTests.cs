@@ -314,4 +314,25 @@ public class DogFileTests
         var unnamed = Grouping.ImportAsComponent(host, new Model(), "lid.dog");
         Assert.Equal("lid.dog", unnamed.Name);
     }
+
+    [Fact]
+    public void A_component_saved_as_a_model_imports_back_the_same_and_replace_swaps_definitions()
+    {
+        var model = new Model();
+        var vent = new ComponentDefinition { Name = "Vent", GlueTo = GlueTo.Vertical, CutsOpening = true };
+        TestModels.Box(vent.Entities, Vec3.Zero, new Vec3(20, 5, 10));
+        model.Definitions.Add(vent);
+        var inst = model.Entities.AddInstance(vent, Transform.Translation(new Vec3(7, 0, 0)));
+
+        var path = Path.Combine(Path.GetTempPath(), $"vent-{Guid.NewGuid()}.dog");
+        DogFile.Save(Grouping.DefinitionAsModel(model, vent), path);
+        var back = Grouping.ImportAsComponent(new Model(), DogFile.Load(path), "x");
+        File.Delete(path);
+        Assert.Equal(("Vent", GlueTo.Vertical, true, 6), (back.Name, back.GlueTo, back.CutsOpening, back.Entities.Faces.Count));
+
+        var other = new ComponentDefinition { Name = "Other" };
+        Assert.Equal(1, Grouping.ReplaceDefinition([inst], other));
+        Assert.Same(other, inst.Definition);
+        Assert.Equal(new Vec3(7, 0, 0), inst.Transform.Origin);
+    }
 }

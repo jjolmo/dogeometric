@@ -553,6 +553,41 @@ public static class Grouping
         return def;
     }
 
+    /// <summary>Components › Save As: the definition as a model of its own (its nested components, materials and tags
+    /// along), named and aligned as the definition is.</summary>
+    public static Model DefinitionAsModel(Model model, ComponentDefinition def)
+    {
+        var result = new Model
+        {
+            Options = new ModelOptions { Name = def.Name, Description = def.Description, GlueTo = def.GlueTo, CutsOpening = def.CutsOpening,
+                AlwaysFaceCamera = def.AlwaysFaceCamera, ShadowsFaceSun = def.ShadowsFaceSun },
+        };
+        CopyEntities(def.Entities, result.Entities, Geometry.Transform.Identity);
+        var nested = new HashSet<ComponentDefinition>();
+        void Collect(Entities e)
+        {
+            foreach (var inst in e.Instances.Where(i => nested.Add(i.Definition)))
+                Collect(inst.Definition.Entities);
+        }
+        Collect(result.Entities);
+        result.Definitions.AddRange(model.Definitions.Where(nested.Contains));
+        result.Materials.AddRange(model.Materials);
+        result.Tags.AddRange(model.Tags.Skip(1));
+        return result;
+    }
+
+    /// <summary>Components › Replace Selected: the instances become copies of <paramref name="with"/>, where they were.</summary>
+    public static int ReplaceDefinition(IEnumerable<ComponentInstance> instances, ComponentDefinition with)
+    {
+        var count = 0;
+        foreach (var inst in instances.Where(i => i.Definition != with))
+        {
+            inst.Definition = with;
+            count++;
+        }
+        return count;
+    }
+
     /// <summary>Tags › Purge: removes the tags nothing uses (Untagged stays). Returns how many went.</summary>
     public static int PurgeTags(Model model)
     {

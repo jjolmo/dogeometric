@@ -15,6 +15,9 @@ public partial class ComponentsPanel : VBoxContainer
 
     public static ComponentsPanel Create(Func<Document> doc, Action<ComponentDefinition> place) => new() { _doc = doc, _place = place };
 
+    /// <summary>Save As was pressed for this definition (the main window asks where).</summary>
+    public event Action<ComponentDefinition>? SaveAsRequested;
+
     public void Refresh()
     {
         foreach (var c in GetChildren())
@@ -71,5 +74,25 @@ public partial class ComponentsPanel : VBoxContainer
         };
         actions.AddChild(purge);
         AddChild(actions);
+        var more = new HBoxContainer();
+        var replace = new Button { Text = "Replace Selected", FocusMode = FocusModeEnum.None, Disabled = _current == null,
+            TooltipText = "The selected components become copies of this one" };
+        replace.Pressed += () =>
+        {
+            if (_current is not { } with)
+                return;
+            var picked = doc.Selection.Items.OfType<ComponentInstance>().ToList();
+            doc.Operation("Replace Selected", _ => Grouping.ReplaceDefinition(picked, with));
+        };
+        more.AddChild(replace);
+        var save = new Button { Text = "Save As...", FocusMode = FocusModeEnum.None, Disabled = _current == null,
+            TooltipText = "Save this component as a model of its own" };
+        save.Pressed += () =>
+        {
+            if (_current is { } def)
+                SaveAsRequested?.Invoke(def);
+        };
+        more.AddChild(save);
+        AddChild(more);
     }
 }
