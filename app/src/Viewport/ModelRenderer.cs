@@ -796,6 +796,11 @@ public sealed class ModelRenderer
             Set("back_tex", bt);
             Set("has_front_tex", ft != null);
             Set("has_back_tex", bt != null);
+            var (fc, bc) = (front?.Colorize == true, back?.Colorize == true);
+            if (flipped)
+                (fc, bc) = (bc, fc);
+            Set("front_colorize", fc);
+            Set("back_colorize", bc);
             Set("swap_uv", flipped);
         }
         // Hidden Line draws faces flat white, without shading.

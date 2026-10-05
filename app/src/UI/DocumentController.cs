@@ -689,7 +689,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private string _materialLooks = "";
 
     private string MaterialLooks() => string.Join("|", Model.Materials.Select(m =>
-        $"{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m)}:{m.Color}:{m.Opacity}:{(m.Texture == null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m.Texture))}"));
+        $"{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m)}:{m.Color}:{m.Opacity}:{m.Colorize}:{(m.Texture == null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m.Texture))}"));
 
     /// <summary>Raised when a material's picture changed outside an operation's own refresh (Edit Texture Image).</summary>
     public event Action? MaterialsChanged;

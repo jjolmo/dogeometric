@@ -105,6 +105,8 @@ public static class DogFile
                 w.WriteString("name", m.Name);
                 WriteColor(w, "color", m.Color);
                 w.WriteNumber("opacity", m.Opacity);
+                if (m.Colorize)
+                    w.WriteBoolean("colorize", true);
                 if (m.Texture is { } tex)
                 {
                     var entryName = $"textures/{textures.Count}{Path.GetExtension(tex.FileName)}";
@@ -856,6 +858,7 @@ public static class DogFile
                 Name = m.GetProperty("name").GetString() ?? "",
                 Color = ReadColor(m.GetProperty("color")),
                 Opacity = m.GetProperty("opacity").GetDouble(),
+                Colorize = m.TryGetProperty("colorize", out var colorize) && colorize.GetBoolean(),
             };
             if (m.TryGetProperty("texture", out var t))
             {

@@ -44,9 +44,11 @@ void fragment() {
 	vec2 front_uv = swap_uv ? UV2 : UV;
 	vec2 back_uv = swap_uv ? UV : UV2;
 	if (FRONT_FACING && has_front_tex) {
-		c = vec4(TEX(front_tex, front_uv), c.a);
+		vec3 picture = TEX(front_tex, front_uv);
+		c = vec4(front_colorize ? colorized(picture, c.rgb) : picture, c.a);
 	} else if (!FRONT_FACING && has_back_tex) {
-		c = vec4(TEX(back_tex, back_uv), c.a);
+		vec3 picture = TEX(back_tex, back_uv);
+		c = vec4(back_colorize ? colorized(picture, c.rgb) : picture, c.a);
 	}
 	ALBEDO = c.rgb * (1.0 - fade);
 	EMISSION = c.rgb * sun_dark * (1.0 - fade) + vec3(fade);

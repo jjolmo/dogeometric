@@ -46,9 +46,11 @@ void fragment() {
 	vec2 front_uv = swap_uv ? UV2 : UV;
 	vec2 back_uv = swap_uv ? UV : UV2;
 	if (FRONT_FACING && has_front_tex) {
-		c = vec4(TEX(front_tex, front_uv), c.a);
+		vec3 picture = TEX(front_tex, front_uv);
+		c = vec4(front_colorize ? colorized(picture, c.rgb) : picture, c.a);
 	} else if (!FRONT_FACING && has_back_tex) {
-		c = vec4(TEX(back_tex, back_uv), c.a);
+		vec3 picture = TEX(back_tex, back_uv);
+		c = vec4(back_colorize ? colorized(picture, c.rgb) : picture, c.a);
 	}
 	// A zero light direction means "unlit" (Hidden Line style).
 	float diffuse = length(light_dir) > 0.0 ? abs(dot(normalize(NORMAL), normalize(light_dir))) : 1.0;

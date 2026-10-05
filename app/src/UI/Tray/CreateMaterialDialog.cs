@@ -17,6 +17,7 @@ public partial class CreateMaterialDialog : ConfirmationDialog
     private Label _file = null!;
     private LineEdit _width = null!, _height = null!;
     private CheckBox _lockAspect = null!;
+    private CheckBox _colorize = null!;
     private HSlider _opacity = null!;
     private byte[]? _image;
     private string _imageName = "";
@@ -68,6 +69,8 @@ public partial class CreateMaterialDialog : ConfirmationDialog
         d._opacity = new HSlider { MinValue = 0, MaxValue = 100, Value = 100, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         opacityRow.AddChild(d._opacity);
         box.AddChild(opacityRow);
+        d._colorize = new CheckBox { Text = "Colorize", TooltipText = "Tint the texture with the colour, keeping its light and dark" };
+        box.AddChild(d._colorize);
         d.AddChild(box);
 
         if (editing != null)
@@ -75,6 +78,7 @@ public partial class CreateMaterialDialog : ConfirmationDialog
             d._name.Text = editing.Name;
             d._color.Color = Color.Color8(editing.Color.R, editing.Color.G, editing.Color.B);
             d._opacity.Value = editing.Opacity * 100;
+            d._colorize.ButtonPressed = editing.Colorize;
             if (editing.Texture is { } tex)
             {
                 d._image = tex.Data;
@@ -117,6 +121,7 @@ public partial class CreateMaterialDialog : ConfirmationDialog
                 (m.Name, m.Color, m.Opacity) = (d._name.Text.Trim().Length > 0 ? d._name.Text.Trim() : editing?.Name ?? $"Material{index}",
                     new Rgba((byte)(c.R * 255), (byte)(c.G * 255), (byte)(c.B * 255)), d._opacity.Value / 100);
                 m.Texture = null;
+                m.Colorize = d._colorize.ButtonPressed;
                 if (d._useTexture.ButtonPressed && d._image != null)
                 {
                     UI.Measure.Read(d._width.Text, out var w);

@@ -25,6 +25,9 @@ public sealed class Material
     public double Opacity { get; set; } = 1;
 
     public TextureImage? Texture { get; set; }
+
+    /// <summary>Materials › Edit › Colorize: the picture takes the colour's hue and saturation, keeping its own lightness.</summary>
+    public bool Colorize { get; set; }
 }
 
 /// <summary>A tag (SketchUp's former "layer"): controls visibility of the entities that use it.</summary>
