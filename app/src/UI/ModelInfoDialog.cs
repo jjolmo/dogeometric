@@ -92,15 +92,42 @@ public partial class ModelInfoDialog : AcceptDialog
         var model = _doc.Model;
         var grid = Grid();
         Row(grid, "Location", _path ?? "(not saved)");
+        void Text(string label, string value, Func<ModelOptions, string, ModelOptions> set)
+        {
+            grid.AddChild(new Label { Text = label });
+            var edit = new LineEdit { Text = value, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(260, 0) };
+            edit.FocusExited += () =>
+            {
+                if (edit.Text != value)
+                {
+                    value = edit.Text;
+                    Options("Model Info", m => set(m, edit.Text));
+                }
+            };
+            edit.TextSubmitted += _ => edit.ReleaseFocus();
+            grid.AddChild(edit);
+        }
+        Text("Name", model.Options.Name, (m, v) => m with { Name = v });
+        Text("Description", model.Options.Description, (m, v) => m with { Description = v });
         Row(grid, "Version", model.SourceVersion.Length > 0 ? model.SourceVersion : "Dogeometric");
         if (_path != null && System.IO.File.Exists(_path))
             Row(grid, "Size", $"{new System.IO.FileInfo(_path).Length / 1024.0:0.#} KB");
     }
 
+    private static bool _nested = true;
+
     private void Statistics()
     {
         var model = _doc.Model;
-        var all = model.AllEntities.ToList();
+        // Show nested components off counts only the model's top level, as SketchUp's Statistics does.
+        var all = _nested ? model.AllEntities.ToList() : [model.Entities];
+        var nested = new CheckBox { Text = "Show nested components", ButtonPressed = _nested };
+        nested.Toggled += on =>
+        {
+            _nested = on;
+            ShowPane("Statistics");
+        };
+        _pane.AddChild(nested);
         var grid = Grid();
         Row(grid, "Edges", all.Sum(e => e.Edges.Count).ToString());
         Row(grid, "Faces", all.Sum(e => e.Faces.Count).ToString());
@@ -113,6 +140,24 @@ public partial class ModelInfoDialog : AcceptDialog
         Row(grid, "Component Definitions", model.Definitions.Count(d => !d.IsGroup && !d.IsImage).ToString());
         Row(grid, "Materials", model.Materials.Count.ToString());
         Row(grid, "Tags", model.Tags.Count.ToString());
+        var fix = new Button { Text = "Fix Problems", TooltipText = "Check the model and repair what it can (edges split along a line, stray vertices)." };
+        fix.Pressed += () =>
+        {
+            var report = "";
+            _doc.Operation("Fix Problems", _ =>
+            {
+                var options = new CleanUpOptions { Purge = false, MergeFaces = false, RepairSplitEdges = true, EraseStrayEdges = false };
+                var result = CleanUp.Run(model, model.Entities, [], options);
+                report = string.Join("\n", result.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}: {kv.Value}"));
+            });
+            _changed();
+            var d = new AcceptDialog { Title = "Validity Check", DialogText = report.Length > 0 ? report : "No problems found." };
+            d.Confirmed += d.QueueFree;
+            AddChild(d);
+            d.PopupCentered();
+            ShowPane("Statistics");
+        };
+        _pane.AddChild(fix);
         var purge = new Button { Text = "Purge Unused" };
         purge.Pressed += () =>
         {
@@ -170,6 +215,18 @@ public partial class ModelInfoDialog : AcceptDialog
         var model = _doc.Model;
         var grid = Grid();
         Number(grid, "Text size", model.TextFontSize, 6, 72, 1, "pt").ValueChanged += v => Set("Text", () => model.TextFontSize = (int)v);
+        var row = new HBoxContainer();
+        Button Action(string text, Action run)
+        {
+            var b = new Button { Text = text };
+            b.Pressed += run;
+            row.AddChild(b);
+            return b;
+        }
+        var texts = _doc.Context.Entities.Texts;
+        Action("Select all screen text", () => _doc.Selection.Set(texts.Where(t => t.ScreenPosition != null)));
+        Action("Select all leader text", () => _doc.Selection.Set(texts.Where(t => t.ScreenPosition == null)));
+        _pane.AddChild(row);
     }
 
     private void Options(string name, Func<ModelOptions, ModelOptions> change) => Set(name, () => _doc.Model.Options = change(_doc.Model.Options));
@@ -350,6 +407,8 @@ public partial class ModelInfoDialog : AcceptDialog
     private static void Row(GridContainer grid, string label, string value)
     {
         grid.AddChild(new Label { Text = label });
-        grid.AddChild(new Label { Text = value });
+        // Long values (a file's path) are cut short with an ellipsis rather than widening the window.
+        grid.AddChild(new Label { Text = value, TooltipText = value, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+            CustomMinimumSize = new Vector2(260, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Pass });
     }
 }

@@ -22,6 +22,10 @@ public sealed class Scene
 /// <summary>Model Info's Components, Credits and Rendering settings.</summary>
 public sealed record ModelOptions
 {
+    /// <summary>Model Info › File: the model's name and description (shown when it is used as a component).</summary>
+    public string Name { get; init; } = "";
+    public string Description { get; init; } = "";
+
     /// <summary>Credits › Model author.</summary>
     public string Author { get; init; } = "";
 

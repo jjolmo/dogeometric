@@ -58,6 +58,8 @@ public static class DogFile
             w.WriteBoolean("sectionFill", model.ShowSectionFill);
             w.WriteStartObject("options");
             w.WriteString("author", model.Options.Author);
+            w.WriteString("name", model.Options.Name);
+            w.WriteString("description", model.Options.Description);
             w.WriteNumber("fadeRest", model.Options.FadeRest);
             w.WriteNumber("fadeSimilar", model.Options.FadeSimilar);
             w.WriteBoolean("componentAxes", model.Options.ShowComponentAxes);
@@ -534,6 +536,8 @@ public static class DogFile
             model.Options = new ModelOptions
             {
                 Author = opts.GetProperty("author").GetString() ?? "",
+                Name = opts.TryGetProperty("name", out var mn) ? mn.GetString() ?? "" : "",
+                Description = opts.TryGetProperty("description", out var md2) ? md2.GetString() ?? "" : "",
                 FadeRest = opts.GetProperty("fadeRest").GetDouble(),
                 FadeSimilar = opts.GetProperty("fadeSimilar").GetDouble(),
                 ShowComponentAxes = opts.GetProperty("componentAxes").GetBoolean(),
