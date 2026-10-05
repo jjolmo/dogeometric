@@ -457,7 +457,10 @@ public static class StepImport
                 int[] t = [a, b, c];
                 var middle = t.OrderBy(i => t.Where(j => j != i).Sum(j => -(p[j] - p[i]).Length)).First();
                 var ends = t.Where(i => i != middle).ToArray();
-                middle = t.First(i => (p[i] - p[ends[0]]).Dot(p[i] - p[ends[1]]) <= 0 && i != ends[0] && i != ends[1]);
+                var between = t.Where(i => i != ends[0] && i != ends[1] && (p[i] - p[ends[0]]).Dot(p[i] - p[ends[1]]) <= 0).ToList();
+                if (between.Count == 0)
+                    continue;
+                middle = between[0];
                 var other = mesh.FindIndex(n => Has(n, ends[0]) && Has(n, ends[1]) && !Has(n, middle));
                 if (other < 0)
                     continue;
@@ -775,6 +778,8 @@ public static class StepImport
                     var (major, minor) = (D(e.Args[2]) * _scale, D(e.Args[3]) * _scale);
                     return new Revolved(p.O, p.X, p.Y, p.Z, Profile.Torus, v => major + minor * Math.Cos(v), v => minor * Math.Sin(v), 0, 2 * Math.PI, minor, major);
                 }
+                case "OFFSET_SURFACE":
+                    return Surface(E(e.Args[1])) is { } basis ? new Offset(basis, D(e.Args[2]) * _scale) : null;
                 case "SURFACE_OF_LINEAR_EXTRUSION":
                 {
                     var vector = E(e.Args[2]);
@@ -1042,6 +1047,19 @@ public static class StepImport
             }
             return best;
         }
+    }
+
+    /// <summary>A surface moved along its own normal; a point's parameters are those of its foot on the base surface.</summary>
+    private sealed class Offset(Surface basis, double distance) : Surface
+    {
+        public override double PeriodU => basis.PeriodU;
+        public override double UMin => basis.UMin;
+        public override double UMax => basis.UMax;
+        public override double VMin => basis.VMin;
+        public override double VMax => basis.VMax;
+        public override Vec3 Eval(double u, double v) => basis.Eval(u, v) + basis.Normal(u, v) * distance;
+        public override Vec3 Normal(double u, double v) => basis.Normal(u, v);
+        public override (double U, double V) Project(Vec3 p, (double U, double V)? near) => basis.Project(p, near);
     }
 
     private sealed class Line(Vec3 o, Vec3 d) : Curve

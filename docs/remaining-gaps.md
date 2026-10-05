@@ -13,7 +13,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
-| STEP import: offset surfaces | Some vendor models use offset surfaces. | Planes, cylinders, cones, spheres, tori, B-spline surfaces, surfaces of extrusion and revolution, and assemblies import (checked against FreeCAD's volumes); other faces are left out and counted. |
+| STEP import: triangle quality on curved faces | Curved faces are fanned and refined by splitting edges, which leaves thin triangles: volumes stay within 1.5 % but areas can read 0.5–3.5 % high, and shading shows the slivers. | Needs a constrained Delaunay (or grid-seeded) triangulation in parameter space; longest-edge bisection alone was tried and made it worse. |
 | Import details | COLLADA/KMZ imports drop textures; IFC boolean cuts (openings clipped from walls) are not applied. Components come in as components from COLLADA, KMZ, DWG, DXF, 3DS (as groups), STEP and IFC. | |
 
 ## Medium impact
