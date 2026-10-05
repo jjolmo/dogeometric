@@ -33,6 +33,21 @@ public sealed class MatchedPhoto
 /// gives the focal length (the principal point is the photo's centre).</summary>
 public static class PhotoMatch
 {
+    /// <summary>The photo's corners in the model, <paramref name="distance"/> in front of its camera (bottom left,
+    /// bottom right, top right, top left); null when its lines give no camera.</summary>
+    public static Vec3[]? Corners(MatchedPhoto photo, double distance)
+    {
+        if (Solve(photo) is not { } cam)
+            return null;
+        var ahead = (cam.Target - cam.Eye).Normalized();
+        var up = cam.Up.Normalized();
+        var right = ahead.Cross(up).Normalized();
+        var h = Math.Tan(cam.FovDegrees * Math.PI / 360) * distance;
+        var w = h * photo.Aspect;
+        var c = cam.Eye + ahead * distance;
+        return [c - right * w - up * h, c + right * w - up * h, c + right * w + up * h, c - right * w + up * h];
+    }
+
     public static PhotoPoint? VanishingPoint((PhotoPoint A, PhotoPoint B) l1, (PhotoPoint A, PhotoPoint B) l2)
     {
         var (d1, d2) = (l1.B - l1.A, l2.B - l2.A);

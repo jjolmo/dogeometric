@@ -1141,6 +1141,7 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.TwoPointPerspective, v.SetTwoPoint, () => v.Camera.TwoPointShift != null, radio: true);
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
+        RegisterTool(CommandIds.ImageIgloo, () => new ImageIglooTool());
         _commands.Register(CommandIds.Revert, _document.Revert);
         _commands.SubmenuBuilders["Items"] = menu => ContextMenu.Fill(menu, _document.Document, _viewport, id => _commands.Execute(id), items: true);
         _commands.DynamicItems[CommandIds.RecentFile] = () => AppPreferences.Current.RecentFiles

@@ -90,6 +90,7 @@ public static class CommandIds
     public const int ClearLocation = 24197;
     public const int SaveAsTemplate = 24183;
     public const int ZoomToPhoto = 10625;
+    public const int ImageIgloo = 10631;
 
     // Tools
     public const int Select = 21022;

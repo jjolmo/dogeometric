@@ -78,4 +78,18 @@ public class PhotoMatchTests
         Assert.Equal(photo.Red, back.Red);
         Assert.Equal(photo.Green, back.Green);
     }
+
+    [Fact]
+    public void A_photos_corners_frame_its_view()
+    {
+        var photo = new MatchedPhoto { Width = 4, Height = 3, Distance = 1000,
+            Red = [(new(-0.4, -0.1), new(-0.1, 0.02)), (new(-0.4, -0.3), new(-0.1, -0.1))],
+            Green = [(new(0.1, 0.02), new(0.4, -0.1)), (new(0.1, -0.1), new(0.4, -0.3))],
+            Origin = new(0, -0.2) };
+        var cam = PhotoMatch.Solve(photo)!.Value;
+        var corners = PhotoMatch.Corners(photo, 500)!;
+        var centre = corners.Aggregate(Vec3.Zero, (a, p) => a + p) / 4;
+        Assert.True(centre.DistanceTo(cam.Eye + (cam.Target - cam.Eye).Normalized() * 500) < 1e-6);
+        Assert.Equal(4.0 / 3, corners[0].DistanceTo(corners[1]) / corners[1].DistanceTo(corners[2]), 9);
+    }
 }
