@@ -26,8 +26,15 @@ public static class SkpExporter
 
             var ctx = new Context(materials, tags, warnings);
 
-            if (model.AllEntities.All(e => e.Faces.Count == 0 && e.Edges.Count == 0))
-                throw new InvalidOperationException("An empty model can't be saved as .skp (the writer needs at least one face or edge)");
+            // An empty model is written as SketchUp's own empty document; with materials or tags the writer needs one
+            // entity, so a guide point marks the origin.
+            var entities = model.AllEntities.Sum(e => e.Faces.Count + e.Edges.Count + e.GuidePoints.Count + e.GuideLines.Count + e.SectionPlanes.Count
+                + e.Dimensions.Count + e.Texts.Count + e.Instances.Count);
+            if (entities == 0 && (materials.Count > 0 || tags.Count > 0))
+            {
+                b.AddConstructionPoint((0, 0, 0));
+                warnings.Add("The model has no geometry: a guide point was added at the origin so the .skp can hold its materials and tags.");
+            }
 
             // Definitions are declared children-first (a definition can only nest already-closed ones), then placed.
             foreach (var def in PostOrder(model))

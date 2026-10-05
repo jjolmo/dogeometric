@@ -173,4 +173,20 @@ public class SkpRoundTripTests
         e.AddFace([new(0, 0, 0), new(0, 0, 10), new(0, 10, 10), new(0, 10, 0)]);
         e.AddFace([new(10, 0, 0), new(10, 10, 0), new(10, 10, 10), new(10, 0, 10)]);
     }
+
+    [Fact]
+    public void An_empty_model_saves_as_sketchups_empty_document()
+    {
+        var back = RoundTrip(new Model());
+        Assert.True(back.AllEntities.All(e => e.Faces.Count == 0 && e.Edges.Count == 0 && e.Instances.Count == 0));
+    }
+
+    [Fact]
+    public void A_model_with_only_tags_keeps_them_with_a_guide_point()
+    {
+        var model = new Model();
+        model.GetOrAddTag("Lid");
+        var back = RoundTrip(model);
+        Assert.Contains(back.Tags, t => t.Name == "Lid");
+    }
 }

@@ -60,3 +60,7 @@ Every change is listed here and should be offered upstream.
 Shipped unchanged from upstream: the empty-document template the writer splices geometry into. Upstream documents
 that its bytes come from a bare `SUModelCreate` + save with Trimble's SDK (SketchUp's own empty-document
 boilerplate, no user content). It is part of the upstream MIT package; Dogeometric does not use the SDK.
+
+9. **Empty documents** (`Create.cs`, `SkpBuilder.ToBytes`). A builder with nothing added threw "no geometry added";
+   it now returns the bundled blank document unchanged, which is SketchUp's own empty model (written by its SDK).
+   Anything else without geometry (materials, layers or definitions only) still throws.

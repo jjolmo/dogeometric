@@ -3181,6 +3181,11 @@ namespace OpenSkp
             }
             if (_faceCount == 0)
             {
+                // Dogeometric patch 9: nothing added at all is SketchUp's own empty document, the scaffold as is.
+                if (_materialCount == 0 && _layerCount == 0 && DefinitionWriter == null)
+                {
+                    return LoadScaffold();
+                }
                 throw new SkpWriteException("no geometry added - call AddFace at least once before saving");
             }
 
