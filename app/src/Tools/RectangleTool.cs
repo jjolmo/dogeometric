@@ -37,10 +37,17 @@ public sealed class RectangleTool : DrawingTool
         {
             _corner = inf.Point;
             ChoosePlane(inf);
+            Pressed(position);
             RefreshStatus();
             return;
         }
         Create(Corners());
+    }
+
+    public override void MouseUp(MouseButton button, Vector2 position)
+    {
+        if (ReleaseFinishes(button, position) && _corner != null)
+            Create(Corners());
     }
 
     /// <summary>The plane of the face clicked first, otherwise the axis plane most facing the viewer.</summary>

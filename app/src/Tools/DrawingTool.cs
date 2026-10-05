@@ -143,6 +143,24 @@ public abstract class DrawingTool : Tool
         return true;
     }
 
+    private Vector2? _pressedAt;
+
+    /// <summary>A drawing's first click: remembers where, so its release can finish it (Preferences › Drawing › Click Style).</summary>
+    protected void Pressed(Vector2 position) => _pressedAt = position;
+
+    /// <summary>
+    /// Whether releasing the button at <paramref name="position"/> finishes what the first click began: always for
+    /// click-drag-release, after a drag for auto detect, never for click-move-click.
+    /// </summary>
+    protected bool ReleaseFinishes(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || _pressedAt is not { } pressed)
+            return false;
+        _pressedAt = null;
+        var style = UI.AppPreferences.Current.ClickStyle;
+        return style == 0 || style == 1 && position.DistanceTo(pressed) > 6;
+    }
+
     /// <summary>World point → active context's local point (where new geometry goes).</summary>
     protected Vec3 ToLocal(Vec3 world) => View.Document!.Context.ToWorld.Inverse().ApplyPoint(world);
 

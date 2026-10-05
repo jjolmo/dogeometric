@@ -12,11 +12,7 @@ namespace Dogeometric.App.Tools;
 /// </summary>
 public sealed class LineTool : DrawingTool
 {
-    // Far enough to tell a drag from a click.
-    private const float DragPixels = 6;
-
     private Vec3? _start;
-    private Vector2? _pressedAt;
 
     public override int CommandId => CommandIds.Line;
     public override string CursorImage => "pencil";
@@ -35,7 +31,7 @@ public sealed class LineTool : DrawingTool
         if (_start is not { } start)
         {
             _start = inf.Point;
-            _pressedAt = position;
+            Pressed(position);
             RefreshStatus();
             return;
         }
@@ -44,13 +40,7 @@ public sealed class LineTool : DrawingTool
 
     public override void MouseUp(MouseButton button, Vector2 position)
     {
-        if (button != MouseButton.Left || _pressedAt is not { } pressed)
-            return;
-        _pressedAt = null;
-        // Click-drag-release always ends the line here; auto detect does when the press was dragged.
-        var style = UI.AppPreferences.Current.ClickStyle;
-        var dragged = position.DistanceTo(pressed) > DragPixels;
-        if (_start is { } start && Current is { } inf && (style == 0 || style == 1 && dragged))
+        if (ReleaseFinishes(button, position) && _start is { } start && Current is { } inf)
             Segment(start, inf.Point);
     }
 

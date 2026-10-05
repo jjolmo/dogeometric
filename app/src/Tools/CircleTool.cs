@@ -60,11 +60,21 @@ public class CircleTool(bool polygon) : DrawingTool
         {
             _center = inf.Point;
             _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : MostFacingPlane());
+            Pressed(position);
             RefreshStatus();
             return;
         }
         var edge = PlanePoint(inf);
         Create(_center.Value.DistanceTo(edge), edge - _center.Value);
+    }
+
+    public override void MouseUp(MouseButton button, Vector2 position)
+    {
+        if (ReleaseFinishes(button, position) && _center is { } center && Current is { } inf)
+        {
+            var edge = PlanePoint(inf);
+            Create(center.DistanceTo(edge), edge - center);
+        }
     }
 
     private Vec3 PlanePoint(InferenceResult inf)
