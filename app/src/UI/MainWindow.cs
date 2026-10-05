@@ -655,6 +655,20 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Redo, () => Doc().Undo.Redo());
         _commands.Register(CommandIds.Delete, () => Doc().EraseSelection());
         _commands.Register(CommandIds.AddScene, () => _scenes.Add());
+        _commands.Register(CommandIds.PlayAnimation, () =>
+        {
+            if (_scenes.Playing)
+                _scenes.Stop();
+            else
+                _scenes.Play();
+        }, () => _scenes.Playing);
+        _commands.Register(CommandIds.AnimationSettings, ShowAnimationSettings);
+        // A click in the drawing area or Esc stops a playing animation, as in SketchUp.
+        _viewport.GuiInput += e =>
+        {
+            if (_scenes.Playing && (e is InputEventMouseButton { Pressed: true } || e is InputEventKey { Pressed: true, Keycode: Key.Escape }))
+                _scenes.Stop();
+        };
         _commands.Register(CommandIds.SceneTabs, () =>
         {
             _scenes.Enabled = !_scenes.Enabled;
@@ -1034,6 +1048,42 @@ public partial class MainWindow : Control
         dock.AddThemeConstantOverride("h_separation", 6);
         panel.AddChild(dock);
         return (panel, dock);
+    }
+
+    /// <summary>View › Animation › Settings (Model Info › Animation): scene transitions, their time and the scene delay.</summary>
+    private void ShowAnimationSettings()
+    {
+        var model = _document.Document.Model;
+        var dialog = new ConfirmationDialog { Title = "Animation" };
+        var box = new VBoxContainer { CustomMinimumSize = new Vector2(300, 0) };
+        var enable = new CheckBox { Text = "Enable scene transitions", ButtonPressed = model.SceneTransitions };
+        box.AddChild(enable);
+        SpinBox Seconds(string label, double value)
+        {
+            var row = new HBoxContainer();
+            row.AddChild(new Label { Text = label, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+            var spin = new SpinBox { MinValue = 0, MaxValue = 60, Step = 0.1, Value = value, Suffix = "seconds" };
+            row.AddChild(spin);
+            box.AddChild(row);
+            return spin;
+        }
+        var transition = Seconds("Transition", model.SceneTransitionSeconds);
+        var delay = Seconds("Scene delay", model.SceneDelaySeconds);
+        dialog.AddChild(box);
+        dialog.Confirmed += () =>
+        {
+            // One step, so the model counts as changed and the settings get saved.
+            var doc = _document.Document;
+            doc.Undo.Begin("Animation Settings");
+            model.SceneTransitions = enable.ButtonPressed;
+            model.SceneTransitionSeconds = transition.Value;
+            model.SceneDelaySeconds = delay.Value;
+            doc.Undo.Commit();
+            dialog.QueueFree();
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        dialog.PopupCentered();
     }
 
     /// <summary>View › Toolbars: SketchUp's list of toolbars to show, with Reset.</summary>

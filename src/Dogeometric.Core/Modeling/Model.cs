@@ -23,6 +23,11 @@ public sealed class Model
     public int UnitPrecision { get; set; } = 1;
     public ShadowSettings Shadows { get; set; } = new();
 
+    /// <summary>Model Info › Animation: scene transitions (and their length in seconds) and the pause on each scene.</summary>
+    public bool SceneTransitions { get; set; } = true;
+    public double SceneTransitionSeconds { get; set; } = 2;
+    public double SceneDelaySeconds { get; set; }
+
     /// <summary>View › Section Fill: the active section's cut is filled.</summary>
     public bool ShowSectionFill { get; set; } = true;
 

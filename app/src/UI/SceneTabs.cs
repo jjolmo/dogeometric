@@ -7,13 +7,11 @@ using Godot;
 namespace Dogeometric.App.UI;
 
 /// <summary>
-/// SketchUp's scene tabs above the drawing area: one tab per scene; clicking one flies the camera there (about a
-/// second) and applies its tag visibility; right-click offers Update, Add and Delete.
+/// SketchUp's scene tabs above the drawing area: one tab per scene; clicking one flies the camera there (the model's
+/// transition time) and applies its tag visibility; right-click offers Update, Add and Delete. Play cycles through them.
 /// </summary>
 public partial class SceneTabs : HBoxContainer
 {
-    private const double TransitionSeconds = 1.0;
-
     private Func<Document> _doc = null!;
     private ModelViewport _view = null!;
     private Action _tagsChanged = null!;
@@ -28,7 +26,7 @@ public partial class SceneTabs : HBoxContainer
 
     public void Refresh()
     {
-        foreach (var c in GetChildren())
+        foreach (var c in GetChildren().Where(c => c != _player))
         {
             RemoveChild(c);
             c.QueueFree();
@@ -109,6 +107,11 @@ public partial class SceneTabs : HBoxContainer
             return;
         var from = _view.Camera.Save();
         _view.BeginNavigation();
+        if (!model.SceneTransitions || model.SceneTransitionSeconds <= 0)
+        {
+            _view.ChangeCamera(c => c.Restore(to));
+            return;
+        }
         _tween?.Kill();
         _tween = CreateTween();
         _tween.TweenMethod(Callable.From<double>(t =>
@@ -118,7 +121,42 @@ public partial class SceneTabs : HBoxContainer
             _view.ChangeCamera(c => c.Restore(new CameraState(L(from.Eye, to.Eye), L(from.Target, to.Target),
                 L(from.Up, to.Up).Normalized(), to.Perspective, from.FovDegrees + (to.FovDegrees - from.FovDegrees) * s,
                 from.OrthoHeight + (to.OrthoHeight - from.OrthoHeight) * s)));
-        }), 0.0, 1.0, TransitionSeconds);
+        }), 0.0, 1.0, model.SceneTransitionSeconds);
+    }
+
+    private Godot.Timer? _player;
+
+    public bool Playing => _player != null;
+
+    /// <summary>View › Animation › Play: from scene to scene in a loop, each transition then the scene delay.</summary>
+    public void Play()
+    {
+        var model = _doc().Model;
+        if (model.Scenes.Count == 0 || Playing)
+            return;
+        _player = new Godot.Timer { OneShot = false };
+        AddChild(_player);
+        void Next()
+        {
+            var m = _doc().Model;
+            if (m.Scenes.Count == 0)
+            {
+                Stop();
+                return;
+            }
+            Step(1);
+            _player!.WaitTime = Math.Max(0.05, (m.SceneTransitions ? m.SceneTransitionSeconds : 0) + m.SceneDelaySeconds);
+            _player.Start();
+        }
+        _player.Timeout += Next;
+        Next();
+    }
+
+    public void Stop()
+    {
+        if (_player != null && IsInstanceValid(_player))
+            _player.QueueFree();
+        _player = null;
     }
 
     private void Menu(int index, Vector2 at)

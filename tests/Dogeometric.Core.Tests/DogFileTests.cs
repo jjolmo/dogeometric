@@ -170,4 +170,21 @@ public class DogFileTests
         Assert.Equal(3, s1.ControlPoints.Count);
         Assert.Equal(1.5, s1.Parameter);
     }
+
+    [Fact]
+    public void Animation_settings_are_saved()
+    {
+        var m = new Model { SceneTransitions = false, SceneTransitionSeconds = 3.5, SceneDelaySeconds = 1 };
+        var path = Path.Combine(Path.GetTempPath(), $"anim-{Guid.NewGuid():N}.dog");
+        try
+        {
+            DogFile.Save(m, path);
+            var back = DogFile.Load(path);
+            Assert.Equal((false, 3.5, 1.0), (back.SceneTransitions, back.SceneTransitionSeconds, back.SceneDelaySeconds));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

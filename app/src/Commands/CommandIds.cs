@@ -124,6 +124,8 @@ public static class CommandIds
     public const int DeleteScene = 21078;
     public const int NextScene = 10535;
     public const int PreviousScene = 10536;
+    public const int PlayAnimation = 10552;
+    public const int AnimationSettings = 21170;
     public const int SectionPlane = 21337;
     public const int ReverseSection = 21334;
     public const int ActiveSectionCut = 21335;
