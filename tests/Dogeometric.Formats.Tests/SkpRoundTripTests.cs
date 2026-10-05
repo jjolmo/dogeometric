@@ -45,6 +45,26 @@ public class SkpRoundTripTests
     }
 
     [Fact]
+    public void A_subdivided_group_is_written_as_its_smooth_surface()
+    {
+        var model = new Model();
+        var def = new ComponentDefinition { Name = "Cage", IsGroup = true };
+        var e = def.Entities;
+        var v = new[] { new Vec3(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0) };
+        e.AddFace([v[3], v[2], v[1], v[0]]);
+        e.AddFace(v.Select(p => p + new Vec3(0, 0, 10)).ToList());
+        for (var i = 0; i < 4; i++)
+            e.AddFace([v[i], v[(i + 1) % 4], v[(i + 1) % 4] + new Vec3(0, 0, 10), v[i] + new Vec3(0, 0, 10)]);
+        e.Subdivision = 1;
+        model.Definitions.Add(def);
+        model.Entities.AddInstance(def, Transform.Identity);
+        var back = RoundTrip(model).Entities.Instances.Single().Definition.Entities;
+        Assert.Equal(6, def.Entities.Faces.Count);
+        Assert.True(back.Faces.Count > 24);
+        Assert.True(back.Vertices.Max(p => p.Position.X) < 10);
+    }
+
+    [Fact]
     public void Unwelded_pieces_keep_their_own_vertices_and_edges()
     {
         // Two quads meeting along x = 10 with separate vertices there (CASOPLON's imported meshes are like this):

@@ -51,7 +51,7 @@ public static class SkpExporter
                     if (def.IsImage && WriteImageQuad(def, cb, ctx))
                         ctx.Images.Add(def);
                     else
-                        WriteEntities(def.Entities, Target.For(cb), ctx);
+                        WriteEntities(Baked(def.Entities), Target.For(cb), ctx);
                 }
                 ctx.Builders[def] = cb;
             }
@@ -134,6 +134,17 @@ public static class SkpExporter
             map[m] = b.AddMaterial(name, (m.Color.R, m.Color.G, m.Color.B, m.Color.A), m.Opacity);
         }
         return map;
+    }
+
+    /// <summary>SketchUp stores what SUbD shows: a subdivided group's smooth surface, not its control mesh.</summary>
+    private static Entities Baked(Entities e)
+    {
+        if (e.Subdivision <= 0)
+            return e;
+        var copy = new Entities();
+        Grouping.CopyEntities(e, copy, Transform.Identity);
+        CatmullClark.Apply(copy, e.Subdivision);
+        return copy;
     }
 
     private static void WriteEntities(Entities e, Target target, Context ctx)
