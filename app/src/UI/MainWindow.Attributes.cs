@@ -1,4 +1,5 @@
 using Dogeometric.App.Commands;
+using Dogeometric.App.Tools;
 using Dogeometric.Core.Modeling;
 using Godot;
 
@@ -11,6 +12,7 @@ public partial class MainWindow
     {
         _commands.Register(ExtensionIds.ComponentAttributes, () => ShowAttributes(options: false));
         _commands.Register(ExtensionIds.ComponentOptions, () => ShowAttributes(options: true));
+        _commands.Register(ExtensionIds.Interact, () => _viewport.Tools.Activate(new InteractTool()), () => _viewport.Tools.Active is InteractTool);
     }
 
     /// <summary>Attributes edits every attribute (adding and removing too); Options only those users may change.</summary>
