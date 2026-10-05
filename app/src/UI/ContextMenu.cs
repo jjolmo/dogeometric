@@ -63,6 +63,8 @@ public static class ContextMenu
                     radial.Kind == DimensionKind.Radius ? DimensionKind.Diameter : DimensionKind.Radius)));
             menu.AddSeparator();
         }
+        if (sel.Count > 0 && sel.All(x => x is Edge { Curve.Spline: not null }))
+            Item("Edit Bezier Curve", () => view.Tools.Activate(new Tools.BezierEditTool()));
         if (single is SectionPlane section)
         {
             Item("Reverse", () => runCommand(CommandIds.ReverseSection));

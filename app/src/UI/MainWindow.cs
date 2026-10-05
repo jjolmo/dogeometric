@@ -287,6 +287,9 @@ public partial class MainWindow : Control
                 groupStart: kind == SplineKind.ArcCorners);
             _commands.Register(id, () => _viewport.Tools.Activate(new BezierSplineTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
+        _commands.AddToMenu("Draw", ExtensionIds.SplineEdit, "Edit Bezier, Spline and Polyline curves", "BezierSpline: move, add or remove a curve's control points.",
+            submenu: "BezierSpline curves", groupStart: true);
+        _commands.Register(ExtensionIds.SplineEdit, () => _viewport.Tools.Activate(new BezierEditTool()), () => _viewport.Tools.Active is BezierEditTool);
         _commands.AddToMenu("Draw", ExtensionIds.SandboxFromContours, "From Contours", "Create a terrain surface from the selected contour lines.", submenu: "Sandbox");
         _commands.Register(ExtensionIds.SandboxFromContours, () =>
         {

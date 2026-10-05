@@ -29,7 +29,7 @@ public static class Toolbars
         Commands.ExtensionIds.SandboxFromContours, Commands.ExtensionIds.SandboxFromScratch, Commands.ExtensionIds.SandboxSmoove,
         Commands.ExtensionIds.SandboxStamp, Commands.ExtensionIds.SandboxDrape, Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
     ];
-    public static readonly int[] BezierSpline = Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline).ToArray();
+    public static readonly int[] BezierSpline = [.. Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline), Commands.ExtensionIds.SplineEdit];
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.RoundPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] SelectionToys =
@@ -123,6 +123,7 @@ public static class Toolbars
             Icons[Commands.ExtensionIds.SurfaceShape(shape)] = "tos_" + shape.ToString().ToLowerInvariant();
         Icons[Commands.ExtensionIds.SandboxDrape] = "sandbox_drape";
         Icons[Commands.ExtensionIds.SandboxStamp] = "sandbox_stamp";
+        Icons[Commands.ExtensionIds.SplineEdit] = "spline_edit";
         Icons[Commands.ExtensionIds.SurfaceEraser] = "tos_eraser";
         Icons[Commands.ExtensionIds.SurfaceOffset] = "tos_offset";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())

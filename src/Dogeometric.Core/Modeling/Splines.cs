@@ -58,6 +58,24 @@ public static class Splines
         };
     }
 
+    /// <summary>Draws a BezierSpline curve as one curve entity; closed curves drop their repeated end point.</summary>
+    public static List<Edge> Draw(Entities e, SplineData data)
+    {
+        var pts = Compute(data.Kind, data.ControlPoints, data.Precision, data.Parameter, data.Closed && data.ControlPoints.Count > 2);
+        var closed = pts.Count > 2 && pts[0].DistanceTo(pts[^1]) < Tolerance.Length;
+        if (closed)
+            pts.RemoveAt(pts.Count - 1);
+        var curve = data.Kind == SplineKind.Polyline ? null : new Curve { Segments = pts.Count, Spline = data };
+        return StickyGeometry.DrawEdges(e, pts, closed, null, curve);
+    }
+
+    /// <summary>BezierSpline's Edit: the curve's edges are redrawn from <paramref name="data"/> (new control points or settings).</summary>
+    public static List<Edge> Edit(Entities e, Curve curve, SplineData data)
+    {
+        Editing.Erase(e, e.Edges.Where(x => x.Curve == curve).Cast<object>().ToList());
+        return Draw(e, data);
+    }
+
     // ------------------------------------------------------------------ smooth curves
 
     /// <summary>One Bézier curve of degree n-1 through the ends, pulled by the others (de Casteljau).</summary>
