@@ -491,6 +491,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         };
         Document.Selection.Changed += RebuildSelection;
         Document.Context.Changed += RebuildSelection;
+        Document.Context.Changed += ShowCage;
+        _renderer.Edited = Document.Context.Entities;
         Document.GeometryChanged += _ => _centers = null;
         Document.Selection.Changed += () => _centers = null;
         Document.Context.Changed += () => _centers = null;
@@ -513,6 +515,26 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
 
     /// <summary>Raised when a different document is loaded (tools must drop references to the old one).</summary>
     public event Action? DocumentReplaced;
+
+    /// <summary>A subdivided group shows its control mesh while open, and its smooth surface once closed.</summary>
+    private void ShowCage()
+    {
+        var (before, now) = (_renderer.Edited, Document.Context.Entities);
+        _renderer.Edited = now;
+        if (before != now && (before?.Subdivision > 0 || now.Subdivision > 0))
+            _renderer.Build(Model, viewport.ModelRoot, before == null ? [now] : [before, now]);
+    }
+
+    /// <summary>SUbD › Subdivision On/Off.</summary>
+    public bool Subdivide
+    {
+        get => _renderer.Subdivide;
+        set
+        {
+            _renderer.Subdivide = value;
+            Rebuild();
+        }
+    }
 
     private void Rebuild()
     {

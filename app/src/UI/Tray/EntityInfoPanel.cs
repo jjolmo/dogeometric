@@ -85,7 +85,7 @@ public partial class EntityInfoPanel : VBoxContainer
                 Edit("Instance", i.Name, v => doc.Operation("Rename", _ => i.Name = v));
                 if (!i.IsGroup)
                     Edit("Definition", i.Definition.Name, v => doc.Operation("Rename", _ => i.Definition.Name = v));
-                var b = i.Definition.Entities.Bounds();
+                var b = CatmullClark.ShownBounds(i.Definition.Entities);
                 if (!b.IsEmpty)
                 {
                     // Along the instance's own axes, including its scale.

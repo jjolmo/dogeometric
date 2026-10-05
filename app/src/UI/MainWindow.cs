@@ -167,6 +167,7 @@ public partial class MainWindow : Control
         Bar("Construction", Toolbars.Construction, ToolbarDocks.Dock.Top, visible: false);
         Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
+        Bar("SUbD", Toolbars.Subd, ToolbarDocks.Dock.Top, visible: false);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
         SelectTool.EditAnnotationText = EditAnnotationText;
@@ -237,8 +238,26 @@ public partial class MainWindow : Control
             });
         }
         // The reference install's Extensions menu: Make Faces, SUbD, CleanUp³.
-        _commands.AddToMenu("Extensions", ExtensionIds.SubdSubdivide, "Subdivide...", "SUbD: Catmull-Clark subdivision of the selected groups (or the open one).", submenu: "SUbD");
-        _commands.Register(ExtensionIds.SubdSubdivide, SubdSubdivide);
+        foreach (var (id, label, tip, action) in new (int, string, string, Action)[]
+        {
+            (ExtensionIds.SubdSubdivided, "Subdivided", "Toggle between control mesh and subdivided mesh.", () => Subd("Toggle Subdivision", e => e.Subdivision = e.Subdivision > 0 ? 0 : _subdLevels)),
+            (ExtensionIds.SubdIncrease, "Increase Subdivisions", "Increase number of subdivisions.", () => Subd("Increase Subdivisions", e => e.Subdivision = _subdLevels = Math.Min(e.Subdivision + 1, 5), subdividedOnly: true)),
+            (ExtensionIds.SubdDecrease, "Decrease Subdivisions", "Decrease number of subdivisions.", () => Subd("Decrease Subdivisions", e => e.Subdivision = _subdLevels = Math.Max(e.Subdivision - 1, 1), subdividedOnly: true)),
+            (ExtensionIds.SubdCrease, "Crease Tool", "Adjust edge and vertex sharpness to create creases.", () => _viewport.Tools.Activate(new CreaseTool())),
+            (ExtensionIds.SubdPlainMesh, "Convert to Plain Mesh", "Convert to Plain Mesh", () => Subd("Convert to Plain Mesh", e =>
+            {
+                CatmullClark.Apply(e, e.Subdivision);
+                e.Subdivision = 0;
+            }, subdividedOnly: true)),
+            (ExtensionIds.SubdOn, "Subdivision On", "Turns on subdivisions for all meshes in the model", () => _document.Subdivide = true),
+            (ExtensionIds.SubdOff, "Subdivision Off", "Turns off subdivisions for all meshes in the model", () => _document.Subdivide = false),
+        })
+        {
+            _commands.AddToMenu("Extensions", id, label, tip, submenu: "SUbD", groupStart: id is ExtensionIds.SubdCrease or ExtensionIds.SubdOn);
+            _commands.Register(id, action, id == ExtensionIds.SubdSubdivided
+                ? () => SubdTargets().Any(e => e.Subdivision > 0)
+                : id == ExtensionIds.SubdCrease ? () => _viewport.Tools.Active is CreaseTool : null);
+        }
         foreach (var (id, label, tip, options) in new (int, string, string, Func<CleanUpOptions>?)[]
         {
             (ExtensionIds.CleanUp, "Clean...", "Clean up the model with the chosen options.", null),
@@ -551,45 +570,41 @@ public partial class MainWindow : Control
         d.PopupCentered();
     }
 
-    /// <summary>SUbD › Subdivide: asks the levels, then subdivides the selected groups' contents (or the open group's).</summary>
-    private void SubdSubdivide()
+    private static int _subdLevels = 2;
+
+    /// <summary>SUbD's targets: the selected groups and components holding only edges and faces, or the open one.</summary>
+    private List<Entities> SubdTargets()
     {
         var doc = _document.Document;
         var targets = doc.Selection.Items.OfType<ComponentInstance>().Select(i => i.Definition.Entities).Distinct().ToList();
         if (targets.Count == 0 && doc.Context.Path.Count > 0)
             targets.Add(doc.Context.Entities);
+        return targets.Where(e => e.Instances.Count == 0).ToList();
+    }
+
+    private void Subd(string name, Action<Entities> change, bool subdividedOnly = false)
+    {
+        var doc = _document.Document;
+        var targets = SubdTargets().Where(e => !subdividedOnly || e.Subdivision > 0).ToList();
         if (targets.Count == 0)
         {
-            _status.SetHint("SUbD: select a group or component to subdivide, or open one.");
+            _status.SetHint(subdividedOnly
+                ? "Select at least one previously subdivided group or component."
+                : "Unable to toggle subdivision. Select at least one group or component with no other sub-components.");
             return;
         }
-        var d = new ConfirmationDialog { Title = "SUbD", OkButtonText = "Subdivide" };
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = "Subdivision levels" });
-        var levels = new SpinBox { MinValue = 1, MaxValue = 4, Value = 2 };
-        row.AddChild(levels);
-        d.AddChild(row);
-        d.Confirmed += () =>
+        doc.Undo.Begin(name, targets.ToArray());
+        try
         {
-            d.QueueFree();
-            var made = 0;
-            doc.Undo.Begin("Subdivide", targets.ToArray());
-            try
-            {
-                foreach (var e in targets)
-                    made += CatmullClark.Apply(e, (int)levels.Value);
-                doc.Undo.Commit();
-            }
-            catch
-            {
-                doc.Undo.Abort();
-                throw;
-            }
-            _status.SetHint($"SUbD: {made} faces.");
-        };
-        d.Canceled += d.QueueFree;
-        AddChild(d);
-        d.PopupCentered();
+            foreach (var e in targets)
+                change(e);
+            doc.Undo.Commit();
+        }
+        catch
+        {
+            doc.Undo.Abort();
+            throw;
+        }
     }
 
     /// <summary>Tools › Loop subdivision smooth: asks how many rounds and whether to soften, then subdivides.</summary>

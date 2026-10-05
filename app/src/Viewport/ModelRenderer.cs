@@ -145,6 +145,12 @@ public sealed class ModelRenderer
     /// <summary>Glued instances being dragged and where they are drawn, so their openings follow them.</summary>
     public IReadOnlyDictionary<ComponentInstance, Transform>? MovingInstances { get; set; }
 
+    /// <summary>The group or component open for editing: a subdivided one shows its control mesh as a cage.</summary>
+    public Entities? Edited { get; set; }
+
+    /// <summary>SUbD's Subdivision On/Off: when off, subdivided meshes show as their control mesh.</summary>
+    public bool Subdivide { get; set; } = true;
+
     /// <summary>
     /// Takes the model's shadow settings. Light and Dark update the materials in place; returns true when the
     /// geometry must be rebuilt (lit or not, shadows cast or received).
@@ -278,6 +284,8 @@ public sealed class ModelRenderer
     {
         if (_meshes.TryGetValue(e, out var cached))
             return cached;
+        if (e.Subdivision > 0 && Subdivide && e.Faces.Count > 0)
+            return _meshes[e] = SubdividedMesh(e);
 
         var groups = new Dictionary<(Material?, Material?), SurfaceData>();
         var smooth = SmoothNormals.For(e);
@@ -333,6 +341,95 @@ public sealed class ModelRenderer
         var mesh = new DefinitionMesh(faces, surfaces, edges, GuideMesh(e), _showHidden ? HiddenMesh(e) : null, ProfileMesh(e));
         _meshes[e] = mesh;
         return mesh;
+    }
+
+    /// <summary>SUbD: a control mesh's smooth surface with its creases and borders as edges, or with the whole control
+    /// mesh as a cage while it is open for editing.</summary>
+    private DefinitionMesh SubdividedMesh(Entities e)
+    {
+        var (points, polygons, hard) = CatmullClark.Mesh(e, e.Subdivision);
+        var normals = polygons.Select(p => Polygon.Normal(p.Corners.Select(i => points[i]).ToList()).Normalized()).ToList();
+        var around = new Dictionary<int, List<int>>();
+        for (var f = 0; f < polygons.Count; f++)
+            foreach (var i in polygons[f].Corners)
+            {
+                if (!around.TryGetValue(i, out var list))
+                    around[i] = list = [];
+                list.Add(f);
+            }
+        // Neighbours bent less than this share a normal; creases are much sharper.
+        const double smoothCos = 0.5;
+        var groups = new Dictionary<(Material?, Material?), SurfaceData>();
+        for (var f = 0; f < polygons.Count; f++)
+        {
+            var (corners, src) = polygons[f];
+            if (src.Hidden || src.Tag is { Visible: false })
+                continue;
+            var key = (src.FrontMaterial, src.BackMaterial);
+            if (!groups.TryGetValue(key, out var data))
+                groups[key] = data = new SurfaceData();
+            var n = normals[f];
+            Vector3 Normal(int i) => Space.DirToGodot(around[i].Where(g => normals[g].Dot(n) > smoothCos).Aggregate(Vec3.Zero, (a, g) => a + normals[g]).Normalized());
+            for (var k = 1; k + 1 < corners.Length; k++)
+                foreach (var i in new[] { corners[0], corners[k + 1], corners[k] })
+                {
+                    data.Vertices.Add(Space.ToGodot(points[i]));
+                    data.Normals.Add(Normal(i));
+                    data.Uvs.Add(Vector2.Zero);
+                    data.Uv2s.Add(Vector2.Zero);
+                }
+        }
+        ArrayMesh? faces = null;
+        var surfaces = new List<(Material?, Material?)>();
+        foreach (var (key, data) in groups)
+        {
+            faces ??= new ArrayMesh();
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices.ToArray();
+            arrays[(int)Mesh.ArrayType.Normal] = data.Normals.ToArray();
+            arrays[(int)Mesh.ArrayType.TexUV] = data.Uvs.ToArray();
+            arrays[(int)Mesh.ArrayType.TexUV2] = data.Uv2s.ToArray();
+            faces.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+            faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2));
+            surfaces.Add(key);
+        }
+
+        var lines = new List<Vector3>();
+        if (Edited == e)
+            foreach (var edge in e.Edges.Where(x => x.Tag is not { Visible: false }))
+            {
+                lines.Add(Space.ToGodot(edge.Start.Position));
+                lines.Add(Space.ToGodot(edge.End.Position));
+            }
+        else
+        {
+            var uses = new Dictionary<(int, int), int>();
+            foreach (var (corners, _) in polygons)
+                for (var k = 0; k < corners.Length; k++)
+                {
+                    var (a, b) = (corners[k], corners[(k + 1) % corners.Length]);
+                    var key = a < b ? (a, b) : (b, a);
+                    uses[key] = uses.GetValueOrDefault(key) + 1;
+                }
+            foreach (var ((a, b), count) in uses)
+                if (count == 1 || hard.Contains((a, b)))
+                {
+                    lines.Add(Space.ToGodot(points[a]));
+                    lines.Add(Space.ToGodot(points[b]));
+                }
+        }
+        ArrayMesh? edges = null;
+        if (lines.Count > 0)
+        {
+            edges = new ArrayMesh();
+            var arrays = new Godot.Collections.Array();
+            arrays.Resize((int)Mesh.ArrayType.Max);
+            arrays[(int)Mesh.ArrayType.Vertex] = lines.ToArray();
+            edges.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
+            edges.SurfaceSetMaterial(0, _edgeMaterial);
+        }
+        return new DefinitionMesh(faces, surfaces, edges, GuideMesh(e), _showHidden ? HiddenMesh(e) : null);
     }
 
     /// <summary>Drawn edges as quads for profile.gdshader: silhouettes, and every hard edge with Extension or Depth Cue.</summary>

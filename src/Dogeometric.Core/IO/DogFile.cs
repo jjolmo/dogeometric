@@ -237,6 +237,31 @@ public static class DogFile
             w.WriteEndArray();
         }
 
+        // SUbD's sharpness, infinity written as -1 (JSON has no infinity).
+        static double Sharpness(double s) => double.IsPositiveInfinity(s) ? -1 : s;
+        if (e.Subdivision > 0)
+            w.WriteNumber("subdivision", e.Subdivision);
+        if (e.Edges.Any(x => x.Crease != 0))
+        {
+            w.WriteStartArray("creases");
+            foreach (var x in e.Edges.Where(x => x.Crease != 0))
+            {
+                w.WriteNumberValue(eIndex[x]);
+                w.WriteNumberValue(Sharpness(x.Crease));
+            }
+            w.WriteEndArray();
+        }
+        if (e.Vertices.Any(v => v.Crease != 0))
+        {
+            w.WriteStartArray("vertexCreases");
+            foreach (var v in e.Vertices.Where(v => v.Crease != 0))
+            {
+                w.WriteNumberValue(vIndex[v]);
+                w.WriteNumberValue(Sharpness(v.Crease));
+            }
+            w.WriteEndArray();
+        }
+
         w.WriteStartArray("faces");
         foreach (var f in e.Faces)
         {
@@ -561,6 +586,22 @@ public static class DogFile
             edge.Material = MaterialAt(model, a[4].GetInt32());
             if (a.Length > 5 && a[5].GetInt32() is var ci && ci >= 0 && ci < curves.Count)
                 edge.Curve = curves[ci];
+        }
+
+        static double Sharpness(double s) => s < 0 ? double.PositiveInfinity : s;
+        if (j.TryGetProperty("subdivision", out var sub))
+            e.Subdivision = sub.GetInt32();
+        if (j.TryGetProperty("creases", out var creases))
+        {
+            var a = creases.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+            for (var i = 0; i + 1 < a.Length; i += 2)
+                e.Edges[(int)a[i]].Crease = Sharpness(a[i + 1]);
+        }
+        if (j.TryGetProperty("vertexCreases", out var vj))
+        {
+            var a = vj.EnumerateArray().Select(x => x.GetDouble()).ToArray();
+            for (var i = 0; i + 1 < a.Length; i += 2)
+                e.Vertices[(int)a[i]].Crease = Sharpness(a[i + 1]);
         }
 
         foreach (var fj in j.GetProperty("faces").EnumerateArray())

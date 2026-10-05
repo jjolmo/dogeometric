@@ -32,6 +32,7 @@ public static class Toolbars
     public static readonly int[] BezierSpline = [.. Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline), Commands.ExtensionIds.SplineEdit];
     public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.RoundPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
+    public static readonly int[] Subd = [Commands.ExtensionIds.SubdSubdivided, Commands.ExtensionIds.SubdIncrease, Commands.ExtensionIds.SubdDecrease, Commands.ExtensionIds.SubdCrease];
     public static readonly int[] SelectionToys =
     [
         Commands.ExtensionIds.SelectOnlyEdges, Commands.ExtensionIds.SelectOnlyFaces, Commands.ExtensionIds.SelectOnlyGroups, Commands.ExtensionIds.SelectOnlyComponents, Sep,
@@ -124,6 +125,10 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SandboxDrape] = "sandbox_drape";
         Icons[Commands.ExtensionIds.SandboxStamp] = "sandbox_stamp";
         Icons[Commands.ExtensionIds.SplineEdit] = "spline_edit";
+        Icons[Commands.ExtensionIds.SubdSubdivided] = "subd_subdivided";
+        Icons[Commands.ExtensionIds.SubdIncrease] = "subd_increase";
+        Icons[Commands.ExtensionIds.SubdDecrease] = "subd_decrease";
+        Icons[Commands.ExtensionIds.SubdCrease] = "subd_crease";
         Icons[Commands.ExtensionIds.SurfaceEraser] = "tos_eraser";
         Icons[Commands.ExtensionIds.SurfaceOffset] = "tos_offset";
         foreach (var kind in Enum.GetValues<Dogeometric.Core.Modeling.Deformation>())

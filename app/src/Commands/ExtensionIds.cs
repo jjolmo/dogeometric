@@ -41,7 +41,13 @@ public static class ExtensionIds
     /// <summary>FredoScale's deformation tools, from 90081.</summary>
     public static int FredoScale(Dogeometric.Core.Modeling.Deformation kind) => 90081 + (int)kind;
 
-    public const int SubdSubdivide = 90091;
+    public const int SubdSubdivided = 90091;
+    public const int SubdIncrease = 90121;
+    public const int SubdDecrease = 90122;
+    public const int SubdCrease = 90123;
+    public const int SubdPlainMesh = 90124;
+    public const int SubdOn = 90125;
+    public const int SubdOff = 90126;
     public const int SandboxDrape = 90076;
     public const int SandboxStamp = 90077;
 

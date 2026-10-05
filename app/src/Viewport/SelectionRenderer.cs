@@ -51,7 +51,7 @@ public sealed class SelectionRenderer
                         tris.Add(all[i]);
                     break;
                 case ComponentInstance inst:
-                    AddBox(lines, inst.Definition.Entities.Bounds(), inst.Transform.Then(xf));
+                    AddBox(lines, CatmullClark.ShownBounds(inst.Definition.Entities), inst.Transform.Then(xf));
                     break;
             }
         }

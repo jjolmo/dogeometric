@@ -438,10 +438,13 @@ public static class Grouping
         var vmap = new Dictionary<Vertex, Vertex>();
         var emap = new Dictionary<Edge, Edge>();
         Vertex V(Vertex v) => vmap.TryGetValue(v, out var c) ? c : vmap[v] = dst.AddVertex(t.ApplyPoint(v.Position));
+        foreach (var v in src.Vertices.Where(v => v.Crease > 0))
+            V(v).Crease = v.Crease;
         foreach (var e in src.Edges)
         {
             var c = dst.AddEdge(V(e.Start), V(e.End));
             c.Flags = e.Flags;
+            c.Crease = e.Crease;
             c.Tag = e.Tag;
             c.Material = e.Material;
             c.Curve = e.Curve;
@@ -541,6 +544,7 @@ public static class Grouping
         var src = inst.Definition;
         var copy = new ComponentDefinition { Name = src.Name + "#1", Description = src.Description, IsGroup = src.IsGroup };
         CopyEntities(src.Entities, copy.Entities, Geometry.Transform.Identity);
+        copy.Entities.Subdivision = src.Entities.Subdivision;
         model.Definitions.Add(copy);
         inst.Definition = copy;
     }
@@ -655,6 +659,7 @@ public static class Grouping
         {
             var c = target.AddEdge(V(edge.Start), V(edge.End));
             c.Flags = edge.Flags;
+            c.Crease = edge.Crease;
             c.Tag = edge.Tag;
             c.Material = edge.Material;
             emap[edge] = c;

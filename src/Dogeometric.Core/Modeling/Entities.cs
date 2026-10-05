@@ -5,6 +5,9 @@ namespace Dogeometric.Core.Modeling;
 public sealed class Vertex(Vec3 position)
 {
     public Vec3 Position { get; set; } = position;
+
+    /// <summary>SUbD's vertex sharpness: 0 smooth, rounds of subdivision it stays a corner, infinity always.</summary>
+    public double Crease { get; set; }
 }
 
 [Flags]
@@ -44,6 +47,9 @@ public sealed class Edge(Vertex start, Vertex end)
     public Tag? Tag { get; set; }
     public Material? Material { get; set; }
     public Curve? Curve { get; set; }
+
+    /// <summary>SUbD's edge sharpness: 0 smooth, rounds of subdivision it stays sharp, infinity always.</summary>
+    public double Crease { get; set; }
 
     public double Length => Start.Position.DistanceTo(End.Position);
 
@@ -130,6 +136,9 @@ public sealed class ComponentInstance(ComponentDefinition definition)
 /// </summary>
 public sealed class Entities
 {
+    /// <summary>SUbD: subdivision rounds this mesh is shown with (0 for a plain mesh); it stays the control mesh.</summary>
+    public int Subdivision { get; set; }
+
     public List<Vertex> Vertices { get; } = [];
     public List<Edge> Edges { get; } = [];
     public List<Face> Faces { get; } = [];

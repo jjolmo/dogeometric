@@ -84,7 +84,7 @@ public static class StickyGeometry
     /// </summary>
     public static Edge SplitEdge(Entities e, Edge edge, Vertex v)
     {
-        var tail = new Edge(v, edge.End) { Flags = edge.Flags, Tag = edge.Tag, Material = edge.Material, Curve = edge.Curve };
+        var tail = new Edge(v, edge.End) { Flags = edge.Flags, Crease = edge.Crease, Tag = edge.Tag, Material = edge.Material, Curve = edge.Curve };
         edge.End = v;
         e.Edges.Add(tail);
         foreach (var face in e.Faces)

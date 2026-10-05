@@ -57,7 +57,11 @@ public static class MeshExtractor
     private static void Walk(Entities entities, Transform xf, Material? inherited, ExportOptions o, List<Triangle> output, bool topLevel)
     {
         var mirrored = xf.IsMirroring;
-        foreach (var face in entities.Faces)
+        // SUbD: a subdivided group's geometry is its smooth surface, not its control mesh.
+        var subdivided = entities.Subdivision > 0 && !topLevel;
+        if (subdivided)
+            AddSubdivided(entities, xf, mirrored, inherited, o, output);
+        foreach (var face in subdivided ? [] : entities.Faces)
         {
             if (topLevel && o.Selection != null && !o.Selection.Contains(face))
                 continue;
@@ -74,6 +78,24 @@ public static class MeshExtractor
                 continue;
             // SketchUp paints default-material faces inside a group/component with the instance's material.
             Walk(inst.Definition.Entities, inst.Transform.Then(xf), inst.Material ?? inherited, o, output, topLevel: false);
+        }
+    }
+
+    private static void AddSubdivided(Entities entities, Transform xf, bool mirrored, Material? inherited, ExportOptions o, List<Triangle> output)
+    {
+        var (points, polygons, _) = CatmullClark.Mesh(entities, entities.Subdivision);
+        foreach (var (corners, src) in polygons)
+        {
+            if (!o.IncludeHidden && (src.Hidden || src.Tag is { Visible: false }))
+                continue;
+            var p = corners.Select(i => xf.ApplyPoint(points[i])).ToArray();
+            for (var k = 1; k + 1 < p.Length; k++)
+            {
+                var (a, b, c) = mirrored ? (p[0], p[k + 1], p[k]) : (p[0], p[k], p[k + 1]);
+                output.Add(new Triangle(a, b, c, src.FrontMaterial ?? inherited));
+                if (o.DoubleSided)
+                    output.Add(new Triangle(a, c, b, src.BackMaterial ?? inherited));
+            }
         }
     }
 
