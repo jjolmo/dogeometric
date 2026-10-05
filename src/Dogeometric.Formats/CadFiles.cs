@@ -13,7 +13,7 @@ using Line = ACadSharp.Entities.Line;
 
 namespace Dogeometric.Formats;
 
-/// <summary>AutoCAD DWG through ACadSharp (MIT): DWG import goes through the DXF importer (blocks as components), and File › Export › 3D Model
+/// <summary>AutoCAD DWG through ACadSharp (MIT): import goes through the DXF importer (blocks as components); 3D export
 /// writes DWG or DXF as SketchUp does: faces as 3D faces, edges as lines, tags as layers, in millimetres.</summary>
 public static class CadFiles
 {

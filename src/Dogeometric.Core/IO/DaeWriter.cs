@@ -18,6 +18,12 @@ public static class DaeWriter
         var materials = new XElement(Ns + "library_materials");
         var geometries = new XElement(Ns + "library_geometries");
         var node = new XElement(Ns + "node", new XAttribute("id", "Model"), new XAttribute("name", "Model"));
+        // One mesh, its positions welded so it keeps its topology, with a triangle list per material.
+        var index = new Dictionary<Vec3, int>();
+        var positions = new List<Vec3>();
+        var normals = new List<Vec3>();
+        var primitives = new List<XElement>();
+        var bindings = new List<XElement>();
 
         for (var gi = 0; gi < groups.Count; gi++)
         {
@@ -36,12 +42,8 @@ public static class DaeWriter
             materials.Add(new XElement(Ns + "material", new XAttribute("id", matId), new XAttribute("name", m?.Name ?? "Default"),
                 new XElement(Ns + "instance_effect", new XAttribute("url", $"#{matId}-effect"))));
 
-            // Weld identical positions so the mesh keeps its topology.
-            var index = new Dictionary<Vec3, int>();
-            var positions = new List<Vec3>();
-            var normals = new List<Vec3>();
-            var p = new List<int>();
             var tris = groups[gi].ToList();
+            var pi = new List<int>();
             foreach (var t in tris)
             {
                 var ni = normals.Count;
@@ -54,28 +56,26 @@ public static class DaeWriter
                         index[v] = vi;
                         positions.Add(v);
                     }
-                    p.Add(vi);
-                    p.Add(ni);
+                    pi.Add(vi);
+                    pi.Add(ni);
                 }
             }
-
-            var geoId = $"geometry{gi}";
-            geometries.Add(new XElement(Ns + "geometry", new XAttribute("id", geoId),
-                new XElement(Ns + "mesh",
-                    Source($"{geoId}-positions", positions, c),
-                    Source($"{geoId}-normals", normals, c),
-                    new XElement(Ns + "vertices", new XAttribute("id", $"{geoId}-vertices"),
-                        new XElement(Ns + "input", new XAttribute("semantic", "POSITION"), new XAttribute("source", $"#{geoId}-positions"))),
-                    new XElement(Ns + "triangles", new XAttribute("material", matId), new XAttribute("count", tris.Count),
-                        new XElement(Ns + "input", new XAttribute("semantic", "VERTEX"), new XAttribute("source", $"#{geoId}-vertices"), new XAttribute("offset", 0)),
-                        new XElement(Ns + "input", new XAttribute("semantic", "NORMAL"), new XAttribute("source", $"#{geoId}-normals"), new XAttribute("offset", 1)),
-                        new XElement(Ns + "p", string.Join(' ', p))))));
-
-            node.Add(new XElement(Ns + "instance_geometry", new XAttribute("url", $"#{geoId}"),
-                new XElement(Ns + "bind_material",
-                    new XElement(Ns + "technique_common",
-                        new XElement(Ns + "instance_material", new XAttribute("symbol", matId), new XAttribute("target", $"#{matId}"))))));
+            primitives.Add(new XElement(Ns + "triangles", new XAttribute("material", matId), new XAttribute("count", tris.Count),
+                new XElement(Ns + "input", new XAttribute("semantic", "VERTEX"), new XAttribute("source", "#geometry0-vertices"), new XAttribute("offset", 0)),
+                new XElement(Ns + "input", new XAttribute("semantic", "NORMAL"), new XAttribute("source", "#geometry0-normals"), new XAttribute("offset", 1)),
+                new XElement(Ns + "p", string.Join(' ', pi))));
+            bindings.Add(new XElement(Ns + "instance_material", new XAttribute("symbol", matId), new XAttribute("target", $"#{matId}")));
         }
+
+        geometries.Add(new XElement(Ns + "geometry", new XAttribute("id", "geometry0"),
+            new XElement(Ns + "mesh",
+                Source("geometry0-positions", positions, c),
+                Source("geometry0-normals", normals, c),
+                new XElement(Ns + "vertices", new XAttribute("id", "geometry0-vertices"),
+                    new XElement(Ns + "input", new XAttribute("semantic", "POSITION"), new XAttribute("source", "#geometry0-positions"))),
+                primitives)));
+        node.Add(new XElement(Ns + "instance_geometry", new XAttribute("url", "#geometry0"),
+            new XElement(Ns + "bind_material", new XElement(Ns + "technique_common", bindings))));
 
         var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", c);
         var doc = new XDocument(new XDeclaration("1.0", "utf-8", null),

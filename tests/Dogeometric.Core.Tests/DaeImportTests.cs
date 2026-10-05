@@ -18,12 +18,12 @@ public class DaeImportTests
 
         var back = DaeImport.Read(XDocument.Load(stream), "boxes");
 
-        var group = Assert.Single(back.Entities.Instances);
-        Assert.Equal(12, group.Definition.Entities.Faces.Count);
+        var faces = back.AllEntities.SelectMany(e => e.Faces).ToList();
+        Assert.Equal(12, faces.Count);
         var check = MeshCheck.Analyze(MeshExtractor.Extract(back));
         Assert.True(check.IsWatertight);
         Assert.Equal(10 * 20 * 30 + 125, check.Volume, 3);
-        Assert.Equal(6, group.Definition.Entities.Faces.Count(f => f.FrontMaterial?.Color == new Rgba(200, 30, 30)));
+        Assert.Equal(6, faces.Count(f => f.FrontMaterial?.Color == new Rgba(200, 30, 30)));
     }
 
     [Fact]
@@ -45,9 +45,8 @@ public class DaeImportTests
             """;
         var model = DaeImport.Read(XDocument.Parse(dae), "square");
 
-        var face = Assert.Single(model.Entities.Instances.Single().Definition.Entities.Faces);
-        var points = face.OuterLoop.Points.ToList();
-        Assert.Equal(4, points.Count);
+        Assert.Single(model.AllEntities.SelectMany(e => e.Faces));
+        var points = MeshExtractor.Extract(model).SelectMany(t => new[] { t.A, t.B, t.C }).ToList();
         // Y-up's y (raised 2 inches) becomes z and its z becomes -y; inches become millimetres.
         Assert.All(points, p => Assert.Equal(0, p.Y, 6));
         Assert.Equal(25.4 * 25.4, Polygon.Area(points), 3);
@@ -67,7 +66,7 @@ public class DaeImportTests
         DaeWriter.Write([.. front, .. back], stream);
         stream.Position = 0;
 
-        var faces = DaeImport.Read(XDocument.Load(stream), "box").Entities.Instances.Single().Definition.Entities.Faces;
+        var faces = DaeImport.Read(XDocument.Load(stream), "box").AllEntities.SelectMany(e => e.Faces).ToList();
 
         Assert.Equal(6, faces.Count);
         Assert.All(faces, f => Assert.Equal(new Rgba(0, 0, 255), f.BackMaterial?.Color));
@@ -111,5 +110,37 @@ public class DaeImportTests
         Assert.Contains("<heading>-30</heading>", kml);
         Assert.Contains("<href>models/Two_boxes.dae</href>", kml);
         Assert.Equal(10 * 20 * 30 + 125, MeshCheck.Analyze(MeshExtractor.Extract(back)).Volume, 3);
+    }
+
+    [Fact]
+    public void Shared_nodes_come_in_as_components_placed_by_their_nodes()
+    {
+        // SketchUp writes a component as a node in library_nodes that each placement instances.
+        const string dae = """
+            <COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+              <asset><unit meter="0.001"/><up_axis>Z_UP</up_axis></asset>
+              <library_geometries><geometry id="g" name="peg"><mesh>
+                <source id="p"><float_array count="9">0 0 0 10 0 0 0 10 0</float_array>
+                  <technique_common><accessor source="#pa" count="3" stride="3"/></technique_common></source>
+                <vertices id="v"><input semantic="POSITION" source="#p"/></vertices>
+                <triangles count="1"><input semantic="VERTEX" source="#v" offset="0"/><p>0 1 2</p></triangles>
+              </mesh></geometry></library_geometries>
+              <library_nodes><node id="peg" name="Peg"><instance_geometry url="#g"/></node></library_nodes>
+              <library_visual_scenes><visual_scene id="s">
+                <node name="a"><instance_node url="#peg"/></node>
+                <node name="b"><translate>100 0 0</translate><instance_node url="#peg"/></node>
+              </visual_scene></library_visual_scenes>
+              <scene><instance_visual_scene url="#s"/></scene>
+            </COLLADA>
+            """;
+        var model = DaeImport.Read(XDocument.Parse(dae), "pegs");
+
+        var placed = model.Entities.Instances.Single().Definition.Entities.Instances;
+        Assert.Equal(2, placed.Count);
+        Assert.All(placed, i => Assert.Equal("Peg", i.Definition.Name));
+        Assert.Same(placed[0].Definition, placed[1].Definition);
+        Assert.False(placed[0].Definition.IsGroup);
+        Assert.Equal(new Vec3(100, 0, 0), placed[1].Transform.Origin);
+        Assert.Single(model.AllEntities.SelectMany(e => e.Faces));
     }
 }

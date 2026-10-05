@@ -5,8 +5,8 @@ using Dogeometric.Core.Modeling;
 
 namespace Dogeometric.Core.IO;
 
-/// <summary>File › Import of COLLADA (.dae) and KMZ: every placed mesh through its nodes, unit and up axis, with material
-/// colours and opacity, as one group.</summary>
+/// <summary>File › Import of COLLADA (.dae) and KMZ: shared nodes (SketchUp's components) as components, other meshes as
+/// groups, placed by their nodes, in the file's unit and turned to Z up, with material colours and opacity.</summary>
 public static class DaeImport
 {
     public static Model Load(string path) => Path.GetExtension(path).Equals(".kmz", StringComparison.OrdinalIgnoreCase)
@@ -119,41 +119,103 @@ public static class DaeImport
             }
         }
 
-        void Visit(XElement node, double[] parent, int depth)
+        var unit = meter * 1000;
+        var model = new Model();
+        var geometryDefs = new Dictionary<string, ComponentDefinition?>();
+        var nodeDefs = new Dictionary<XElement, ComponentDefinition>();
+        Transform ToTransform(double[] m) =>
+            new(new Vec3(m[0], m[4], m[8]), new Vec3(m[1], m[5], m[9]), new Vec3(m[2], m[6], m[10]), new Vec3(m[3], m[7], m[11]) * unit);
+
+        // A geometry's faces in millimetres, with their material bindings.
+        bool AddFaces(Entities target, XElement geometry, Dictionary<string, string> bindings)
+        {
+            polygons.Clear();
+            painted.Clear();
+            AddMesh(geometry, [unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, unit, 0, 0, 0, 0, 1], bindings);
+            foreach (var (face, front, back) in MeshImport.AddMerged(target, polygons.Select((p, i) => (p, (object?)painted[i])).ToList()))
+                (face.FrontMaterial, face.BackMaterial) = ((Material?)front, (Material?)back);
+            return polygons.Count > 0;
+        }
+
+        // A geometry (with its material bindings) as a group, made once.
+        ComponentDefinition? GeometryDef(XElement geometry, Dictionary<string, string> bindings)
+        {
+            var key = (string?)geometry.Attribute("id") + "|" + string.Join(",", bindings.OrderBy(b => b.Key).Select(b => b.Key + "=" + b.Value));
+            if (geometryDefs.TryGetValue(key, out var known))
+                return known;
+            var def = new ComponentDefinition { Name = (string?)geometry.Attribute("name") ?? (string?)geometry.Attribute("id") ?? "Geometry", IsGroup = true };
+            if (!AddFaces(def.Entities, geometry, bindings))
+                return geometryDefs[key] = null;
+            model.Definitions.Add(def);
+            return geometryDefs[key] = def;
+        }
+
+        // A node others instance (SketchUp's components) as a component, made once.
+        ComponentDefinition NodeDef(XElement shared, int depth)
+        {
+            if (nodeDefs.TryGetValue(shared, out var known))
+                return known;
+            var def = new ComponentDefinition { Name = (string?)shared.Attribute("name") ?? (string?)shared.Attribute("id") ?? "Component" };
+            nodeDefs[shared] = def;
+            model.Definitions.Add(def);
+            Visit(shared, def.Entities, Transform.Identity, depth + 1, inline: true);
+            return def;
+        }
+
+        // Inline: the node is a component's own, so its untransformed meshes are the component's faces.
+        void Visit(XElement node, Entities target, Transform parent, int depth, bool inline = false)
         {
             if (depth > 64)
                 return;
-            var world = parent;
+            var local = Identity();
             foreach (var t in node.Elements())
             {
                 var v = Numbers(t.Value);
-                world = t.Name.LocalName switch
+                local = t.Name.LocalName switch
                 {
-                    "matrix" when v.Length == 16 => Multiply(world, v),
-                    "translate" when v.Length == 3 => Multiply(world, [1, 0, 0, v[0], 0, 1, 0, v[1], 0, 0, 1, v[2], 0, 0, 0, 1]),
-                    "scale" when v.Length == 3 => Multiply(world, [v[0], 0, 0, 0, 0, v[1], 0, 0, 0, 0, v[2], 0, 0, 0, 0, 1]),
-                    "rotate" when v.Length == 4 => Multiply(world, Rotation(new Vec3(v[0], v[1], v[2]), v[3] * Math.PI / 180)),
-                    _ => world,
+                    "matrix" when v.Length == 16 => Multiply(local, v),
+                    "translate" when v.Length == 3 => Multiply(local, [1, 0, 0, v[0], 0, 1, 0, v[1], 0, 0, 1, v[2], 0, 0, 0, 1]),
+                    "scale" when v.Length == 3 => Multiply(local, [v[0], 0, 0, 0, 0, v[1], 0, 0, 0, 0, v[2], 0, 0, 0, 0, 1]),
+                    "rotate" when v.Length == 4 => Multiply(local, Rotation(new Vec3(v[0], v[1], v[2]), v[3] * Math.PI / 180)),
+                    _ => local,
                 };
             }
+            var xf = ToTransform(local).Then(parent);
             foreach (var instance in node.Elements(ns + "instance_geometry"))
-                if (ByUrl((string?)instance.Attribute("url")) is { } geometry)
-                    AddMesh(geometry, world, instance.Descendants(ns + "instance_material")
-                        .GroupBy(i => (string)i.Attribute("symbol")!).ToDictionary(g => g.Key, g => (string)g.First().Attribute("target")!));
+            {
+                if (ByUrl((string?)instance.Attribute("url")) is not { } geometry)
+                    continue;
+                var bindings = instance.Descendants(ns + "instance_material")
+                    .GroupBy(i => (string)i.Attribute("symbol")!).ToDictionary(g => g.Key, g => (string)g.First().Attribute("target")!);
+                if (inline && xf == Transform.Identity)
+                    AddFaces(target, geometry, bindings);
+                else if (GeometryDef(geometry, bindings) is { } def)
+                    target.AddInstance(def, xf);
+            }
             foreach (var instance in node.Elements(ns + "instance_node"))
                 if (ByUrl((string?)instance.Attribute("url")) is { } shared)
-                    Visit(shared, world, depth + 1);
+                    target.AddInstance(NodeDef(shared, depth), xf).Name = (string?)node.Attribute("name") ?? "";
             foreach (var child in node.Elements(ns + "node"))
-                Visit(child, world, depth + 1);
+                Visit(child, target, xf, depth + 1);
         }
 
         var scene = ByUrl((string?)root.Element(ns + "scene")?.Element(ns + "instance_visual_scene")?.Attribute("url"))
             ?? root.Element(ns + "library_visual_scenes")?.Element(ns + "visual_scene");
+        var top = new ComponentDefinition { Name = name, IsGroup = true };
         foreach (var node in scene?.Elements(ns + "node") ?? [])
-            Visit(node, up, 0);
-        if (polygons.Count == 0)
+            Visit(node, top.Entities, Transform.Identity, 0);
+        if (top.Entities.Instances.Count == 0)
             throw new InvalidDataException("no geometry in the COLLADA scene");
-        return MeshImport.Build(name, polygons, meter * 1000, painted);
+        // A geometry placed more than once is a component, as SketchUp shows it.
+        var uses = model.AllEntities.Append(top.Entities).SelectMany(e => e.Instances).GroupBy(i => i.Definition).ToDictionary(g => g.Key, g => g.Count());
+        foreach (var def in geometryDefs.Values.OfType<ComponentDefinition>().Where(d => uses.GetValueOrDefault(d) > 1))
+            def.IsGroup = false;
+        foreach (var used in materials.Values)
+            model.Materials.Add(used);
+        model.Definitions.Add(top);
+        // The file's up axis turns the whole model to SketchUp's Z up.
+        model.Entities.AddInstance(top, ToTransform(up));
+        return model;
     }
 
     private static double[] Numbers(string? text) =>

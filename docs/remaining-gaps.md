@@ -14,7 +14,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
 | STEP import: offset surfaces | Some vendor models use offset surfaces. | Planes, cylinders, cones, spheres, tori, B-spline surfaces, surfaces of extrusion and revolution, and assemblies import (checked against FreeCAD's volumes); other faces are left out and counted. |
-| Imports that flatten | COLLADA/KMZ imports flatten components into one group and drop textures; IFC boolean cuts (openings clipped from walls) are not applied. DWG/DXF blocks do come in as components. | |
+| Import details | COLLADA/KMZ imports drop textures; IFC boolean cuts (openings clipped from walls) are not applied. Components come in as components from COLLADA, KMZ, DWG, DXF, 3DS (as groups), STEP and IFC. | |
 
 ## Medium impact
 
