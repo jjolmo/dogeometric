@@ -91,6 +91,7 @@ public static class CommandIds
     public const int SaveAsTemplate = 24183;
     public const int ZoomToPhoto = 10625;
     public const int ImageIgloo = 10631;
+    public const int Classifier = 21075;
 
     // Tools
     public const int Select = 21022;

@@ -17,6 +17,7 @@ public static class Toolbars
         Commands.ExtensionIds.CameraCreate, Commands.ExtensionIds.CameraLookThrough, Commands.ExtensionIds.CameraLock, Commands.ExtensionIds.CameraShowAll,
         Commands.ExtensionIds.CameraFrustumLines, Commands.ExtensionIds.CameraFrustumVolume, Commands.ExtensionIds.CameraReset,
     ];
+    public static readonly int[] Classifier = [CommandIds.Classifier];
     public static readonly int[] Tags = [Commands.OwnIds.TagList, Commands.OwnIds.TagsPanel];
     public static readonly int[] Shadows = [Commands.OwnIds.ShadowSettings, 10602, Commands.OwnIds.ShadowDate, Commands.OwnIds.ShadowTime];
 
@@ -166,6 +167,7 @@ public static class Toolbars
         Icons[21347] = "display_section_planes";
         Icons[Commands.ExtensionIds.CameraCreate] = "act_create";
         Icons[Commands.ExtensionIds.Interact] = "dc_interact";
+        Icons[CommandIds.Classifier] = "classifier";
         Icons[Commands.ExtensionIds.ComponentOptions] = "dc_options";
         Icons[Commands.ExtensionIds.ComponentAttributes] = "dc_attributes";
         Icons[Commands.ExtensionIds.CameraLookThrough] = "act_look_through";

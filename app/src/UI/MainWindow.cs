@@ -203,6 +203,7 @@ public partial class MainWindow : Control
         Bar("Edit", Toolbars.Edit, ToolbarDocks.Dock.Top, visible: false);
         Bar("Construction", Toolbars.Construction, ToolbarDocks.Dock.Top, visible: false);
         Bar("Camera", Toolbars.Camera, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Classifier", Toolbars.Classifier, ToolbarDocks.Dock.Top, visible: false);
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("SUbD", Toolbars.Subd, ToolbarDocks.Dock.Top, visible: false);
         Bar("Section", Toolbars.Section, ToolbarDocks.Dock.Top, visible: false);
@@ -1155,6 +1156,8 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
         RegisterTool(CommandIds.ImageIgloo, () => new ImageIglooTool());
+        RegisterTool(CommandIds.Classifier, () => new ClassifierTool());
+        (_commands.Get(CommandIds.Classifier).Label, _commands.Get(CommandIds.Classifier).Description) = ("Classifier", "Classify components and groups");
         _commands.Register(CommandIds.Revert, _document.Revert);
         _commands.SubmenuBuilders["Items"] = menu => ContextMenu.Fill(menu, _document.Document, _viewport, id => _commands.Execute(id), items: true);
         _commands.DynamicItems[CommandIds.RecentFile] = () => AppPreferences.Current.RecentFiles

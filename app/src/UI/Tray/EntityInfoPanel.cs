@@ -113,6 +113,8 @@ public partial class EntityInfoPanel : VBoxContainer
                 Edit("Instance", i.Name, v => doc.Operation("Rename", _ => i.Name = v));
                 if (!i.IsGroup)
                     Edit("Definition", i.Definition.Name, v => doc.Operation("Rename", _ => i.Definition.Name = v));
+                if (i.Definition.IfcType.Length > 0)
+                    Row("Type", i.Definition.IfcType);
                 var b = CatmullClark.ShownBounds(i.Definition.Entities);
                 if (!b.IsEmpty)
                 {

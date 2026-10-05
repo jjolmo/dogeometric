@@ -21,7 +21,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Notes |
 |---|---|
 | Ruby Console and Ruby API | SketchUp's extension mechanism. Our extensions are rebuilt natively; no scripting yet. A console with a small command language (or an embedded scripting host) would cover macros. |
-| Classifier tool and Model Info › Classifications | IFC types on components. IFC export exists; every element goes out as IfcBuildingElementProxy until this is done. |
+| Model Info › Classifications and classifications in `.skp` | The Classifier tool and its IFC 4 types work and are saved in `.dog`; importing other schemas (IFC 2x3, gbXML) and reading/writing SketchUp's AppliedSchemaTypes in `.skp` are missing. |
 
 ## Low impact
 
@@ -40,4 +40,4 @@ plane naming/symbol/fill troubleshooting/slice to group, Dimension and Text opti
 options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture, STEP export,
 Solid Tools tests (Outer Shell now fills cavities), Transparency quality Nicer, Rotate about a dragged axis and Image
 Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STEP, local component collections (browse, search, place), IFC 4 export
-(checked with ifcopenshell).
+(checked with ifcopenshell), Classifier tool (Shift/Alt/Ctrl, pre-selection, IFC types in the export).

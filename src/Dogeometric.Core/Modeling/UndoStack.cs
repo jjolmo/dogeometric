@@ -138,12 +138,13 @@ public sealed class UndoStack(Model model)
     private sealed record Step(string Name, ModelState ModelBefore, EntitiesState[] Before, ModelState ModelAfter, EntitiesState[] After);
 
     private sealed record ModelState(ComponentDefinition[] Definitions, Material[] Materials, Tag[] Tags, Transform Axes, Units.LengthUnit Units, int Precision, (Units.UnitFormat, bool, bool) UnitLook, ShadowSettings Shadows, bool SectionFill, (DimensionStyle, DimensionDisplay, TextStyle, TextStyle) Annotation, ModelOptions Options, (Rgba Color, LineStyle Dashes)[] TagLooks, (string Name, string Value, bool Edit)[][] Attributes,
-        (string Name, Rgba Color, double Opacity, TextureImage? Texture, bool Colorize)[] MaterialState, StyleSettings Style)
+        (string Name, Rgba Color, double Opacity, TextureImage? Texture, bool Colorize)[] MaterialState, StyleSettings Style, string[] IfcTypes)
     {
         public static ModelState Capture(Model m) => new([.. m.Definitions], [.. m.Materials], [.. m.Tags], m.Axes, m.Units, m.UnitPrecision, (m.UnitFormat, m.ShowUnitSymbol, m.ForceZeroFeet), m.Shadows, m.ShowSectionFill, (m.Dimensions, m.DimensionDisplay, m.ScreenText, m.LeaderText), m.Options,
             m.Tags.Select(t => (t.Color, t.Dashes)).ToArray(),
             m.Definitions.Select(d => d.Attributes.Select(a => (a.Name, a.Value, a.UserCanEdit)).ToArray()).ToArray(),
-            m.Materials.Select(x => (x.Name, x.Color, x.Opacity, x.Texture, x.Colorize)).ToArray(), m.Style);
+            m.Materials.Select(x => (x.Name, x.Color, x.Opacity, x.Texture, x.Colorize)).ToArray(), m.Style,
+            m.Definitions.Select(d => d.IfcType).ToArray());
 
         public void Restore(Model m)
         {
@@ -167,6 +168,7 @@ public sealed class UndoStack(Model model)
                 (Materials[i].Name, Materials[i].Color, Materials[i].Opacity, Materials[i].Texture, Materials[i].Colorize) = MaterialState[i];
             for (var i = 0; i < Definitions.Length; i++)
             {
+                Definitions[i].IfcType = IfcTypes[i];
                 Definitions[i].Attributes.Clear();
                 Definitions[i].Attributes.AddRange(Attributes[i].Select(a => new ComponentAttribute { Name = a.Name, Value = a.Value, UserCanEdit = a.Edit }));
             }
