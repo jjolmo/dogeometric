@@ -5,8 +5,9 @@ using Godot;
 namespace Dogeometric.App.UI;
 
 /// <summary>
-/// SketchUp's Place 3D Text dialog: text, font, style, alignment, height, filled and extruded. Produces the letter
-/// outlines, flattened, in millimetres on the red-green plane (first line's baseline at y = 0).
+/// SketchUp's Place 3D Text dialog: text, font, style (regular, bold, italic), alignment, height, filled and extruded,
+/// opening with the last values used. Produces the letter outlines, flattened, in millimetres on the red-green plane
+/// (first line's baseline at y = 0).
 /// </summary>
 public partial class Text3DDialog : ConfirmationDialog
 {
@@ -15,6 +16,7 @@ public partial class Text3DDialog : ConfirmationDialog
     private TextEdit _text = null!;
     private OptionButton _font = null!;
     private OptionButton _style = null!;
+    private static (string Text, string Family, int Style, int Align, string Height, bool Filled, bool Extruded, string Depth)? _last;
     private OptionButton _align = null!;
     private LineEdit _height = null!;
     private CheckBox _filled = null!;
@@ -41,8 +43,8 @@ public partial class Text3DDialog : ConfirmationDialog
                 d._font.Select(i);
         fontRow.AddChild(d._font);
         d._style = new OptionButton();
-        d._style.AddItem("Regular");
-        d._style.AddItem("Bold");
+        foreach (var style in new[] { "Regular", "Bold", "Italic", "Bold Italic" })
+            d._style.AddItem(style);
         fontRow.AddChild(d._style);
         grid.AddChild(fontRow);
 
@@ -69,13 +71,31 @@ public partial class Text3DDialog : ConfirmationDialog
         box.AddChild(grid);
         d.AddChild(box);
 
+        // The dialog opens with what was used last, as SketchUp's does.
+        if (_last is var (lastText, lastFamily, lastStyle, lastAlign, lastHeight, lastFilled, lastExtruded, lastDepth))
+        {
+            d._text.Text = lastText;
+            for (var i = 0; i < d._font.ItemCount; i++)
+                if (d._font.GetItemText(i) == lastFamily)
+                    d._font.Select(i);
+            d._style.Select(lastStyle);
+            d._align.Select(lastAlign);
+            d._height.Text = lastHeight;
+            d._filled.ButtonPressed = lastFilled;
+            d._extruded.ButtonPressed = lastExtruded;
+            d._depth.Text = lastDepth;
+            d._depth.Editable = lastExtruded;
+        }
+
         d.Confirmed += () =>
         {
             var text = d._text.Text;
             if (!UI.Measure.Read(d._height.Text, out var height) || height <= 0)
                 height = 25.4;
             var depth = d._extruded.ButtonPressed && UI.Measure.Read(d._depth.Text, out var e) ? e : 0;
-            var contours = Outlines(text, d._font.GetItemText(d._font.Selected), d._style.Selected == 1, d._align.Selected, height);
+            var family = d._font.GetItemText(d._font.Selected);
+            _last = (text, family, d._style.Selected, d._align.Selected, d._height.Text, d._filled.ButtonPressed, d._extruded.ButtonPressed, d._depth.Text);
+            var contours = Outlines(text, family, d._style.Selected is 1 or 3, d._align.Selected, height, italic: d._style.Selected >= 2);
             if (contours.Count > 0)
                 place(new Result(text, contours, d._filled.ButtonPressed, depth));
             d.QueueFree();
@@ -88,10 +108,10 @@ public partial class Text3DDialog : ConfirmationDialog
     }
 
     /// <summary>Letter outlines for <paramref name="text"/>, scaled so capitals are <paramref name="height"/> mm.</summary>
-    public static List<List<Vec3>> Outlines(string text, string family, bool bold, int align, double height)
+    public static List<List<Vec3>> Outlines(string text, string family, bool bold, int align, double height, bool italic = false)
     {
         const int size = 128; // shaping size in pixels; curves are flattened at this resolution
-        var font = new SystemFont { FontNames = [family], FontWeight = bold ? 700 : 400 };
+        var font = new SystemFont { FontNames = [family], FontWeight = bold ? 700 : 400, FontItalic = italic };
         var ts = TextServerManager.GetPrimaryInterface();
 
         // Capital height from the "H" glyph, so Height means what SketchUp's does.
