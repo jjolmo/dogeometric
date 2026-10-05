@@ -89,6 +89,40 @@ public static class ContextMenu
             menu.AddSeparator();
         }
 
+        if (single is LinearDimension dim)
+        {
+            Item("Edit Text", () => Tools.SelectTool.EditAnnotationText?.Invoke(dim));
+            var style = dim.Style ?? doc.Model.Dimensions;
+            void Restyle(string name, Func<DimensionStyle, DimensionStyle> change) =>
+                doc.Operation(name, _ => dim.Style = change(dim.Style ?? doc.Model.Dimensions));
+            Submenu(menu, "Text Position", [
+                ("Outside Start", () => Restyle("Text Position", x => x with { AlignToScreen = false, Position = DimensionTextPosition.Outside })),
+                ("Centered", () => Restyle("Text Position", x => x with { AlignToScreen = false, Position = DimensionTextPosition.Centered })),
+                ("Outside End", () => Restyle("Text Position", x => x with { AlignToScreen = false, Position = DimensionTextPosition.Above })),
+            ]);
+            Submenu(menu, "Endpoints", Enum.GetValues<DimensionEndpoint>().Select(e => (e switch { DimensionEndpoint.ClosedArrow => "Closed Arrow", DimensionEndpoint.OpenArrow => "Open Arrow", _ => e.ToString() },
+                (Action)(() => Restyle("Dimension Endpoints", x => x with { Endpoints = e })))).ToArray());
+            Item(style.AlignToScreen ? "Align to Dimension" : "Align to Screen", () => Restyle("Dimension Alignment", x => x with { AlignToScreen = !x.AlignToScreen }));
+            menu.AddSeparator();
+        }
+        if (single is TextLabel label)
+        {
+            Item("Edit Text", () => Tools.SelectTool.EditAnnotationText?.Invoke(label));
+            if (label.ScreenPosition == null)
+            {
+                void Restyle(string name, Func<TextStyle, TextStyle> change) =>
+                    doc.Operation(name, _ => label.Style = change(label.Style ?? doc.Model.LeaderText));
+                Submenu(menu, "Arrow", new[] { DimensionEndpoint.None, DimensionEndpoint.Dot, DimensionEndpoint.ClosedArrow, DimensionEndpoint.OpenArrow }
+                    .Select(e => (e switch { DimensionEndpoint.ClosedArrow => "Closed Arrow", DimensionEndpoint.OpenArrow => "Open Arrow", _ => e.ToString() },
+                        (Action)(() => Restyle("Text Arrow", x => x with { Endpoint = e })))).ToArray());
+                Submenu(menu, "Leader", [
+                    ("View Based", () => Restyle("Text Leader", x => x with { Leader = LeaderType.ViewBased })),
+                    ("Pushpin", () => Restyle("Text Leader", x => x with { Leader = LeaderType.Pushpin })),
+                    ("Hidden", () => Restyle("Text Leader", x => x with { Leader = LeaderType.Hidden })),
+                ]);
+            }
+            menu.AddSeparator();
+        }
         if (single is LinearDimension { Kind: not DimensionKind.Linear } radial)
         {
             Item(radial.Kind == DimensionKind.Radius ? "Type › Diameter" : "Type › Radius", () =>
@@ -255,26 +289,29 @@ public static class ContextMenu
         return actions;
     }
 
+    /// <summary>A submenu of plain items ("-" for a separator) under <paramref name="label"/>.</summary>
+    private static PopupMenu Submenu(PopupMenu menu, string label, IEnumerable<(string Label, Action Run)> items)
+    {
+        var sub = new PopupMenu();
+        var list = items.ToList();
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i].Label == "-")
+                sub.AddSeparator();
+            else
+                sub.AddItem(list[i].Label, i);
+        }
+        sub.IdPressed += id => list[(int)id].Run();
+        menu.AddSubmenuNodeItem(label, sub);
+        return sub;
+    }
+
     /// <summary>Selection Toys' items, at the end of the menu as SketchUp lists extensions' items.</summary>
     private static void AddSelectionToys(PopupMenu menu, Document doc, List<object> sel)
     {
         var context = doc.Context.Entities;
         void Set(List<object> items) => doc.Selection.Set(items);
-        PopupMenu Sub(string label, IEnumerable<(string Label, Action Run)> items)
-        {
-            var sub = new PopupMenu();
-            var list = items.ToList();
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (list[i].Label == "-")
-                    sub.AddSeparator();
-                else
-                    sub.AddItem(list[i].Label, i);
-            }
-            sub.IdPressed += id => list[(int)id].Run();
-            menu.AddSubmenuNodeItem(label, sub);
-            return sub;
-        }
+        PopupMenu Sub(string label, IEnumerable<(string Label, Action Run)> items) => Submenu(menu, label, items);
         menu.AddSeparator();
         if (sel.OfType<ComponentInstance>().Any(i => !i.IsGroup))
             Sub("Instances", [
