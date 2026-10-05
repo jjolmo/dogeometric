@@ -145,6 +145,25 @@ public static class DogFile
                 foreach (var t in s.HiddenTags)
                     w.WriteStringValue(t);
                 w.WriteEndArray();
+                if (s.Photo is { } p)
+                {
+                    w.WriteStartObject("photo");
+                    w.WriteString("name", p.Name);
+                    w.WriteBase64String("image", p.Image);
+                    w.WriteNumber("width", p.Width);
+                    w.WriteNumber("height", p.Height);
+                    w.WriteStartArray("lines");
+                    foreach (var (a, b) in p.Red.Concat(p.Green))
+                        foreach (var v in new[] { a.X, a.Y, b.X, b.Y })
+                            w.WriteNumberValue(v);
+                    w.WriteEndArray();
+                    w.WriteStartArray("origin");
+                    w.WriteNumberValue(p.Origin.X);
+                    w.WriteNumberValue(p.Origin.Y);
+                    w.WriteEndArray();
+                    w.WriteNumber("distance", p.Distance);
+                    w.WriteEndObject();
+                }
                 w.WriteEndObject();
             }
             w.WriteEndArray();
@@ -535,6 +554,23 @@ public static class DogFile
             }
             foreach (var t in s.GetProperty("hiddenTags").EnumerateArray())
                 scene.HiddenTags.Add(t.GetString() ?? "");
+            if (s.TryGetProperty("photo", out var pj))
+            {
+                var l = pj.GetProperty("lines").EnumerateArray().Select(x => x.GetDouble()).ToArray();
+                (PhotoPoint, PhotoPoint) Line(int i) => (new(l[4 * i], l[4 * i + 1]), new(l[4 * i + 2], l[4 * i + 3]));
+                var o = pj.GetProperty("origin").EnumerateArray().Select(x => x.GetDouble()).ToArray();
+                scene.Photo = new MatchedPhoto
+                {
+                    Name = pj.GetProperty("name").GetString() ?? "",
+                    Image = pj.GetProperty("image").GetBytesFromBase64(),
+                    Width = pj.GetProperty("width").GetInt32(),
+                    Height = pj.GetProperty("height").GetInt32(),
+                    Red = [Line(0), Line(1)],
+                    Green = [Line(2), Line(3)],
+                    Origin = new PhotoPoint(o[0], o[1]),
+                    Distance = pj.GetProperty("distance").GetDouble(),
+                };
+            }
             model.Scenes.Add(scene);
         }
         return model;

@@ -254,4 +254,10 @@ public sealed class ViewCamera
     }
 }
 
-public readonly record struct CameraState(Vec3 Eye, Vec3 Target, Vec3 Up, bool Perspective, double FovDegrees, double OrthoHeight);
+public readonly record struct CameraState(Vec3 Eye, Vec3 Target, Vec3 Up, bool Perspective, double FovDegrees, double OrthoHeight)
+{
+    /// <summary>Whether both look the same way from the same place (the target may be nearer or farther).</summary>
+    public bool Matches(CameraState o) => Eye.DistanceTo(o.Eye) < 1e-6 * Math.Max(1, Eye.Length) && Perspective == o.Perspective
+        && Math.Abs(FovDegrees - o.FovDegrees) < 1e-6 && (Target - Eye).Normalized().Dot((o.Target - o.Eye).Normalized()) > 1 - 1e-9
+        && Up.Dot(o.Up) > 1 - 1e-9;
+}

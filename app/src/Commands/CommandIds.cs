@@ -77,6 +77,8 @@ public static class CommandIds
     public const int Pan = 10523;
     public const int Zoom = 10509;
     public const int ZoomExtents = 10527;
+    public const int MatchNewPhoto = 23006;
+    public const int ZoomToPhoto = 10625;
 
     // Tools
     public const int Select = 21022;

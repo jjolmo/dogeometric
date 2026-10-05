@@ -570,6 +570,23 @@ public partial class MainWindow : Control
         d.PopupCentered();
     }
 
+    /// <summary>Camera › Match New Photo: a new scene named after the photo, with the photo to match its camera to.</summary>
+    private void MatchNewPhoto() => _document.PickPhoto(path =>
+    {
+        var image = Image.LoadFromFile(path);
+        if (image == null || image.IsEmpty())
+            return;
+        var name = System.IO.Path.GetFileName(path);
+        var scene = new Scene
+        {
+            Name = name,
+            Photo = new MatchedPhoto { Name = name, Image = System.IO.File.ReadAllBytes(path), Width = image.GetWidth(), Height = image.GetHeight() },
+        };
+        _document.Model.Scenes.Add(scene);
+        _scenes.Go(_document.Model.Scenes.Count - 1, instant: true);
+        _viewport.Tools.Activate(new MatchPhotoTool(scene));
+    });
+
     private static int _subdLevels = 2;
 
     /// <summary>SUbD's targets: the selected groups and components holding only edges and faces, or the open one.</summary>
@@ -972,6 +989,21 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.ParallelProjection, () => v.SetPerspective(false), () => !v.Camera.Perspective, radio: true);
         _commands.Register(CommandIds.Perspective, () => v.SetPerspective(true), () => v.Camera.Perspective, radio: true);
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
+        _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
+        _commands.Register(CommandIds.ZoomToPhoto, () =>
+        {
+            if (_scenes.Current?.Photo is { } photo)
+            {
+                v.BeginNavigation();
+                v.ShowPhoto(photo);
+            }
+        });
+        _commands.DynamicMenus["Edit Matched Photo"] = () => _document.Model.Scenes.Where(s => s.Photo != null)
+            .Select(s => (s.Name, (Action)(() =>
+            {
+                _scenes.Go(_document.Model.Scenes.IndexOf(s), instant: true);
+                v.Tools.Activate(new MatchPhotoTool(s));
+            })));
 
         RegisterTool(CommandIds.Orbit, () => new OrbitTool());
         RegisterTool(CommandIds.Pan, () => new PanTool());

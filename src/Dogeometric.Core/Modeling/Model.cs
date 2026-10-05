@@ -9,6 +9,9 @@ public sealed class Scene
     public string Name { get; set; } = "";
     public CameraState? Camera { get; set; }
     public HashSet<string> HiddenTags { get; } = [];
+
+    /// <summary>The photo this scene's camera was matched to (Camera › Match New Photo).</summary>
+    public MatchedPhoto? Photo { get; set; }
 }
 
 /// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>

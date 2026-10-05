@@ -158,6 +158,9 @@ public sealed class CommandRegistry
         return cmd;
     }
 
+    /// <summary>Submenus filled when they open (Camera › Edit Matched Photo lists the photo scenes), by label.</summary>
+    public Dictionary<string, Func<IEnumerable<(string Label, Action Run)>>> DynamicMenus { get; } = [];
+
     public void Register(int id, Action execute, Func<bool>? isChecked = null, bool radio = false)
     {
         var cmd = Get(id);

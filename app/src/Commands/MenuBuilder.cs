@@ -27,6 +27,10 @@ public static class MenuBuilder
             {
                 popup.AddSeparator();
             }
+            else if (child.Children != null && registry.DynamicMenus.TryGetValue(child.Label, out var items))
+            {
+                popup.AddSubmenuNodeItem(child.Label, Dynamic(items));
+            }
             else if (child.Children != null)
             {
                 var sub = BuildPopup(child, registry, showHint, restoreHint);
@@ -43,6 +47,24 @@ public static class MenuBuilder
         popup.AboutToPopup += () => Refresh(popup, registry);
         // Like SketchUp, the status bar shows the hovered command's description, then the tool hint again.
         popup.PopupHide += restoreHint;
+        return popup;
+    }
+
+    private static PopupMenu Dynamic(Func<IEnumerable<(string Label, Action Run)>> items)
+    {
+        var popup = new PopupMenu();
+        var actions = new List<Action>();
+        popup.AboutToPopup += () =>
+        {
+            popup.Clear();
+            actions.Clear();
+            foreach (var (label, run) in items())
+            {
+                popup.AddItem(label, actions.Count);
+                actions.Add(run);
+            }
+        };
+        popup.IdPressed += id => actions[(int)id]();
         return popup;
     }
 

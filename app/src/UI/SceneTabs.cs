@@ -91,8 +91,11 @@ public partial class SceneTabs : HBoxContainer
             scene.HiddenTags.Add(t.Name);
     }
 
-    /// <summary>Flies to scene <paramref name="index"/>, interpolating eye, target, up and field of view.</summary>
-    public void Go(int index)
+    public Scene? Current => _current >= 0 && _current < _doc().Model.Scenes.Count ? _doc().Model.Scenes[_current] : null;
+
+    /// <summary>Flies to scene <paramref name="index"/>, interpolating eye, target, up and field of view; a scene with a
+    /// matched photo shows it once there.</summary>
+    public void Go(int index, bool instant = false)
     {
         var model = _doc().Model;
         if (index < 0 || index >= model.Scenes.Count)
@@ -104,12 +107,16 @@ public partial class SceneTabs : HBoxContainer
         _tagsChanged();
         Refresh();
         if (scene.Camera is not { } to)
+        {
+            _view.ShowPhoto(scene.Photo);
             return;
+        }
         var from = _view.Camera.Save();
         _view.BeginNavigation();
-        if (!model.SceneTransitions || model.SceneTransitionSeconds <= 0)
+        if (instant || !model.SceneTransitions || model.SceneTransitionSeconds <= 0)
         {
             _view.ChangeCamera(c => c.Restore(to));
+            _view.ShowPhoto(scene.Photo);
             return;
         }
         _tween?.Kill();
@@ -122,6 +129,8 @@ public partial class SceneTabs : HBoxContainer
                 L(from.Up, to.Up).Normalized(), to.Perspective, from.FovDegrees + (to.FovDegrees - from.FovDegrees) * s,
                 from.OrthoHeight + (to.OrthoHeight - from.OrthoHeight) * s)));
         }), 0.0, 1.0, model.SceneTransitionSeconds);
+        if (scene.Photo is { } photo)
+            _tween.TweenCallback(Callable.From(() => _view.ShowPhoto(photo)));
     }
 
     private Godot.Timer? _player;

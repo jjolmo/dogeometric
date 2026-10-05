@@ -329,9 +329,65 @@ public partial class ModelViewport : Control
         UpdateHorizon();
         UpdateFog();
         UpdateShadowRange();
+        // As in SketchUp, a matched photo goes away once the camera leaves it.
+        if (Photo != null && !_photoCamera.Matches(Camera.Save()))
+            ShowPhoto(null);
         _overlay?.QueueRedraw();
         CameraChanged?.Invoke();
     }
+
+    private TextureRect? _photoRect;
+    private CameraState _photoCamera;
+
+    /// <summary>The matched photo shown behind the model (Camera › Match New Photo, a scene with a photo).</summary>
+    public MatchedPhoto? Photo { get; private set; }
+
+    /// <summary>Shows <paramref name="photo"/> behind the model with the camera it matches; null hides it.</summary>
+    public void ShowPhoto(MatchedPhoto? photo)
+    {
+        if (photo != null && PhotoMatch.Solve(photo) is { } matched)
+        {
+            if (Photo?.Image != photo.Image || _photoRect == null)
+            {
+                _photoRect?.QueueFree();
+                var image = new Image();
+                if (image.LoadPngFromBuffer(photo.Image) != Error.Ok && image.LoadJpgFromBuffer(photo.Image) != Error.Ok)
+                    return;
+                _photoRect = new TextureRect { Texture = ImageTexture.CreateFromImage(image), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
+                AddChild(_photoRect);
+                MoveChild(_photoRect, 0);
+            }
+            Photo = photo;
+            Camera.Restore(matched);
+            _photoCamera = Camera.Save();
+            LayoutPhoto();
+        }
+        else
+        {
+            Photo = null;
+            _photoRect?.QueueFree();
+            _photoRect = null;
+        }
+        _subViewport.TransparentBg = Photo != null;
+        if (_environment != null)
+            _environment.BackgroundMode = Photo != null ? Godot.Environment.BGMode.ClearColor : Godot.Environment.BGMode.Sky;
+        SyncCamera();
+    }
+
+    /// <summary>The photo spans the view's height (the field of view is vertical), centred.</summary>
+    private void LayoutPhoto()
+    {
+        if (_photoRect == null || Photo == null)
+            return;
+        var height = Size.Y;
+        _photoRect.Size = new Vector2((float)(height * Photo.Aspect), height);
+        _photoRect.Position = new Vector2((Size.X - _photoRect.Size.X) / 2, 0);
+    }
+
+    /// <summary>Screen position of a point on the matched photo.</summary>
+    public Vector2 FromPhoto(PhotoPoint p) => Size / 2 + new Vector2((float)p.X, (float)-p.Y) * Size.Y;
+
+    public PhotoPoint ToPhoto(Vector2 screen) => new((screen.X - Size.X / 2) / Size.Y, -(screen.Y - Size.Y / 2) / Size.Y);
 
     /// <summary>
     /// SketchUp's sky gradient runs in screen space from the horizon line to the top of the view, so the shader
@@ -354,7 +410,10 @@ public partial class ModelViewport : Control
     public override void _Notification(int what)
     {
         if (what == NotificationResized && _camera != null)
+        {
             UpdateHorizon();
+            LayoutPhoto();
+        }
     }
 
     // ---------------------------------------------------------------- picking
