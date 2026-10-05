@@ -69,3 +69,9 @@ boilerplate, no user content). It is part of the upstream MIT package; Dogeometr
 9. **Empty documents** (`Create.cs`, `SkpBuilder.ToBytes`). A builder with nothing added threw "no geometry added";
    it now returns the bundled blank document unchanged, which is SketchUp's own empty model (written by its SDK).
    Anything else without geometry (materials, layers or definitions only) still throws.
+
+10. **Definition attribute dictionaries** (`Geometry.cs` `CollectDefs`, `Parser.cs`, `Model.cs`). `Definition` gains
+    `AttributeDictionaries`, read with the existing `ExtractAttributeDictionaries` from the D007 a definition (7C15)
+    carries in its 8813 child. SketchUp keeps a definition's classification there (`AppliedSchemaTypes`:
+    `"IFC 2x3" → "IfcWall"`), and Dynamic Components their definition-level `dynamic_attributes`. Checked on a file
+    SketchUp 2021 saved after `add_classification("IFC 2x3", "IfcWall")`.

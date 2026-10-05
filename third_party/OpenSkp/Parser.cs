@@ -134,6 +134,7 @@ namespace OpenSkp
                 ShadowsFaceSun = d.ShadowsFaceSun,
                 IsImage = d.IsImage,
                 IsGroup = d.IsGroup,
+                AttributeDictionaries = d.AttributeDictionaries ?? new Dictionary<string, Dictionary<string, object?>>(),
             };
 
             foreach (var kv in d.Builder.Vertices)

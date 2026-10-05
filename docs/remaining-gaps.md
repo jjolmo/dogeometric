@@ -21,7 +21,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Notes |
 |---|---|
 | Ruby Console and Ruby API | SketchUp's extension mechanism. Our extensions are rebuilt natively; no scripting yet. A console with a small command language (or an embedded scripting host) would cover macros. |
-| Model Info › Classifications and classifications in `.skp` | The Classifier tool and its IFC 4 types work and are saved in `.dog`; importing other schemas (IFC 2x3, gbXML) and reading/writing SketchUp's AppliedSchemaTypes in `.skp` are missing. |
+| Model Info › Classifications, and classifications saved to `.skp` | The Classifier's IFC 4 types are saved in `.dog` and read from SketchUp's `.skp` (AppliedSchemaTypes); writing them into `.skp` needs definition attributes in the `.skp` writer; importing other schemas (gbXML, .skc files) is missing. |
 
 ## Low impact
 

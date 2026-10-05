@@ -81,6 +81,10 @@ public static class SkpImporter
                 IsImage = d.IsImage,
                 AlwaysFaceCamera = d.AlwaysFacesCamera,
                 ShadowsFaceSun = d.ShadowsFaceSun,
+                // SketchUp's Classifier keeps the type per schema ("IFC 2x3" → "IfcWall") in AppliedSchemaTypes.
+                IfcType = d.AttributeDictionaries.TryGetValue("AppliedSchemaTypes", out var applied)
+                    ? applied.Where(kv => kv.Key.StartsWith("IFC", StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Value as string).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? ""
+                    : "",
             };
             definitions[id] = def;
             model.Definitions.Add(def);

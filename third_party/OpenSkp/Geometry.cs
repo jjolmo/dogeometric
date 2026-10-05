@@ -711,6 +711,7 @@ namespace OpenSkp
             public bool IsImage;
             public bool IsGroup;
             public GeometryBuilder Builder = new GeometryBuilder();
+            public Dictionary<string, Dictionary<string, object?>>? AttributeDictionaries;
         }
 
         public static void CollectDefs(List<TlvNode> nodes, Dictionary<long, RawDefinition> defsDict)
@@ -765,10 +766,15 @@ namespace OpenSkp
                     long? entId = ExtractEntityId(el);
                     var builder = new GeometryBuilder();
                     ExtractGeometryFromNodes(el.Children, builder);
+                    // Dogeometric patch: the definition's own attribute dictionaries (the D007 in its 8813), e.g.
+                    // SketchUp's AppliedSchemaTypes classification.
+                    var defD007 = el.Children.FirstOrDefault(c => c.Tag == "D007")
+                        ?? el.Children.Where(c => c.Tag == "8813").SelectMany(c => c.Children).FirstOrDefault(c => c.Tag == "D007");
                     if (entId != null)
                     {
                         defsDict[entId.Value] = new RawDefinition
                         {
+                            AttributeDictionaries = defD007 != null ? ExtractAttributeDictionaries(defD007) : null,
                             Guid = guid,
                             Name = name,
                             IsGroup = isGroup,

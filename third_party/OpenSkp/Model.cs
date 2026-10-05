@@ -270,6 +270,10 @@ namespace OpenSkp
         public bool ShadowsFaceSun { get; set; }
         public bool IsImage { get; set; }
 
+        /// <summary>Dogeometric patch: the definition's attribute dictionaries by name (key → value), e.g.
+        /// "AppliedSchemaTypes" holding its classification.</summary>
+        public Dictionary<string, Dictionary<string, object?>> AttributeDictionaries { get; set; } = new Dictionary<string, Dictionary<string, object?>>();
+
         /// <summary>Dogeometric patch: true for group definitions (VFF tag 8315 == 1; legacy: placed by CGroup).</summary>
         public bool IsGroup { get; set; }
     }
