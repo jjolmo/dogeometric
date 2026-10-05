@@ -376,4 +376,25 @@ public class DogFileTests
         Assert.Equal(LineStyle.Solid, tag.Dashes);
         Assert.Equal([12, 6, 1, 6], LineStyles.Pattern(LineStyles.Parse("dash dot")));
     }
+
+    [Fact]
+    public void Watermarks_survive_saving()
+    {
+        var model = new Model();
+        var mark = new Watermark
+        {
+            Name = "Paper", Image = new TextureImage { FileName = "paper.png", Data = [1, 2, 3, 4] }, Overlay = true, Opacity = 0.3,
+            Mask = true, Layout = WatermarkLayout.Positioned, LockAspect = false, Scale = 2, Position = WatermarkPosition.TopLeft,
+        };
+        model.Style = model.Style with { ShowWatermarks = false, Watermarks = new([mark]) };
+        var path = Path.Combine(Path.GetTempPath(), $"marks-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path).Style;
+        File.Delete(path);
+        Assert.False(back.ShowWatermarks);
+        var read = Assert.Single(back.Watermarks);
+        Assert.Equal([1, 2, 3, 4], read.Image.Data);
+        Assert.Equal(mark with { Image = read.Image }, read);
+        Assert.Equal(new ValueList<int>([1, 2]), new ValueList<int>([1, 2]));
+    }
 }

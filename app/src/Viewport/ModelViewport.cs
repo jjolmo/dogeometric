@@ -107,6 +107,10 @@ public partial class ModelViewport : Control
         UI.AppPreferences.Changed += () => _subViewport.Msaa3D = MsaaFor(UI.AppPreferences.Current.Antialiasing);
         BuildWorld();
 
+        _watermarkFront = new TextureRect { MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale };
+        _watermarkFront.SetAnchorsPreset(LayoutPreset.FullRect);
+        AddChild(_watermarkFront);
+
         _overlay = new OverlayCanvas { View = this, MouseFilter = MouseFilterEnum.Ignore };
         _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
         AddChild(_overlay);
@@ -461,6 +465,7 @@ public partial class ModelViewport : Control
         {
             UpdateHorizon();
             LayoutPhoto();
+            UpdateWatermarks();
         }
     }
 
@@ -486,7 +491,19 @@ public partial class ModelViewport : Control
     }
 
     /// <summary>The drawn view as an image (the 3D scene; tool feedback on the overlay is left out).</summary>
-    public Image Snapshot() => _subViewport.GetTexture().GetImage();
+    /// <summary>The view as drawn, overlay watermarks included (exports and printing show them, as in SketchUp).</summary>
+    public Image Snapshot()
+    {
+        var image = _subViewport.GetTexture().GetImage();
+        if (_watermarkFront.Texture?.GetImage() is { } front)
+        {
+            image.Convert(Image.Format.Rgba8);
+            if (front.GetSize() != image.GetSize())
+                front.Resize(image.GetWidth(), image.GetHeight(), Image.Interpolation.Bilinear);
+            image.BlendRect(front, new Rect2I(Vector2I.Zero, front.GetSize()), Vector2I.Zero);
+        }
+        return image;
+    }
 
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
@@ -509,12 +526,27 @@ public partial class ModelViewport : Control
         _skyMaterial.SetShaderParameter("ground_on", s.Ground);
         _skyMaterial.SetShaderParameter("ground_transparency", (float)s.GroundTransparency);
         _skyMaterial.SetShaderParameter("ground_from_below", s.GroundFromBelow);
+        _style = s;
+        UpdateWatermarks();
         _sectionFillColor = C(s.SectionFillColor);
         if (_sectionFill?.MaterialOverride is StandardMaterial3D fill)
             fill.AlbedoColor = _sectionFillColor;
     }
 
     private Color _sectionFillColor = Color.Color8(63, 63, 63);
+    private StyleSettings _style = new();
+    private TextureRect _watermarkFront = null!;
+
+    /// <summary>Styles › Watermarks: lays them out again for the view's size.</summary>
+    private void UpdateWatermarks()
+    {
+        if (_watermarkFront == null)
+            return;
+        var (back, front) = WatermarkCompositor.Compose(_style, (Vector2I)Size);
+        _skyMaterial.SetShaderParameter("has_watermarks", back != null);
+        _skyMaterial.SetShaderParameter("watermarks", back != null ? ImageTexture.CreateFromImage(back) : null);
+        _watermarkFront.Texture = front != null ? ImageTexture.CreateFromImage(front) : null;
+    }
 
     /// <summary>Fog panel: start and end (0 to 1 across the model's depth) and colour (null for the background's).</summary>
     public void SetFog(double start, double end, Color? color)

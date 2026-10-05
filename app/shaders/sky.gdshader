@@ -15,6 +15,9 @@ uniform bool camera_below = false;
 uniform bool ground_from_below = false;
 // Horizon height on screen: 0 = top edge, 1 = bottom edge. Set by ModelViewport on every camera change.
 uniform float horizon_uv = 0.3;
+// Styles › Watermarks behind the model, already laid out over the view (WatermarkCompositor).
+uniform sampler2D watermarks : source_color, filter_linear;
+uniform bool has_watermarks = false;
 
 void sky() {
 	if (EYEDIR.y >= 0.0) {
@@ -23,5 +26,9 @@ void sky() {
 	} else {
 		bool shown = ground_on && (!camera_below || ground_from_below);
 		COLOR = shown ? mix(ground, background, ground_transparency) : background;
+	}
+	if (has_watermarks) {
+		vec4 mark = texture(watermarks, SCREEN_UV);
+		COLOR = mix(COLOR, mark.rgb, mark.a);
 	}
 }

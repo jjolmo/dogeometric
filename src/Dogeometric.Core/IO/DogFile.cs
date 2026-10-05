@@ -274,6 +274,25 @@ public static class DogFile
         w.WriteString("sectionCutColor", RgbaText(s.SectionCutColor));
         w.WriteString("sectionFillColor", RgbaText(s.SectionFillColor));
         w.WriteNumber("sectionCutWidth", s.SectionCutWidth);
+        w.WriteBoolean("showWatermarks", s.ShowWatermarks);
+        w.WriteStartArray("watermarks");
+        foreach (var m in s.Watermarks)
+        {
+            w.WriteStartObject();
+            w.WriteString("name", m.Name);
+            w.WriteString("file", m.Image.FileName);
+            w.WriteBase64String("image", m.Image.Data);
+            w.WriteBoolean("overlay", m.Overlay);
+            w.WriteBoolean("visible", m.Visible);
+            w.WriteNumber("opacity", m.Opacity);
+            w.WriteBoolean("mask", m.Mask);
+            w.WriteString("layout", m.Layout.ToString());
+            w.WriteBoolean("lockAspect", m.LockAspect);
+            w.WriteNumber("scale", m.Scale);
+            w.WriteString("position", m.Position.ToString());
+            w.WriteEndObject();
+        }
+        w.WriteEndArray();
         w.WriteEndObject();
     }
 
@@ -314,6 +333,27 @@ public static class DogFile
             SectionCutColor = ReadRgba(j, "sectionCutColor", d.SectionCutColor),
             SectionFillColor = ReadRgba(j, "sectionFillColor", d.SectionFillColor),
             SectionCutWidth = Int("sectionCutWidth", d.SectionCutWidth),
+            ShowWatermarks = Bool("showWatermarks", d.ShowWatermarks),
+            Watermarks = j.TryGetProperty("watermarks", out var marks) ? new ValueList<Watermark>(marks.EnumerateArray().Select(ReadWatermark)) : d.Watermarks,
+        };
+    }
+
+    private static Watermark ReadWatermark(JsonElement j)
+    {
+        var d = new Watermark();
+        T Enum<T>(string n, T f) where T : struct => j.TryGetProperty(n, out var v) && System.Enum.TryParse<T>(v.GetString(), out var x) ? x : f;
+        return new Watermark
+        {
+            Name = j.GetProperty("name").GetString() ?? "",
+            Image = new TextureImage { FileName = j.GetProperty("file").GetString() ?? "", Data = j.GetProperty("image").GetBytesFromBase64() },
+            Overlay = j.GetProperty("overlay").GetBoolean(),
+            Visible = j.GetProperty("visible").GetBoolean(),
+            Opacity = j.GetProperty("opacity").GetDouble(),
+            Mask = j.GetProperty("mask").GetBoolean(),
+            Layout = Enum("layout", d.Layout),
+            LockAspect = j.GetProperty("lockAspect").GetBoolean(),
+            Scale = j.GetProperty("scale").GetDouble(),
+            Position = Enum("position", d.Position),
         };
     }
 

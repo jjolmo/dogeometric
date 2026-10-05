@@ -69,6 +69,9 @@ public partial class StylesPanel : VBoxContainer
         p.Switch("Section Fill", CommandIds.DisplaySectionFill);
         p.Switch("Guides", CommandIds.ToggleGuides);
         p.Switch("Model Axes", CommandIds.ToggleAxes);
+        p.Section("Watermark Settings");
+        p.Flag("Display watermarks", s => s.ShowWatermarks, (s, v) => s with { ShowWatermarks = v });
+        p.Watermarks();
         p.Refresh();
         return p;
     }
@@ -149,6 +152,66 @@ public partial class StylesPanel : VBoxContainer
         };
         Row(label, slider);
         _readers.Add(() => slider.Value = get(_style()));
+    }
+
+    /// <summary>The style's watermarks, drawn in list order (later ones on top), with Add, Edit, Move Up and Delete.</summary>
+    private void Watermarks()
+    {
+        var list = new VBoxContainer();
+        AddChild(list);
+        void Change(Func<List<Watermark>, List<Watermark>> edit) =>
+            _setStyle(s => s with { Watermarks = new ValueList<Watermark>(edit(s.Watermarks.ToList())) });
+        _readers.Add(() =>
+        {
+            foreach (var child in list.GetChildren())
+                child.QueueFree();
+            var marks = _style().Watermarks;
+            for (var i = 0; i < marks.Count; i++)
+            {
+                var (index, mark) = (i, marks[i]);
+                var row = new HBoxContainer();
+                var visible = new CheckBox { ButtonPressed = mark.Visible, FocusMode = FocusModeEnum.None, TooltipText = "Visible" };
+                visible.Toggled += on => Change(l => { l[index] = l[index] with { Visible = on }; return l; });
+                row.AddChild(visible);
+                row.AddChild(new Label { Text = $"{mark.Name} ({(mark.Overlay ? "overlay" : "background")})", SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true });
+                var edit = new Button { Text = "Edit", FocusMode = FocusModeEnum.None };
+                edit.Pressed += () => WatermarkDialog.Show(this, mark, "Edit Watermark", m => Change(l => { l[index] = m; return l; }));
+                row.AddChild(edit);
+                var up = new Button { Text = "↑", FocusMode = FocusModeEnum.None, TooltipText = "Move up", Disabled = index == 0 };
+                up.Pressed += () => Change(l => { (l[index - 1], l[index]) = (l[index], l[index - 1]); return l; });
+                row.AddChild(up);
+                var delete = new Button { Text = "✕", FocusMode = FocusModeEnum.None, TooltipText = "Delete watermark" };
+                delete.Pressed += () => Change(l => { l.RemoveAt(index); return l; });
+                row.AddChild(delete);
+                list.AddChild(row);
+            }
+        });
+        var add = new Button { Text = "Add Watermark…", FocusMode = FocusModeEnum.None };
+        add.Pressed += () =>
+        {
+            var picker = new FileDialog
+            {
+                FileMode = FileDialog.FileModeEnum.OpenFile,
+                Access = FileDialog.AccessEnum.Filesystem,
+                Filters = ["*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"],
+                Title = "Choose Watermark Image",
+                UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
+            };
+            picker.FileSelected += path =>
+            {
+                picker.QueueFree();
+                var mark = new Watermark
+                {
+                    Name = System.IO.Path.GetFileNameWithoutExtension(path),
+                    Image = new TextureImage { FileName = System.IO.Path.GetFileName(path), Data = System.IO.File.ReadAllBytes(path) },
+                };
+                WatermarkDialog.Show(this, mark, "Create Watermark", m => Change(l => { l.Add(m); return l; }));
+            };
+            picker.Canceled += picker.QueueFree;
+            AddChild(picker);
+            picker.PopupCentered(new Vector2I(800, 500));
+        };
+        AddChild(add);
     }
 
     private void Section(string title) => AddChild(new Label { Text = title, ThemeTypeVariation = "HeaderSmall" });

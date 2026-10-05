@@ -18,6 +18,45 @@ public sealed class Scene
     public MatchedPhoto? Photo { get; set; }
 }
 
+/// <summary>Styles › Watermark Settings: how a watermark covers the view.</summary>
+public enum WatermarkLayout { Stretched, Tiled, Positioned }
+
+public enum WatermarkPosition { TopLeft, Top, TopRight, Left, Center, Right, BottomLeft, Bottom, BottomRight }
+
+/// <summary>A picture drawn behind the model (background) or over it (overlay), part of the style.</summary>
+public sealed record Watermark
+{
+    public string Name { get; init; } = "";
+    public TextureImage Image { get; init; } = new();
+    public bool Overlay { get; init; }
+    public bool Visible { get; init; } = true;
+    public double Opacity { get; init; } = 0.5;
+    /// <summary>The picture's brightness is its opacity, in the background colour.</summary>
+    public bool Mask { get; init; }
+    public WatermarkLayout Layout { get; init; } = WatermarkLayout.Stretched;
+    public bool LockAspect { get; init; } = true;
+    /// <summary>Tiled and positioned pictures: 1 shows them at their own pixel size.</summary>
+    public double Scale { get; init; } = 1;
+    public WatermarkPosition Position { get; init; } = WatermarkPosition.BottomRight;
+}
+
+/// <summary>A read-only list equal to another with the same items, so records holding one compare by value.</summary>
+public sealed class ValueList<T>(IEnumerable<T> items) : IReadOnlyList<T>, IEquatable<ValueList<T>>
+{
+    private readonly T[] _items = items.ToArray();
+
+    public static readonly ValueList<T> Empty = new([]);
+
+    public T this[int index] => _items[index];
+    public int Count => _items.Length;
+    public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)_items).GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _items.GetEnumerator();
+
+    public bool Equals(ValueList<T>? other) => other != null && _items.SequenceEqual(other._items);
+    public override bool Equals(object? obj) => Equals(obj as ValueList<T>);
+    public override int GetHashCode() => _items.Aggregate(_items.Length, (h, x) => HashCode.Combine(h, x));
+}
+
 /// <summary>Styles › Edit › Face Settings › Transparency quality.</summary>
 public enum TransparencyQuality { Faster, Nicer }
 
@@ -67,6 +106,9 @@ public sealed record StyleSettings
     public Rgba SectionCutColor { get; init; } = new(0, 0, 0);
     public Rgba SectionFillColor { get; init; } = new(63, 63, 63);
     public int SectionCutWidth { get; init; } = 3;
+
+    public bool ShowWatermarks { get; init; } = true;
+    public ValueList<Watermark> Watermarks { get; init; } = ValueList<Watermark>.Empty;
 }
 
 /// <summary>Model Info's Components, Credits and Rendering settings.</summary>
