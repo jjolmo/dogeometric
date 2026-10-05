@@ -2,7 +2,7 @@ using Godot;
 
 namespace Dogeometric.App.Viewport;
 
-/// <summary>Draws the active tool's 2D feedback on top of the 3D view.</summary>
+/// <summary>Draws the active tool's 2D feedback (and centre points, component axes, camera frames) on top of the 3D view.</summary>
 public partial class OverlayCanvas : Control
 {
     /// <summary>Above this many centres, loose faces' markers are left out (they still snap) to keep drawing fast.</summary>
@@ -73,7 +73,21 @@ public partial class OverlayCanvas : Control
         DrawFrame(View);
         DrawCenters(View);
         DrawComponentAxes(View);
-        View.Annotations.Draw(View, this);
         View.Tools?.Active.Draw(this);
+    }
+}
+
+/// <summary>
+/// Dimensions, texts and section planes, drawn inside the 3D view's own viewport (in its pixels), so pictures of the
+/// view at any size show them as SketchUp's exports do.
+/// </summary>
+public partial class AnnotationCanvas : Control
+{
+    public ModelViewport? View { get; set; }
+
+    public override void _Draw()
+    {
+        if (View != null)
+            View.Annotations.Draw(View, this);
     }
 }

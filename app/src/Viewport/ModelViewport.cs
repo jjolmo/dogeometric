@@ -107,9 +107,13 @@ public partial class ModelViewport : Control
         UI.AppPreferences.Changed += () => _subViewport.Msaa3D = MsaaFor(UI.AppPreferences.Current.Antialiasing);
         BuildWorld();
 
+        // Overlay watermarks and annotations live in the 3D view's viewport, so its pictures include them.
         _watermarkFront = new TextureRect { MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale };
         _watermarkFront.SetAnchorsPreset(LayoutPreset.FullRect);
-        AddChild(_watermarkFront);
+        _subViewport.AddChild(_watermarkFront);
+        _annotations = new AnnotationCanvas { View = this, MouseFilter = MouseFilterEnum.Ignore };
+        _annotations.SetAnchorsPreset(LayoutPreset.FullRect);
+        _subViewport.AddChild(_annotations);
 
         _overlay = new OverlayCanvas { View = this, MouseFilter = MouseFilterEnum.Ignore };
         _overlay.SetAnchorsPreset(LayoutPreset.FullRect);
@@ -471,7 +475,13 @@ public partial class ModelViewport : Control
 
     // ---------------------------------------------------------------- picking
 
-    public void QueueOverlayRedraw() => _overlay.QueueRedraw();
+    public void QueueOverlayRedraw()
+    {
+        _overlay.QueueRedraw();
+        _annotations?.QueueRedraw();
+    }
+
+    private AnnotationCanvas? _annotations;
 
     /// <summary>Model size of one pixel in a parallel view (1 in perspective, where there is no single scale).</summary>
     public double MillimetresPerPixel => Camera.Perspective ? 1 : Camera.OrthoHeight / Math.Max(Size.Y, 1);
@@ -491,19 +501,8 @@ public partial class ModelViewport : Control
     }
 
     /// <summary>The drawn view as an image (the 3D scene; tool feedback on the overlay is left out).</summary>
-    /// <summary>The view as drawn, overlay watermarks included (exports and printing show them, as in SketchUp).</summary>
-    public Image Snapshot()
-    {
-        var image = _subViewport.GetTexture().GetImage();
-        if (_watermarkFront.Texture?.GetImage() is { } front)
-        {
-            image.Convert(Image.Format.Rgba8);
-            if (front.GetSize() != image.GetSize())
-                front.Resize(image.GetWidth(), image.GetHeight(), Image.Interpolation.Bilinear);
-            image.BlendRect(front, new Rect2I(Vector2I.Zero, front.GetSize()), Vector2I.Zero);
-        }
-        return image;
-    }
+    /// <summary>The view as drawn, with its annotations and watermarks (exports and printing show them, as in SketchUp).</summary>
+    public Image Snapshot() => _subViewport.GetTexture().GetImage();
 
     /// <summary>Dimensions and texts, drawn on the overlay.</summary>
     public AnnotationOverlay Annotations { get; } = new();
