@@ -32,6 +32,20 @@ public class GeometryTests
         Assert.Equal(300, Polygon.Area(l), 9);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Holes_whose_bridges_meet_at_one_corner_or_run_along_a_side_are_all_cut(bool squares)
+    {
+        // From a STEP part: the second hole's bridge reaches the corner the first one already uses, or runs along its side.
+        Vec3[] outer = [new(-10, 145, 0), new(5, 145, 0), new(10, 140, 0), new(20, 140, 0), new(20, 100, 0), new(-10, 100, 0)];
+        List<Vec3> Hole(double cx, double cy, double r) => squares
+            ? [new(cx - r, cy - r, 0), new(cx - r, cy + r, 0), new(cx + r, cy + r, 0), new(cx + r, cy - r, 0)]
+            : Enumerable.Range(0, 24).Select(i => new Vec3(cx + r * Math.Cos(i * Math.PI / 12), cy + r * Math.Sin(i * Math.PI / 12), 0)).ToList();
+        IReadOnlyList<Vec3>[] holes = [Hole(5, 107, 1.5), Hole(6, 114, 0.5)];
+        Assert.Equal(Polygon.Area(outer) - holes.Sum(Polygon.Area), TriangulatedArea(outer, holes), 6);
+    }
+
     [Fact]
     public void Holes_are_subtracted()
     {

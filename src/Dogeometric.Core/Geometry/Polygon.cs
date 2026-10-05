@@ -54,8 +54,13 @@ public static class Polygon
         }
 
         // Bridge holes from the one with the right-most vertex first (standard order, avoids crossing bridges).
-        foreach (var hole in holeRings.OrderByDescending(h => h.Max(i => p2[i].X)))
-            ring = Bridge(p2, ring, hole);
+        var pending = holeRings.OrderByDescending(h => h.Max(i => p2[i].X)).ToList();
+        while (pending.Count > 0)
+        {
+            var hole = pending[0];
+            pending.RemoveAt(0);
+            ring = Bridge(p2, ring, hole, pending);
+        }
 
         return EarClip(p2, ring);
     }
@@ -83,7 +88,7 @@ public static class Polygon
     }
 
     /// <summary>Joins a hole into the ring with a zero-width bridge from its right-most vertex to a visible ring vertex.</summary>
-    private static List<int> Bridge((double X, double Y)[] p, List<int> ring, List<int> hole)
+    private static List<int> Bridge((double X, double Y)[] p, List<int> ring, List<int> hole, List<List<int>> pending)
     {
         var hStart = hole.IndexOf(hole.MaxBy(i => p[i].X));
         var (hx, hy) = p[hole[hStart]];
@@ -131,6 +136,15 @@ public static class Polygon
             }
         }
 
+        var h = (hx, hy);
+        if (!Clear(p, ring, pending, h, p[ring[best]]))
+            best = Enumerable.Range(0, ring.Count).OrderBy(i => Dist2(p[ring[i]], h)).FirstOrDefault(i => Clear(p, ring, pending, h, p[ring[i]]), best);
+        // Earlier bridges repeat their ends in the ring: join the copy whose corner opens towards the hole.
+        var target = p[ring[best]];
+        best = Enumerable.Range(0, ring.Count).Where(i => Same(p[ring[i]], target))
+            .OrderBy(i => Opens(p[ring[(i + ring.Count - 1) % ring.Count]], target, p[ring[(i + 1) % ring.Count]], h) ? 0 : 1)
+            .ThenBy(i => i == best ? 0 : 1).First();
+
         var merged = new List<int>(ring.Count + hole.Count + 2);
         merged.AddRange(ring.Take(best + 1));
         for (var k = 0; k <= hole.Count; k++)
@@ -138,6 +152,39 @@ public static class Polygon
         merged.Add(ring[best]);
         merged.AddRange(ring.Skip(best + 1));
         return merged;
+    }
+
+    /// <summary>Whether the segment a–b crosses no side of the ring or of the holes still to bridge.</summary>
+    private static bool Clear((double X, double Y)[] p, List<int> ring, List<List<int>> pending, (double X, double Y) a, (double X, double Y) b)
+    {
+        bool Crosses(List<int> loop)
+        {
+            for (var i = 0; i < loop.Count; i++)
+            {
+                var (c, d) = (p[loop[i]], p[loop[(i + 1) % loop.Count]]);
+                // A vertex lying on the bridge blocks it too.
+                if (!Same(c, a) && !Same(c, b) && Math.Abs(Cross(a, b, c)) <= 1e-12 * Math.Max(1, Dist2(a, b)) && Between(a, b, c))
+                    return true;
+                if (Same(c, a) || Same(c, b) || Same(d, a) || Same(d, b))
+                    continue;
+                if (Cross(a, b, c) * Cross(a, b, d) < 0 && Cross(c, d, a) * Cross(c, d, b) < 0)
+                    return true;
+            }
+            return false;
+        }
+        return !Crosses(ring) && !pending.Any(Crosses);
+    }
+
+    private static bool Between((double X, double Y) a, (double X, double Y) b, (double X, double Y) q) =>
+        (q.X - a.X) * (b.X - a.X) + (q.Y - a.Y) * (b.Y - a.Y) > 0 && (q.X - b.X) * (a.X - b.X) + (q.Y - b.Y) * (a.Y - b.Y) > 0;
+
+    /// <summary>Whether direction v→q lies inside the anticlockwise ring's corner prev–v–next.</summary>
+    private static bool Opens((double X, double Y) prev, (double X, double Y) v, (double X, double Y) next, (double X, double Y) q)
+    {
+        var convex = Cross(prev, v, next) >= 0;
+        var left1 = Cross(prev, v, q) > 0;
+        var left2 = Cross(v, next, q) > 0;
+        return convex ? left1 && left2 : left1 || left2;
     }
 
     private static List<int> EarClip((double X, double Y)[] p, List<int> ring)
