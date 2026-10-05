@@ -50,6 +50,7 @@ public static class ExtensionIds
     public const int SurfaceOffset = 90151;
     public const int CurviloftLoft = 90095;
     public const int CurviloftSkin = 90096;
+    public const int CurviloftPath = 90097;
     public const int CleanUp = 90041;
     public const int CleanUpLast = 90042;
     public const int CleanUpEraseHidden = 90043;

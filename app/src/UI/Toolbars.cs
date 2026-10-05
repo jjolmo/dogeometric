@@ -20,7 +20,7 @@ public static class Toolbars
         Tools.SurfaceShape.Parallelogram, Tools.SurfaceShape.Arc, Tools.SurfaceShape.Circle3P, Tools.SurfaceShape.Sector,
         Tools.SurfaceShape.Polyline, Tools.SurfaceShape.Freehand,
     }.Select(Commands.ExtensionIds.SurfaceShape).Append(Commands.ExtensionIds.SurfaceOffset).Append(Commands.ExtensionIds.SurfaceEraser).ToArray();
-    public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftSkin];
+    public static readonly int[] Curviloft = [Commands.ExtensionIds.CurviloftLoft, Commands.ExtensionIds.CurviloftPath, Commands.ExtensionIds.CurviloftSkin];
     // In the original toolbar's order.
     public static readonly int[] FredoScale = new[] { Deformation.Scale, Deformation.Taper, Deformation.Shear, Deformation.Stretch, Deformation.Twist, Deformation.Rotate, Deformation.Bend }
         .Select(Commands.ExtensionIds.FredoScale).ToArray();
@@ -87,6 +87,7 @@ public static class Toolbars
         [Commands.ExtensionIds.MakeFaces] = "make_faces",
         [Commands.ExtensionIds.CurviloftLoft] = "curviloft_loft",
         [Commands.ExtensionIds.CurviloftSkin] = "curviloft_skin",
+        [Commands.ExtensionIds.CurviloftPath] = "curviloft_path",
         [Commands.ExtensionIds.SandboxFromContours] = "sandbox_from_contours",
         [Commands.ExtensionIds.SandboxFromScratch] = "sandbox_from_scratch",
         [Commands.ExtensionIds.SandboxSmoove] = "sandbox_smoove",

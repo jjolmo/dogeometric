@@ -346,9 +346,11 @@ public partial class MainWindow : Control
         }
         _commands.AddToMenu("Tools", ExtensionIds.CurviloftLoft, "Curviloft - Loft by Spline", "Create loft junctions between curves, along splines through them.",
             submenu: "Fredo6 Collection", groupStart: true);
-        _commands.Register(ExtensionIds.CurviloftLoft, () => Curviloft(skin: false));
+        _commands.Register(ExtensionIds.CurviloftLoft, () => Curviloft(CurviloftKind.Loft));
+        _commands.AddToMenu("Tools", ExtensionIds.CurviloftPath, "Curviloft - Loft along path", "Create loft junctions following a given path.", submenu: "Fredo6 Collection");
+        _commands.Register(ExtensionIds.CurviloftPath, () => Curviloft(CurviloftKind.Path));
         _commands.AddToMenu("Tools", ExtensionIds.CurviloftSkin, "Curviloft - Skin Contours", "Skin a loop of four curves.", submenu: "Fredo6 Collection");
-        _commands.Register(ExtensionIds.CurviloftSkin, () => Curviloft(skin: true));
+        _commands.Register(ExtensionIds.CurviloftSkin, () => Curviloft(CurviloftKind.Skin));
         EntityInfoPanel.InspectSolid = instance =>
         {
             _document.Document.Selection.Set([instance]);
@@ -484,25 +486,34 @@ public partial class MainWindow : Control
 
     private static int _loftSegments = 24, _loftRows = 6;
 
+    private enum CurviloftKind { Loft, Path, Skin }
+
     /// <summary>Curviloft on the selected curves: asks the segments (and rows between curves), then makes the surface as a group.</summary>
-    private void Curviloft(bool skin)
+    private void Curviloft(CurviloftKind kind)
     {
         var doc = _document.Document;
         var chains = Dogeometric.Core.Modeling.Curviloft.Chains(doc.Selection.Items.OfType<Edge>());
+        var skin = kind == CurviloftKind.Skin;
+        var name = kind switch { CurviloftKind.Skin => "Skin Contours", CurviloftKind.Path => "Loft along path", _ => "Loft by Spline" };
         if (skin ? chains.Count != 4 : chains.Count < 2)
         {
-            _status.SetHint(skin ? "Skin Contours: select four curves forming a loop." : "Loft by Spline: select two or more curves.");
+            _status.SetHint(kind switch
+            {
+                CurviloftKind.Skin => "Skin Contours: select four curves forming a loop.",
+                CurviloftKind.Path => "Loft along path: select the contours and the path touching them.",
+                _ => "Loft by Spline: select two or more curves.",
+            });
             return;
         }
-        var d = new ConfirmationDialog { Title = skin ? "Skin Contours" : "Loft by Spline", OkButtonText = "OK" };
+        var d = new ConfirmationDialog { Title = name, OkButtonText = "OK" };
         var grid = new GridContainer { Columns = 2 };
         grid.AddChild(new Label { Text = "Segments" });
         var segments = new SpinBox { MinValue = 1, MaxValue = 400, Value = skin ? 12 : _loftSegments };
         grid.AddChild(segments);
-        var rows = new SpinBox { MinValue = 1, MaxValue = 100, Value = _loftRows };
+        var rows = new SpinBox { MinValue = 1, MaxValue = 400, Value = _loftRows };
         if (!skin)
         {
-            grid.AddChild(new Label { Text = "Rows between curves" });
+            grid.AddChild(new Label { Text = kind == CurviloftKind.Path ? "Rows along the path" : "Rows between curves" });
             grid.AddChild(rows);
         }
         d.AddChild(grid);
@@ -512,18 +523,23 @@ public partial class MainWindow : Control
             if (!skin)
                 (_loftSegments, _loftRows) = ((int)segments.Value, (int)rows.Value);
             var made = 0;
-            doc.Operation(skin ? "Skin Contours" : "Loft by Spline", e =>
+            doc.Operation(name, e =>
             {
                 var def = new ComponentDefinition { Name = "Curviloft", IsGroup = true };
-                made = skin
-                    ? Dogeometric.Core.Modeling.Curviloft.SkinContours(def.Entities, chains, (int)segments.Value)
-                    : Dogeometric.Core.Modeling.Curviloft.LoftBySpline(def.Entities, chains, (int)segments.Value, (int)rows.Value);
+                made = kind switch
+                {
+                    CurviloftKind.Skin => Dogeometric.Core.Modeling.Curviloft.SkinContours(def.Entities, chains, (int)segments.Value),
+                    CurviloftKind.Path => Dogeometric.Core.Modeling.Curviloft.LoftAlongPath(def.Entities, chains, (int)segments.Value, (int)rows.Value),
+                    _ => Dogeometric.Core.Modeling.Curviloft.LoftBySpline(def.Entities, chains, (int)segments.Value, (int)rows.Value),
+                };
                 if (made == 0)
                     return;
                 doc.Model.Definitions.Add(def);
                 e.AddInstance(def, Dogeometric.Core.Geometry.Transform.Identity);
             });
-            _status.SetHint(made == 0 ? "Curviloft: the curves do not make a loop." : $"Curviloft: {made} faces.");
+            _status.SetHint(made == 0
+                ? kind == CurviloftKind.Path ? "Curviloft: no path touches the contours." : "Curviloft: the curves do not make a loop."
+                : $"Curviloft: {made} faces.");
         };
         d.Canceled += d.QueueFree;
         AddChild(d);
