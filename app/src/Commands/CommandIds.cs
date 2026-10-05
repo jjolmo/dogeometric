@@ -73,6 +73,7 @@ public static class CommandIds
     public const int ViewIso = 10507;
     public const int ParallelProjection = 10630;
     public const int Perspective = 10519;
+    public const int TwoPointPerspective = 10627;
     public const int Orbit = 10508;
     public const int Pan = 10523;
     public const int Zoom = 10509;

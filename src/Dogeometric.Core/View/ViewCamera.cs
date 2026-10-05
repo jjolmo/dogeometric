@@ -53,8 +53,29 @@ public sealed class ViewCamera
 
     public CameraState Save() => new(Eye, Target, Up, Perspective, FovDegrees, OrthoHeight);
 
+    /// <summary>Camera › Two-Point Perspective: the camera looks level (verticals stay vertical) and its lens is shifted
+    /// by this much (the tangent of the pitch it had) so the view keeps its framing; null otherwise.</summary>
+    public double? TwoPointShift { get; private set; }
+
+    /// <summary>Levels the view as Two-Point Perspective does; false when looking straight up or down.</summary>
+    public bool SetTwoPoint()
+    {
+        var flat = new Vec3(Direction.X, Direction.Y, 0);
+        if (flat.Length < 1e-6 || !Perspective)
+            return false;
+        var pitch = Math.Atan2(Direction.Z, flat.Length);
+        var distance = Distance;
+        Target = Eye + flat.Normalized() * distance;
+        Up = Vec3.UnitZ;
+        TwoPointShift = Math.Tan(pitch);
+        return true;
+    }
+
+    public void ClearTwoPoint() => TwoPointShift = null;
+
     public void Restore(CameraState s)
     {
+        TwoPointShift = null;
         Eye = s.Eye;
         Target = s.Target;
         Up = s.Up;
@@ -70,6 +91,8 @@ public sealed class ViewCamera
     /// </summary>
     public void Orbit(Vec3 pivot, double yaw, double pitch, bool gravity = true)
     {
+        // Orbiting leaves Two-Point Perspective, as in SketchUp.
+        TwoPointShift = null;
         var yawAxis = gravity ? Vec3.UnitZ : Up;
         Rotate(pivot, yawAxis, yaw);
 

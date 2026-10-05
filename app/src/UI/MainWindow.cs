@@ -1101,7 +1101,8 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.ViewRight, () => v.SetStandardView(StandardView.Right));
         _commands.Register(CommandIds.ViewIso, () => v.SetStandardView(StandardView.Iso));
         _commands.Register(CommandIds.ParallelProjection, () => v.SetPerspective(false), () => !v.Camera.Perspective, radio: true);
-        _commands.Register(CommandIds.Perspective, () => v.SetPerspective(true), () => v.Camera.Perspective, radio: true);
+        _commands.Register(CommandIds.Perspective, () => v.SetPerspective(true), () => v.Camera.Perspective && v.Camera.TwoPointShift == null, radio: true);
+        _commands.Register(CommandIds.TwoPointPerspective, v.SetTwoPoint, () => v.Camera.TwoPointShift != null, radio: true);
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
         _commands.Register(CommandIds.Revert, _document.Revert);

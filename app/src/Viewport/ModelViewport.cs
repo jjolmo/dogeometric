@@ -268,8 +268,25 @@ public partial class ModelViewport : Control
         SyncCamera();
     }
 
+    /// <summary>Camera › Two-Point Perspective.</summary>
+    public void SetTwoPoint()
+    {
+        BeginNavigation();
+        if (!Camera.Perspective)
+            SetPerspective(true);
+        if (Camera.SetTwoPoint())
+            SyncCamera();
+    }
+
     public void SetPerspective(bool perspective)
     {
+        if (Camera.TwoPointShift != null && perspective)
+        {
+            Camera.ClearTwoPoint();
+            SyncCamera();
+            return;
+        }
+        Camera.ClearTwoPoint();
         if (Camera.Perspective == perspective)
             return;
         BeginNavigation();
@@ -315,6 +332,13 @@ public partial class ModelViewport : Control
             _camera.Fov = (float)Camera.FovDegrees;
             // Near plane scales with the viewing distance; reverse-Z keeps depth precision with a far plane this large.
             _camera.Near = (float)Math.Clamp(Camera.Distance * Space.MetersPerUnit * 0.001, 1e-5, 1);
+            if (Camera.TwoPointShift is { } shift)
+            {
+                // A shifted lens: the same field of view, its centre moved up or down at the near plane.
+                _camera.Projection = Camera3D.ProjectionType.Frustum;
+                _camera.Size = (float)(2 * _camera.Near * Math.Tan(Camera.HalfFovRadians));
+                _camera.FrustumOffset = new Vector2(0, (float)(_camera.Near * shift));
+            }
         }
         else
         {
