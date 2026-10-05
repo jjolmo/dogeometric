@@ -12,6 +12,9 @@ public static class CommandIds
     public const int Import = 21933;
     public const int Export3DModel = 21149;
     public const int Export2DGraphic = 21237;
+    public const int PrintSetup = 57606;
+    public const int Print = 57607;
+    public const int PrintPreview = 57609;
     public const int Exit = 57665;
 
     // Edit

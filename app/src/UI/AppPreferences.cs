@@ -39,6 +39,13 @@ public sealed class AppPreferences
     /// <summary>Multisample anti-aliasing: 0, 2, 4 or 8 samples.</summary>
     public int Antialiasing { get; set; } = 4;
 
+    // Printing (File › Print Setup).
+    /// <summary>CUPS printer to print to; empty for the system's default.</summary>
+    public string Printer { get; set; } = "";
+
+    /// <summary>Print a hidden-line drawing instead of the view as drawn.</summary>
+    public bool PrintAsDrawing { get; set; }
+
     public static AppPreferences Current { get; private set; } = Load();
 
     /// <summary>Raised after the preferences change, so the parts that use them pick the new values up.</summary>
