@@ -407,6 +407,25 @@ public static class Transforming
 public static class Grouping
 {
     /// <summary>
+    /// Outliner drag and drop: moves <paramref name="inst"/> from <paramref name="from"/> (placed in the world by
+    /// <paramref name="fromWorld"/>) into <paramref name="to"/> (placed by <paramref name="toWorld"/>), staying where it
+    /// is on screen. Returns false when <paramref name="to"/> is inside the instance itself.
+    /// </summary>
+    public static bool MoveInto(ComponentInstance inst, Entities from, Geometry.Transform fromWorld, Entities to, Geometry.Transform toWorld)
+    {
+        if (from == to || Contains(inst.Definition.Entities, to))
+            return false;
+        inst.Transform = inst.Transform.Then(fromWorld).Then(toWorld.Inverse());
+        from.Instances.Remove(inst);
+        to.Instances.Add(inst);
+        inst.GluedTo = null;
+        return true;
+    }
+
+    private static bool Contains(Entities e, Entities target) =>
+        e == target || e.Instances.Any(i => Contains(i.Definition.Entities, target));
+
+    /// <summary>
     /// SketchUp's Change Axes: <paramref name="axes"/> (in the instance's parent space) become the definition's
     /// axes. Its contents move into them and every instance compensates, so nothing moves on screen.
     /// </summary>
