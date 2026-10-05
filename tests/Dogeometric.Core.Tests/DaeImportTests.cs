@@ -91,4 +91,25 @@ public class DaeImportTests
 
         Assert.Equal(10 * 20 * 30 + 125, MeshCheck.Analyze(MeshExtractor.Extract(back)).Volume, 3);
     }
+
+    [Fact]
+    public void Our_kmz_export_places_the_model_at_its_location_and_reads_back()
+    {
+        var (model, _, _) = TestModels.TwoBoxGroups();
+        model.Shadows = model.Shadows with { Latitude = 41.383, Longitude = 2.183, NorthAngle = 30 };
+        var path = Path.Combine(Path.GetTempPath(), $"dog-{Guid.NewGuid():N}.kmz");
+        KmzWriter.Write(model, MeshExtractor.Extract(model), path, "Two boxes");
+
+        string kml;
+        using (var zip = System.IO.Compression.ZipFile.OpenRead(path))
+        using (var reader = new StreamReader(zip.GetEntry("doc.kml")!.Open()))
+            kml = reader.ReadToEnd();
+        var back = DaeImport.Load(path);
+        File.Delete(path);
+
+        Assert.Contains("<latitude>41.383</latitude>", kml);
+        Assert.Contains("<heading>-30</heading>", kml);
+        Assert.Contains("<href>models/Two_boxes.dae</href>", kml);
+        Assert.Equal(10 * 20 * 30 + 125, MeshCheck.Analyze(MeshExtractor.Extract(back)).Volume, 3);
+    }
 }

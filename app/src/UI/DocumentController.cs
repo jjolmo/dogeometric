@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -534,6 +534,9 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                     break;
                 case ".dae":
                     using (var s = File.Create(p)) DaeWriter.Write(triangles, s);
+                    break;
+                case ".kmz":
+                    KmzWriter.Write(m, triangles, p, System.IO.Path.GetFileNameWithoutExtension(p));
                     break;
                 default:
                     using (var s = File.Create(WithExtension(p, ".stl"))) StlWriter.WriteBinary(triangles, s);
