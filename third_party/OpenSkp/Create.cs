@@ -1512,6 +1512,18 @@ namespace OpenSkp
             return newEntities;
         }
 
+        /// <summary>Dogeometric patch 11: one plain edge, with no curve record (WritePolyline groups even a single
+        /// edge into a curve).</summary>
+        internal int WriteEdge(
+            (double X, double Y, double Z) a, (double X, double Y, double Z) b,
+            Dictionary<(double, double, double), int> vertexSlots,
+            Dictionary<(int, int), (int, int)> edgeRegistry,
+            bool hiddenEdges = false, bool softEdges = false, bool smoothEdges = false)
+        {
+            var (_, _, newEntities) = WriteEdgeChain(new[] { a, b }, vertexSlots, edgeRegistry, false, hiddenEdges, softEdges, smoothEdges, null, null);
+            return newEntities;
+        }
+
         /// <summary>Write a freeform polyline curve - a chain of straight
         /// CEdge records connecting points in order, all sharing one
         /// CCurve grouping, no face. closed=true additionally connects the
@@ -1947,6 +1959,14 @@ namespace OpenSkp
                 throw new SkpWriteException("a polyline needs at least 2 points");
             }
             _newEntityCount += Skp.DefinitionWriter!.WritePolyline(points, _vertexSlots, _edgeRegistry, closed, hiddenEdges, softEdges, smoothEdges);
+        }
+
+        /// <summary>Dogeometric patch 11: one plain edge (not a curve).</summary>
+        public void AddEdge((double X, double Y, double Z) a, (double X, double Y, double Z) b,
+            bool hiddenEdges = false, bool softEdges = false, bool smoothEdges = false)
+        {
+            CheckWritable("edges");
+            _newEntityCount += Skp.DefinitionWriter!.WriteEdge(a, b, _vertexSlots, _edgeRegistry, hiddenEdges, softEdges, smoothEdges);
         }
 
         /// <summary>Place one instance of another, already-closed
@@ -2930,6 +2950,15 @@ namespace OpenSkp
             EnsureGeometryWriter();
             _newEntityCount += _geometryWriter!.WritePolyline(points, _vertexSlots, _edgeRegistry, closed, hiddenEdges, softEdges, smoothEdges);
             _faceCount += 1; // reuses the "at least one root entity" check in ToBytes
+        }
+
+        /// <summary>Dogeometric patch 11: one plain edge (not a curve).</summary>
+        public void AddEdge((double X, double Y, double Z) a, (double X, double Y, double Z) b,
+            bool hiddenEdges = false, bool softEdges = false, bool smoothEdges = false)
+        {
+            EnsureGeometryWriter();
+            _newEntityCount += _geometryWriter!.WriteEdge(a, b, _vertexSlots, _edgeRegistry, hiddenEdges, softEdges, smoothEdges);
+            _faceCount += 1;
         }
 
         /// <summary>Add a FREE linear dimension between two explicit points

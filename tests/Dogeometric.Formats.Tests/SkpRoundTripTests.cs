@@ -65,6 +65,29 @@ public class SkpRoundTripTests
     }
 
     [Fact]
+    public void Each_edge_keeps_its_own_softness_and_loose_edges_are_not_curves()
+    {
+        var model = new Model();
+        var e = model.Entities;
+        var v = new[] { new Vec3(0, 0, 0), new(10, 0, 0), new(10, 10, 0), new(0, 10, 0) };
+        e.AddFace([v[3], v[2], v[1], v[0]]);
+        e.AddFace(v.Select(p => p + new Vec3(0, 0, 10)).ToList());
+        for (var i = 0; i < 4; i++)
+            e.AddFace([v[i], v[(i + 1) % 4], v[(i + 1) % 4] + new Vec3(0, 0, 10), v[i] + new Vec3(0, 0, 10)]);
+        var top = e.Edges.First(x => x.Start.Position.Z == 10 && x.End.Position.Z == 10);
+        top.Flags = EdgeFlags.Soft | EdgeFlags.Smooth;
+        StickyGeometry.DrawEdges(e, [new(20, 0, 0), new(30, 0, 0)]);
+
+        var back = RoundTrip(model).Entities;
+        var soft = back.Edges.Where(x => x.Flags.HasFlag(EdgeFlags.Soft)).ToList();
+        var edge = Assert.Single(soft);
+        Assert.Equal(top.Start.Position.Z, edge.Start.Position.Z, 6);
+        Assert.Equal(top.Start.Position.Z, edge.End.Position.Z, 6);
+        Assert.Equal(13, back.Edges.Count);
+        Assert.All(back.Edges, x => Assert.Null(x.Curve));
+    }
+
+    [Fact]
     public void Unwelded_pieces_keep_their_own_vertices_and_edges()
     {
         // Two quads meeting along x = 10 with separate vertices there (CASOPLON's imported meshes are like this):

@@ -169,6 +169,23 @@ public static class SkpExporter
         // below SketchUp's tolerance, so the topology comes back as it was.
         var at = WrittenPositions(e);
 
+        // The writer gives each edge the soft/smooth/hidden of the first face that declares it, so the edges of faces
+        // mixing kinds are declared first with their own.
+        var mixed = e.Faces.SelectMany(f => f.OuterLoop.Edges.Select(x => x.Edge).ToList() is var es
+                && es.Select(x => x.Flags & (EdgeFlags.Soft | EdgeFlags.Smooth | EdgeFlags.Hidden)).Distinct().Count() > 1 ? es : [])
+            .Where(x => x.Curve == null).Distinct();
+        foreach (var edge in mixed)
+        {
+            try
+            {
+                target.AddEdge(Inches(at(edge.Start)), Inches(at(edge.End)), edge.Flags);
+            }
+            catch (Sk.SkpWriteException ex)
+            {
+                ctx.Warn($"edge skipped: {ex.Message}");
+            }
+        }
+
         var usedByFaces = new HashSet<Edge>();
         foreach (var face in e.Faces)
         {
@@ -408,7 +425,7 @@ public static class SkpExporter
         public static Target For(Sk.SkpBuilder b) => new()
         {
             Face = (p, m, l, bk, h, s, sm, he, holes, fu, bu) => b.AddFace(p, m, l, bk, h, s, sm, he, frontUv: fu, backUv: bu, holes: holes),
-            Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
+            Edge = (a, c, f) => b.AddEdge(a, c, hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
             Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>
             {
@@ -422,7 +439,7 @@ public static class SkpExporter
         public static Target For(Sk.ComponentDefinitionBuilder b) => new()
         {
             Face = (p, m, l, bk, h, s, sm, he, holes, fu, bu) => b.AddFace(p, m, l, bk, h, s, sm, he, frontUv: fu, backUv: bu, holes: holes),
-            Edge = (a, c, f) => b.AddPolyline([a, c], hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
+            Edge = (a, c, f) => b.AddEdge(a, c, hiddenEdges: f.HasFlag(EdgeFlags.Hidden), softEdges: f.HasFlag(EdgeFlags.Soft), smoothEdges: f.HasFlag(EdgeFlags.Smooth)),
             Image = (d, t, m3, l, h) => b.AddImageInstance(d, t, m3, l, h),
             Instance = (d, group, n, t, m3, m, l, h) =>
             {

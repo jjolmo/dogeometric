@@ -55,6 +55,11 @@ Every change is listed here and should be offered upstream.
     kind 2 in the definition tail's gap byte (patch 4's byte -4: 0 component, 1 group, 2 image), as SketchUp 2021
     writes when it saves a model with Images in the 2017 format; without it SketchUp counts it as a component.
 
+11. **Plain edges** (`Create.cs`, `WriteEdge`, `ComponentDefinitionBuilder.AddEdge`, `SkpBuilder.AddEdge`). The only
+    way to write a loose edge was `AddPolyline`, which groups even a single edge into a curve, so every stray edge came
+    back as a one-segment curve. `AddEdge` writes one edge with no curve. Edges are also how Dogeometric gives each
+    edge its own soft/smooth/hidden flags: a face's edges take the face's flags only when no earlier call declared them.
+
 ## Note on `_scaffold/blank_v17.skp`
 
 Shipped unchanged from upstream: the empty-document template the writer splices geometry into. Upstream documents
