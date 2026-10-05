@@ -15,6 +15,23 @@ public sealed class Scene
 }
 
 /// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
+/// <summary>Model Info's Components, Credits and Rendering settings.</summary>
+public sealed record ModelOptions
+{
+    /// <summary>Credits › Model author.</summary>
+    public string Author { get; init; } = "";
+
+    /// <summary>Components › how much the rest of the model and other copies of the edited component fade (0 to 1).</summary>
+    public double FadeRest { get; init; } = 0.6;
+    public double FadeSimilar { get; init; } = 0.6;
+
+    /// <summary>Components › Show component axes.</summary>
+    public bool ShowComponentAxes { get; init; }
+
+    /// <summary>Rendering › Use anti-aliased textures.</summary>
+    public bool SmoothTextures { get; init; } = true;
+}
+
 /// <summary>SketchUp's dimension endpoint styles.</summary>
 public enum DimensionEndpoint { None, Slash, Dot, ClosedArrow, OpenArrow }
 
@@ -41,6 +58,8 @@ public sealed class Model
 
     /// <summary>View › Section Fill: the active section's cut is filled.</summary>
     public bool ShowSectionFill { get; set; } = true;
+
+    public ModelOptions Options { get; set; } = new();
 
     /// <summary>
     /// SketchUp's drawing axes (Axes tool): origin and red/green/blue directions, orthonormal. Inference, arrow-key

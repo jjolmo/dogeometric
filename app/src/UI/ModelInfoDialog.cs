@@ -4,24 +4,24 @@ using Godot;
 
 namespace Dogeometric.App.UI;
 
-/// <summary>
-/// SketchUp's Model Info window: a list of panes on the left (Animation, Dimensions, File, Statistics, Text, Units)
-/// and the pane on the right.
-/// Changes apply at once, as in SketchUp.
-/// </summary>
+/// <summary>SketchUp's Model Info window: its panes listed on the left, the chosen one on the right; changes apply at
+/// once, as in SketchUp.</summary>
 public partial class ModelInfoDialog : AcceptDialog
 {
     private Document _doc = null!;
     private string? _path;
     private Action _changed = null!;
     private Control _pane = null!;
+    private DocumentController? _controller;
 
-    public static void Show(Node parent, Document doc, string? path, Action changed)
+    private static readonly string[] Panes = ["Animation", "Components", "Credits", "Dimensions", "File", "Geo-location", "Rendering", "Statistics", "Text", "Units"];
+
+    public static void Show(Node parent, Document doc, string? path, Action changed, DocumentController? controller = null, string pane = "Units")
     {
-        var d = new ModelInfoDialog { Title = "Model Info", OkButtonText = "Close", _doc = doc, _path = path, _changed = changed };
+        var d = new ModelInfoDialog { Title = "Model Info", OkButtonText = "Close", _doc = doc, _path = path, _changed = changed, _controller = controller };
         var split = new HBoxContainer { CustomMinimumSize = new Vector2(560, 340) };
         var list = new ItemList { CustomMinimumSize = new Vector2(140, 0) };
-        foreach (var name in new[] { "Animation", "Dimensions", "File", "Statistics", "Text", "Units" })
+        foreach (var name in Panes)
             list.AddItem(name);
         split.AddChild(list);
         d._pane = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -31,8 +31,8 @@ public partial class ModelInfoDialog : AcceptDialog
         d.Confirmed += d.QueueFree;
         d.Canceled += d.QueueFree;
         parent.AddChild(d);
-        list.Select(5);
-        d.ShowPane("Units");
+        list.Select(Array.IndexOf(Panes, pane));
+        d.ShowPane(pane);
         d.PopupCentered();
     }
 
@@ -61,6 +61,18 @@ public partial class ModelInfoDialog : AcceptDialog
                 break;
             case "Text":
                 Text();
+                break;
+            case "Components":
+                Components();
+                break;
+            case "Credits":
+                Credits();
+                break;
+            case "Geo-location":
+                GeoLocation();
+                break;
+            case "Rendering":
+                Rendering();
                 break;
             default:
                 Units();
@@ -123,7 +135,7 @@ public partial class ModelInfoDialog : AcceptDialog
     private SpinBox Number(GridContainer grid, string label, double value, double min, double max, double step, string suffix)
     {
         grid.AddChild(new Label { Text = label });
-        var spin = new SpinBox { MinValue = min, MaxValue = max, Step = step, Value = value, Suffix = suffix };
+        var spin = new SpinBox { MinValue = min, MaxValue = max, Step = step, Value = value, Suffix = suffix, CustomMinimumSize = new Vector2(130, 0) };
         grid.AddChild(spin);
         return spin;
     }
@@ -158,6 +170,103 @@ public partial class ModelInfoDialog : AcceptDialog
         var model = _doc.Model;
         var grid = Grid();
         Number(grid, "Text size", model.TextFontSize, 6, 72, 1, "pt").ValueChanged += v => Set("Text", () => model.TextFontSize = (int)v);
+    }
+
+    private void Options(string name, Func<ModelOptions, ModelOptions> change) => Set(name, () => _doc.Model.Options = change(_doc.Model.Options));
+
+    private void Components()
+    {
+        var o = _doc.Model.Options;
+        _pane.AddChild(new Label { Text = "Component/Group Editing" });
+        void Fade(string label, double value, Func<ModelOptions, double, ModelOptions> set, bool hidden, Action<bool>? hide)
+        {
+            _pane.AddChild(new Label { Text = label });
+            var row = new HBoxContainer();
+            row.AddChild(new Label { Text = "Light" });
+            var slider = new HSlider { MinValue = 0, MaxValue = 1, Step = 0.05, Value = value, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            slider.DragEnded += changed =>
+            {
+                if (changed)
+                    Options("Component Edit", m => set(m, slider.Value));
+            };
+            row.AddChild(slider);
+            row.AddChild(new Label { Text = "Dark" });
+            if (hide != null)
+            {
+                var check = new CheckBox { Text = "Hide", ButtonPressed = hidden };
+                check.Toggled += on =>
+                {
+                    hide(on);
+                    _changed();
+                };
+                row.AddChild(check);
+            }
+            _pane.AddChild(row);
+        }
+        Fade("Fade similar components:", o.FadeSimilar, (m, v) => m with { FadeSimilar = v },
+            _controller?.HideSimilarComponents ?? false, _controller == null ? null : on => _controller.HideSimilarComponents = on);
+        Fade("Fade rest of model:", o.FadeRest, (m, v) => m with { FadeRest = v },
+            _controller?.HideRestOfModel ?? false, _controller == null ? null : on => _controller.HideRestOfModel = on);
+        _pane.AddChild(new HSeparator());
+        _pane.AddChild(new Label { Text = "Component Axes" });
+        var axes = new CheckBox { Text = "Show component axes", ButtonPressed = o.ShowComponentAxes };
+        axes.Toggled += on => Options("Component Axes", m => m with { ShowComponentAxes = on });
+        _pane.AddChild(axes);
+    }
+
+    private void Credits()
+    {
+        var o = _doc.Model.Options;
+        var grid = Grid();
+        grid.AddChild(new Label { Text = "Model Author" });
+        var author = new LineEdit { Text = o.Author, PlaceholderText = "(none)", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        author.TextSubmitted += t => Options("Credits", m => m with { Author = t.Trim() });
+        author.FocusExited += () =>
+        {
+            if (author.Text.Trim() != _doc.Model.Options.Author)
+                Options("Credits", m => m with { Author = author.Text.Trim() });
+        };
+        grid.AddChild(author);
+        var claim = new Button { Text = "Claim Credit", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+        claim.Pressed += () =>
+        {
+            var name = System.Environment.UserName;
+            author.Text = name;
+            Options("Credits", m => m with { Author = name });
+        };
+        _pane.AddChild(claim);
+        var authors = _doc.Model.Definitions.Where(d => !d.IsGroup && !d.IsImage).Select(d => d.Name).Order().ToList();
+        _pane.AddChild(new Label { Text = authors.Count == 0 ? "No components." : $"Components: {authors.Count}" });
+    }
+
+    private void GeoLocation()
+    {
+        var s = _doc.Model.Shadows;
+        _pane.AddChild(new Label { Text = "Manual location (it places the sun for shadows)." });
+        var grid = Grid();
+        Number(grid, "Latitude", s.Latitude, -90, 90, 0.001, "°").ValueChanged += v => SetShadows(x => x with { Latitude = v });
+        Number(grid, "Longitude", s.Longitude, -180, 180, 0.001, "°").ValueChanged += v => SetShadows(x => x with { Longitude = v });
+        var clear = new Button { Text = "Clear Location", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
+        clear.Pressed += () =>
+        {
+            var defaults = new ShadowSettings();
+            SetShadows(x => x with { Latitude = defaults.Latitude, Longitude = defaults.Longitude });
+            ShowPane("Geo-location");
+        };
+        _pane.AddChild(clear);
+    }
+
+    private void SetShadows(Func<ShadowSettings, ShadowSettings> change)
+    {
+        Set("Geo-location", () => _doc.Model.Shadows = change(_doc.Model.Shadows));
+        _controller?.ApplyShadows();
+    }
+
+    private void Rendering()
+    {
+        var smooth = new CheckBox { Text = "Use anti-aliased textures", ButtonPressed = _doc.Model.Options.SmoothTextures };
+        smooth.Toggled += on => Options("Rendering", m => m with { SmoothTextures = on });
+        _pane.AddChild(smooth);
     }
 
     private void Units()

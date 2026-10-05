@@ -56,6 +56,13 @@ public static class DogFile
             w.WriteString("sourceVersion", model.SourceVersion);
             WriteShadows(w, model.Shadows);
             w.WriteBoolean("sectionFill", model.ShowSectionFill);
+            w.WriteStartObject("options");
+            w.WriteString("author", model.Options.Author);
+            w.WriteNumber("fadeRest", model.Options.FadeRest);
+            w.WriteNumber("fadeSimilar", model.Options.FadeSimilar);
+            w.WriteBoolean("componentAxes", model.Options.ShowComponentAxes);
+            w.WriteBoolean("smoothTextures", model.Options.SmoothTextures);
+            w.WriteEndObject();
             w.WriteStartObject("annotation");
             w.WriteNumber("dimensionFontSize", model.DimensionFontSize);
             w.WriteString("dimensionEndpoints", model.DimensionEndpoints.ToString());
@@ -481,6 +488,15 @@ public static class DogFile
         }
         if (r.TryGetProperty("sectionFill", out var fill))
             model.ShowSectionFill = fill.GetBoolean();
+        if (r.TryGetProperty("options", out var opts))
+            model.Options = new ModelOptions
+            {
+                Author = opts.GetProperty("author").GetString() ?? "",
+                FadeRest = opts.GetProperty("fadeRest").GetDouble(),
+                FadeSimilar = opts.GetProperty("fadeSimilar").GetDouble(),
+                ShowComponentAxes = opts.GetProperty("componentAxes").GetBoolean(),
+                SmoothTextures = opts.GetProperty("smoothTextures").GetBoolean(),
+            };
         if (r.TryGetProperty("shadows", out var shadows))
             model.Shadows = ReadShadows(shadows);
         if (r.TryGetProperty("axes", out var axes))

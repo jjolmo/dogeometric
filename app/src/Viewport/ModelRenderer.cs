@@ -145,6 +145,20 @@ public sealed class ModelRenderer
     /// <summary>Glued instances being dragged and where they are drawn, so their openings follow them.</summary>
     public IReadOnlyDictionary<ComponentInstance, Transform>? MovingInstances { get; set; }
 
+    /// <summary>Model Info › Rendering › Use anti-aliased textures.</summary>
+    public bool SmoothTextures
+    {
+        get => _smoothTextures;
+        set
+        {
+            _smoothTextures = value;
+            foreach (var m in _faceMaterials.Values)
+                m.SetShaderParameter("smooth_textures", value);
+        }
+    }
+
+    private bool _smoothTextures = true;
+
     /// <summary>The group or component open for editing: a subdivided one shows its control mesh as a cage.</summary>
     public Entities? Edited { get; set; }
 
@@ -208,7 +222,8 @@ public sealed class ModelRenderer
     /// Fades everything outside the group or component being edited (<paramref name="path"/>, empty at the top
     /// level), as SketchUp does while you edit one.
     /// </summary>
-    public static void FadeOutside(Node3D root, IReadOnlyList<ComponentInstance> path, bool hideRest = false, bool hideSimilar = false)
+    public static void FadeOutside(Node3D root, IReadOnlyList<ComponentInstance> path, bool hideRest = false, bool hideSimilar = false,
+        float fadeRest = 0.6f, float fadeSimilar = 0.6f)
     {
         var keys = path.Select(i => (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(i)).ToList();
         var edited = path.Count > 0 ? (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(path[^1].Definition) : 0UL;
@@ -221,7 +236,7 @@ public sealed class ModelRenderer
                 {
                     case MeshInstance3D mi:
                         var outside = keys.Count > 0 && !inside;
-                        mi.SetInstanceShaderParameter("fade", outside || hiddenObject ? 1f : 0f);
+                        mi.SetInstanceShaderParameter("fade", hiddenObject ? 0.6f : outside ? similar ? fadeSimilar : fadeRest : 0f);
                         mi.Visible = !outside || (similar ? !hideSimilar : !hideRest);
                         break;
                     case Node3D n when n.HasMeta("instance"):
@@ -618,6 +633,7 @@ public sealed class ModelRenderer
             (frontColor, backColor) = (backColor, frontColor);
         m.SetShaderParameter("front_color", frontColor);
         m.SetShaderParameter("back_color", backColor);
+        m.SetShaderParameter("smooth_textures", SmoothTextures);
         // Shaded With Textures shows the pictures; the other styles keep the material's average colour.
         if (FaceStyle == FaceStyle.ShadedWithTextures || xray)
         {

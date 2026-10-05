@@ -210,4 +210,24 @@ public class DogFileTests
         doc.Undo.Undo();
         Assert.Equal(DimensionEndpoint.Dot, m.DimensionEndpoints);
     }
+
+    [Fact]
+    public void Model_info_options_survive_saving_and_undo()
+    {
+        var model = new Model();
+        var doc = new Document(model);
+        var options = new ModelOptions { Author = "Ada", FadeRest = 0.2, FadeSimilar = 0.9, ShowComponentAxes = true, SmoothTextures = false };
+        doc.Undo.Begin("Model Info");
+        model.Options = options;
+        doc.Undo.Commit();
+
+        var path = Path.Combine(Path.GetTempPath(), $"options-{Guid.NewGuid()}.dog");
+        DogFile.Save(model, path);
+        var back = DogFile.Load(path).Options;
+        File.Delete(path);
+        Assert.Equal(options, back);
+
+        doc.Undo.Undo();
+        Assert.Equal(new ModelOptions(), model.Options);
+    }
 }

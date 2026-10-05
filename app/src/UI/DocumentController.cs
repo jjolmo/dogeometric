@@ -573,10 +573,16 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         RebuildSelection();
     }
 
+    /// <summary>Redraws what model settings change: fading, texture smoothing, the overlay.</summary>
+    public void RefreshView() => RebuildSelection();
+
     private void RebuildSelection()
     {
         _selectionRenderer.Build(Document, viewport.SelectionRoot);
-        ModelRenderer.FadeOutside(viewport.ModelRoot, Document.Context.Path, HideRestOfModel, HideSimilarComponents);
+        ModelRenderer.FadeOutside(viewport.ModelRoot, Document.Context.Path, HideRestOfModel, HideSimilarComponents,
+            (float)Model.Options.FadeRest, (float)Model.Options.FadeSimilar);
+        if (_renderer.SmoothTextures != Model.Options.SmoothTextures)
+            _renderer.SmoothTextures = Model.Options.SmoothTextures;
         viewport.QueueOverlayRedraw(); // dimensions and texts show selection and edits on the overlay
     }
 

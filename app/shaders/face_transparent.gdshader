@@ -3,7 +3,8 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
 #include "res://shaders/section.gdshaderinc"
-// 1 while another group is open for editing: the rest of the model fades, as in SketchUp.
+#include "res://shaders/texture_sample.gdshaderinc"
+// How far this fades while another group is open for editing (Model Info › Components), as in SketchUp.
 instance uniform float fade = 0.0;
 
 uniform vec4 front_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -30,12 +31,12 @@ void fragment() {
 	vec2 front_uv = swap_uv ? UV2 : UV;
 	vec2 back_uv = swap_uv ? UV : UV2;
 	if (FRONT_FACING && has_front_tex) {
-		c = vec4(texture(front_tex, front_uv).rgb, c.a);
+		c = vec4(TEX(front_tex, front_uv), c.a);
 	} else if (!FRONT_FACING && has_back_tex) {
-		c = vec4(texture(back_tex, back_uv).rgb, c.a);
+		c = vec4(TEX(back_tex, back_uv), c.a);
 	}
 	float diffuse = length(light_dir) > 0.0 ? abs(dot(normalize(NORMAL), normalize(light_dir))) : 1.0;
 	ALBEDO = c.rgb * (length(light_dir) > 0.0 ? 0.58 + 0.42 * diffuse : 1.0);
 	ALPHA = c.a;
-	ALBEDO = mix(ALBEDO, vec3(1.0), fade * 0.6);
+	ALBEDO = mix(ALBEDO, vec3(1.0), fade);
 }

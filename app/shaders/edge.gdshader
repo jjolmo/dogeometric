@@ -3,7 +3,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled;
 #include "res://shaders/section.gdshaderinc"
-// 1 while another group is open for editing: the rest of the model fades, as in SketchUp.
+// How far this fades while another group is open for editing (Model Info › Components), as in SketchUp.
 instance uniform float fade = 0.0;
 
 uniform vec4 color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
@@ -27,5 +27,5 @@ void fragment() {
 		discard;
 	}
 	ALBEDO = color.rgb;
-	ALBEDO = mix(ALBEDO, vec3(0.72), fade * 0.6);
+	ALBEDO = mix(ALBEDO, vec3(0.72), fade);
 }

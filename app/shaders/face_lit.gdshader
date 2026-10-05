@@ -3,6 +3,7 @@
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, specular_disabled, ambient_light_disabled;
 #include "res://shaders/section.gdshaderinc"
+#include "res://shaders/texture_sample.gdshaderinc"
 instance uniform float fade = 0.0;
 
 uniform vec4 front_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -28,12 +29,12 @@ void fragment() {
 	vec2 front_uv = swap_uv ? UV2 : UV;
 	vec2 back_uv = swap_uv ? UV : UV2;
 	if (FRONT_FACING && has_front_tex) {
-		c = vec4(texture(front_tex, front_uv).rgb, c.a);
+		c = vec4(TEX(front_tex, front_uv), c.a);
 	} else if (!FRONT_FACING && has_back_tex) {
-		c = vec4(texture(back_tex, back_uv).rgb, c.a);
+		c = vec4(TEX(back_tex, back_uv), c.a);
 	}
-	ALBEDO = c.rgb * (1.0 - fade * 0.6);
-	EMISSION = c.rgb * sun_dark * (1.0 - fade * 0.6) + vec3(fade * 0.6);
+	ALBEDO = c.rgb * (1.0 - fade);
+	EMISSION = c.rgb * sun_dark * (1.0 - fade) + vec3(fade);
 }
 
 void light() {

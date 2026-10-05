@@ -81,6 +81,8 @@ public static class CommandIds
     public const int RecentFile = 57616;
     public const int Revert = 21485;
     public const int NewFromTemplate = 24446;
+    public const int AddLocation = 24216;
+    public const int ClearLocation = 24197;
     public const int SaveAsTemplate = 24183;
     public const int ZoomToPhoto = 10625;
 

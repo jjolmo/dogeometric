@@ -72,5 +72,5 @@ void fragment() {
 	if (SECTION_CUT) {
 		discard;
 	}
-	ALBEDO = mix(color.rgb, vec3(0.72), fade * 0.6);
+	ALBEDO = mix(color.rgb, vec3(0.72), fade);
 }

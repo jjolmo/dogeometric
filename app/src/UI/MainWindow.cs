@@ -677,6 +677,13 @@ public partial class MainWindow : Control
         });
     }
 
+    private void ShowModelInfo(string pane = "Units") => ModelInfoDialog.Show(this, _document.Document, _document.Path, () =>
+    {
+        _document.RefreshView();
+        _components.Refresh();
+        _entityInfo.Refresh();
+    }, _document, pane);
+
     private static int _subdLevels = 2;
 
     /// <summary>SUbD's targets: the selected groups and components holding only edges and faces, or the open one.</summary>
@@ -837,12 +844,17 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.PreviousScene, () => _scenes.Step(-1));
         _commands.Register(CommandIds.Toolbars, ShowToolbarsDialog);
         _commands.Register(CommandIds.Preferences, () => PreferencesDialog.Show(this, _commands, () => _rebuildMenus(), _docks.Reset));
-        _commands.Register(CommandIds.ModelInfo, () => ModelInfoDialog.Show(this, Doc(), _document.Path, () =>
+        _commands.Register(CommandIds.ModelInfo, () => ShowModelInfo());
+        _commands.Register(CommandIds.AddLocation, () => ShowModelInfo("Geo-location"));
+        _commands.Register(CommandIds.ClearLocation, () =>
         {
-            _viewport.QueueOverlayRedraw();
-            _components.Refresh();
-            _entityInfo.Refresh();
-        }));
+            var doc = Doc();
+            var defaults = new ShadowSettings();
+            doc.Undo.Begin("Clear Location");
+            doc.Model.Shadows = doc.Model.Shadows with { Latitude = defaults.Latitude, Longitude = defaults.Longitude };
+            doc.Undo.Commit();
+            _document.ApplyShadows();
+        });
         _commands.Register(CommandIds.Text3D, () => Text3DDialog.Show(this, r =>
         {
             var doc = Doc();
