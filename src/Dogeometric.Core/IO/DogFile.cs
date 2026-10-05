@@ -128,6 +128,13 @@ public static class DogFile
                     w.WriteBoolean("shadowsFaceSun", true);
                 if (d.GlueTo != GlueTo.None)
                     w.WriteString("glueTo", d.GlueTo.ToString());
+                if (d.Camera is { } cam)
+                {
+                    w.WriteStartObject("camera");
+                    w.WriteNumber("fov", cam.FovDegrees);
+                    w.WriteNumber("aspect", cam.Aspect);
+                    w.WriteEndObject();
+                }
                 if (d.CutsOpening)
                     w.WriteBoolean("cutsOpening", true);
                 WriteEntities(w, "entities", d.Entities, materialIndex, tagIndex, defIndex);
@@ -576,6 +583,8 @@ public static class DogFile
                 ShadowsFaceSun = d.TryGetProperty("shadowsFaceSun", out var sfs) && sfs.GetBoolean(),
                 GlueTo = d.TryGetProperty("glueTo", out var glue) && Enum.TryParse<GlueTo>(glue.GetString(), out var g) ? g : GlueTo.None,
                 CutsOpening = d.TryGetProperty("cutsOpening", out var cut) && cut.GetBoolean(),
+                Camera = d.TryGetProperty("camera", out var cam)
+                    ? new PhysicalCamera(cam.GetProperty("fov").GetDouble(), cam.GetProperty("aspect").GetDouble()) : null,
             });
         }
         for (var i = 0; i < defsJson.Count; i++)

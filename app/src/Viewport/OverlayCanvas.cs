@@ -47,12 +47,30 @@ public partial class OverlayCanvas : Control
         Walk(doc.Model.Entities, Dogeometric.Core.Geometry.Transform.Identity);
     }
 
+    /// <summary>A camera's frame: what falls outside its proportions is darkened, as Advanced Camera Tools shows it.</summary>
+    private void DrawFrame(ModelViewport view)
+    {
+        if (view.FrameAspect is not { } aspect)
+            return;
+        var size = Size;
+        var (w, h) = ((float)(size.Y * aspect), size.Y);
+        if (w > size.X)
+            (w, h) = (size.X, (float)(size.X / aspect));
+        var shade = new Color(0, 0, 0, 0.55f);
+        var (x0, y0) = ((size.X - w) / 2, (size.Y - h) / 2);
+        DrawRect(new Rect2(0, 0, size.X, y0), shade);
+        DrawRect(new Rect2(0, y0 + h, size.X, size.Y - y0 - h), shade);
+        DrawRect(new Rect2(0, y0, x0, h), shade);
+        DrawRect(new Rect2(x0 + w, y0, size.X - x0 - w, h), shade);
+    }
+
     public ModelViewport? View { get; set; }
 
     public override void _Draw()
     {
         if (View == null)
             return;
+        DrawFrame(View);
         DrawCenters(View);
         DrawComponentAxes(View);
         View.Annotations.Draw(View, this);

@@ -322,6 +322,8 @@ public partial class ModelViewport : Control
     {
         if (_camera == null)
             return;
+        if (LockedCamera is { } locked && !locked.Matches(Camera.Save()))
+            Camera.Restore(locked);
 
         var dir = Camera.Direction;
         var eye = Camera.Perspective ? Camera.Eye : Camera.Target - dir * (Camera.Distance + ParallelEyeBackoff);
@@ -361,6 +363,21 @@ public partial class ModelViewport : Control
         CameraChanged?.Invoke();
     }
 
+    /// <summary>Advanced Camera Tools: while set, navigation can't move the camera off this view.</summary>
+    public CameraState? LockedCamera { get; set; }
+
+    /// <summary>Advanced Camera Tools: the frame's width over height, shown with bars outside it; null for none.</summary>
+    public double? FrameAspect
+    {
+        get => _frameAspect;
+        set
+        {
+            _frameAspect = value;
+            _overlay?.QueueRedraw();
+        }
+    }
+
+    private double? _frameAspect;
     private TextureRect? _photoRect;
     private CameraState _photoCamera;
 

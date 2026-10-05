@@ -159,6 +159,9 @@ public sealed class ModelRenderer
 
     private bool _smoothTextures = true;
 
+    /// <summary>The camera being looked through (Advanced Camera Tools): not drawn, since the view is from inside it.</summary>
+    public ComponentInstance? LookingThrough { get; set; }
+
     /// <summary>The group or component open for editing: a subdivided one shows its control mesh as a cage.</summary>
     public Entities? Edited { get; set; }
 
@@ -303,7 +306,8 @@ public sealed class ModelRenderer
 
         foreach (var inst in entities.Instances)
         {
-            if ((inst.Hidden && !ShowHiddenObjects) || inst.Tag is { Visible: false } || inst.Definition.IsImage && inst.Definition.Entities.IsEmpty)
+            if ((inst.Hidden && !ShowHiddenObjects) || inst.Tag is { Visible: false } || inst.Definition.IsImage && inst.Definition.Entities.IsEmpty
+                || inst == LookingThrough)
                 continue;
             var node = new Node3D { Name = string.IsNullOrEmpty(inst.Name) ? inst.Definition.Name : inst.Name, Transform = ToGodot(inst.Transform) };
             node.SetMeta("instance", (ulong)System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(inst));

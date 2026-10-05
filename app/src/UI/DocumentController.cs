@@ -589,6 +589,15 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>Redraws everything (after a visibility change such as a tag toggled).</summary>
     public void RebuildAll() => Rebuild();
 
+    /// <summary>Hides the camera being looked through (null shows it again).</summary>
+    public void LookThrough(ComponentInstance? camera)
+    {
+        if (_renderer.LookingThrough == camera)
+            return;
+        _renderer.LookingThrough = camera;
+        Rebuild();
+    }
+
     /// <summary>Raised when a material's picture changed outside an operation's own refresh (Edit Texture Image).</summary>
     public event Action? MaterialsChanged;
 

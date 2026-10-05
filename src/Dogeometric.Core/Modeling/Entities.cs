@@ -282,8 +282,14 @@ public sealed class ComponentDefinition
     /// <summary>Which faces instances stick to when placed (their blue axis along the face's normal).</summary>
     public GlueTo GlueTo { get; set; }
 
+    /// <summary>Advanced Camera Tools: this definition is a physical camera (Camera › Create Camera).</summary>
+    public PhysicalCamera? Camera { get; set; }
+
     /// <summary>Glued instances show a hole in their face where their outline on the red-green plane lies.</summary>
     public bool CutsOpening { get; set; }
 
     public Entities Entities { get; } = new();
 }
+
+/// <summary>A camera made by Advanced Camera Tools: its vertical field of view and its frame's width over height.</summary>
+public sealed record PhysicalCamera(double FovDegrees, double Aspect);
