@@ -57,7 +57,7 @@ public class CenterArcTool(bool pie) : DrawingTool
         {
             _center = inf.Point;
             _normal = LockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized()
-                : inf.Kind == InferenceKind.InPlane ? Blue : MostFacingPlane());
+                : inf.Kind == InferenceKind.InPlane ? Blue : DrawingPlane());
         }
         else if (_start == null)
         {

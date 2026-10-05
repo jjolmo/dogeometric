@@ -28,7 +28,7 @@ public sealed class FreehandTool : DrawingTool
         if (button != MouseButton.Left || Current is not { } inf)
             return;
         _normal = inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized()
-            : inf.Kind == InferenceKind.InPlane ? Blue : MostFacingPlane();
+            : inf.Kind == InferenceKind.InPlane ? Blue : DrawingPlane();
         _points.Clear();
         _points.Add(inf.Point);
         _lastScreen = position;

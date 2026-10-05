@@ -185,6 +185,9 @@ public abstract class DrawingTool : Tool
     /// <summary>The drawing-axes plane most facing the viewer (its normal).</summary>
     protected Vec3 MostFacingPlane() => InferenceEngine.MostFacing(View.Camera.Direction, Axes);
 
+    /// <summary>The plane shapes go on in empty space, as SketchUp draws them (see <see cref="InferenceEngine.DrawingPlane"/>).</summary>
+    protected Vec3 DrawingPlane() => InferenceEngine.DrawingPlane(View.Camera.Direction, Axes);
+
     protected bool IsAxis(Vec3 d) => Math.Abs(d.Dot(Red)) > 0.99 || Math.Abs(d.Dot(Green)) > 0.99 || Math.Abs(d.Dot(Blue)) > 0.99;
 
     protected Color AxisColor(Vec3? dir) => dir switch

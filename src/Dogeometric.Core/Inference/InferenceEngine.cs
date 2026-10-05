@@ -117,11 +117,11 @@ public sealed class InferenceEngine
             };
         }
 
-        // Nothing under the cursor: from a previous point, stay in the axis plane most facing the viewer;
+        // Nothing under the cursor: from a previous point, stay in the drawing plane through it;
         // otherwise land on the ground.
         if (from is { } s)
         {
-            var normal = MostFacing(view.ViewDirection, Axes);
+            var normal = DrawingPlane(view.ViewDirection, Axes);
             if (IntersectPlane(ray, normal, s) is { } q)
                 return new InferenceResult(q, InferenceKind.InPlane, "");
         }
@@ -330,6 +330,16 @@ public sealed class InferenceEngine
 
     /// <summary>The red/green/blue plane normal most aligned with the view direction.</summary>
     public static Vec3 MostFacing(Vec3 viewDir) => MostFacing(viewDir, Transform.Identity);
+
+    /// <summary>
+    /// The plane SketchUp draws on in empty space: the ground (the drawing axes' red-green plane), unless the view
+    /// looks almost level with it (Front, Left…), when the axis plane most facing the viewer takes its place.
+    /// </summary>
+    public static Vec3 DrawingPlane(Vec3 viewDir, Transform axes)
+    {
+        var z = axes.Z.Normalized();
+        return Math.Abs(viewDir.Normalized().Dot(z)) >= Math.Sin(5 * Math.PI / 180) ? z : MostFacing(viewDir, axes);
+    }
 
     /// <summary>The plane normal among the given drawing axes most aligned with the view direction.</summary>
     public static Vec3 MostFacing(Vec3 viewDir, Transform axes)

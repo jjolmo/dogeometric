@@ -191,7 +191,7 @@ public sealed class ArcTool : DrawingTool
         if (!perp.IsZero(1e-9))
             return perp.Normalized();
         // Fall back to the axis plane facing the viewer.
-        return MostFacingPlane().Cross(chord).Normalized();
+        return DrawingPlane().Cross(chord).Normalized();
     }
 
     public override bool ApplyVcb(string text)

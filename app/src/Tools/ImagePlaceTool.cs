@@ -37,7 +37,7 @@ public sealed class ImagePlaceTool(string name, byte[] data, int pixelsWide, int
         if (_origin == null)
         {
             _origin = inf.Point;
-            _normal = inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : MostFacingPlane();
+            _normal = inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : DrawingPlane();
             // Seen from the viewer's side, with its top up the plane.
             if (_normal.Dot(View.Camera.Direction) > 0)
                 _normal = -_normal;

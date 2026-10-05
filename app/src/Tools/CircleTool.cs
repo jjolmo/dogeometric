@@ -65,7 +65,7 @@ public class CircleTool(bool polygon) : DrawingTool
         if (_center == null)
         {
             _center = inf.Point;
-            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : MostFacingPlane());
+            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : DrawingPlane());
             Pressed(position);
             RefreshStatus();
             return;

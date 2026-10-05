@@ -115,4 +115,32 @@ public class InferenceTests
         engine.Linear = LinearInferences.AllOff;
         Assert.NotEqual("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
     }
+
+    /// <summary>A perspective-like view from above and in front, as the default camera looks: a pixel (x, y) is the
+    /// ground point (x, y, 0) seen from the eye.</summary>
+    private sealed class ObliqueView : IViewProjection
+    {
+        private static readonly Vec3 Eye = new(0, -5000, 2000);
+        public Ray RayAt(double x, double y) => new(Eye, (new Vec3(x, y, 0) - Eye).Normalized());
+        public (double X, double Y)? ToScreen(Vec3 p) => (p.X, p.Y);
+        public PickHit? Pick(double x, double y) => null;
+        public Vec3 ViewDirection => (Vec3.Zero - Eye).Normalized();
+    }
+
+    [Fact]
+    public void Free_points_after_the_first_stay_on_the_ground_in_an_ordinary_view()
+    {
+        // From a point on the ground, with nothing under the cursor, SketchUp keeps drawing on the ground.
+        var r = new InferenceEngine().Infer(new ObliqueView(), 300, 400, Vec3.Zero, new Entities(), Transform.Identity);
+        Assert.Equal(0, r.Point.Z, 6);
+        Assert.Equal(300, r.Point.X, 6);
+        Assert.Equal(400, r.Point.Y, 6);
+    }
+
+    [Fact]
+    public void Only_a_level_view_draws_on_the_plane_facing_it()
+    {
+        Assert.Equal(Vec3.UnitZ, InferenceEngine.DrawingPlane(new Vec3(0, 0.93, -0.37), Transform.Identity));
+        Assert.Equal(Vec3.UnitY, InferenceEngine.DrawingPlane(new Vec3(0, 1, -0.02), Transform.Identity));
+    }
 }

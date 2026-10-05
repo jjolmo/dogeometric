@@ -76,7 +76,7 @@ public sealed class RotatedRectangleTool : DrawingTool
     private Vec3 Across()
     {
         var side = (_b!.Value - _a!.Value).Normalized();
-        var n = _onFace ? _faceNormal : MostFacingPlane();
+        var n = _onFace ? _faceNormal : DrawingPlane();
         var across = n.Cross(side);
         if (across.IsZero(1e-9))
             across = View.Camera.Direction.Cross(side);
@@ -123,8 +123,8 @@ public sealed class RotatedRectangleTool : DrawingTool
 
     /// <summary>The plane the rectangle starts on: the locked one, the face clicked, or the plane facing the viewer.</summary>
     private Vec3 PlaneNormal(InferenceResult? inf) =>
-        _a != null ? (_onFace ? _faceNormal : MostFacingPlane())
-        : _lockedNormal ?? (inf?.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : MostFacingPlane());
+        _a != null ? (_onFace ? _faceNormal : DrawingPlane())
+        : _lockedNormal ?? (inf?.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized() : DrawingPlane());
 
     /// <summary>Where typed angles turn from: the baseline set with Alt, else the plane's first axis.</summary>
     private Vec3 Baseline(Vec3 normal)

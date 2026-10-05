@@ -69,7 +69,7 @@ public sealed class RotateTool(int commandId = CommandIds.Rotate) : DrawingTool
             // On the face under the cursor, on the ground when on the ground, else the axis plane facing the viewer.
             _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal)
                 : inf.Kind == InferenceKind.InPlane ? Blue
-                : MostFacingPlane());
+                : DrawingPlane());
             _lastCopy = null;
             _pressedAt = position;
         }

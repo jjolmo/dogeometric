@@ -67,7 +67,7 @@ public sealed class ProtractorTool : DrawingTool
     private Vec3 PlaneNormal(InferenceResult inf) =>
         _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal).Normalized()
             : inf.Kind == InferenceKind.InPlane ? Blue
-            : MostFacingPlane());
+            : DrawingPlane());
 
     private Vec3 OnPlane(InferenceResult inf)
     {

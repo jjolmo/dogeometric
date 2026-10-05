@@ -42,7 +42,7 @@ public sealed class CircleByDiameterTool : DrawingTool
         if (_start == null)
         {
             _start = inf.Point;
-            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : MostFacingPlane());
+            _normal = _lockedNormal ?? (inf.Face is { } f ? inf.EntityToWorld.ApplyNormal(f.Normal) : DrawingPlane());
             RefreshStatus();
             return;
         }

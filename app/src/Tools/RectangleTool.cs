@@ -60,7 +60,7 @@ public sealed class RectangleTool : DrawingTool
         else if (inf.Kind == InferenceKind.InPlane)
             _normal = Blue; // on the ground
         else
-            _normal = MostFacingPlane();
+            _normal = DrawingPlane();
         SetAxes();
     }
 
