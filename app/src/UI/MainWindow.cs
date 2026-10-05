@@ -24,6 +24,7 @@ public partial class MainWindow : Control
     private PanelContainer _tray = null!;
     private EntityInfoPanel _entityInfo = null!;
     private MaterialsPanel _materials = null!;
+    private FogPanel _fog = null!;
     private TagsPanel _tags = null!;
     private ComponentsPanel _components = null!;
     private OutlinerPanel _outliner = null!;
@@ -912,7 +913,12 @@ public partial class MainWindow : Control
             doc.Undo.Commit();
             _document.ApplyShadows();
         }, () => _document.Document.Model.Shadows.Enabled);
-        _commands.Register(CommandIds.Fog, () => _viewport.ShowFog = !_viewport.ShowFog, () => _viewport.ShowFog);
+        _commands.Register(CommandIds.Fog, () =>
+        {
+            _viewport.ShowFog = !_viewport.ShowFog;
+            _fog.Apply();
+            _fog.Refresh();
+        }, () => _viewport.ShowFog);
         _commands.Register(CommandIds.HiddenGeometry, () => _document.ShowHiddenGeometry = !_document.ShowHiddenGeometry, () => _document.ShowHiddenGeometry);
         _commands.Register(CommandIds.BackEdges, () =>
         {
@@ -1192,10 +1198,17 @@ public partial class MainWindow : Control
         _document.ShadowsChanged += _shadows.Refresh;
         _document.DocumentReplaced += _shadows.Refresh;
         _outliner = OutlinerPanel.Create(() => _document.Document, () => _document.RebuildAll());
+        _fog = FogPanel.Create(() => _document.Document, _viewport, () => _fog.Refresh());
+        _document.DocumentReplaced += () =>
+        {
+            _fog.Refresh();
+            _fog.Apply();
+        };
         foreach (var (name, panel, expanded) in new (string, Control, bool)[]
         {
             ("Entity Info", _entityInfo, true), ("Materials", _materials, true), ("Components", _components, false),
             ("Styles", _styles, false), ("Tags", _tags, false), ("Scenes", ScenesPanel.Create(() => _document.Document, _scenes), false), ("Shadows", _shadows, false),
+            ("Fog", _fog, false),
             ("Soften Edges", SoftenEdgesPanel.Create(() => _document.Document), false), ("Outliner", _outliner, false),
         })
             _panels[name] = TraySection.Create(name, panel, expanded);

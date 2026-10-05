@@ -125,6 +125,7 @@ public partial class ModelViewport : Control
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color(1, 1, 1),
             AmbientLightEnergy = 0.45f,
+            FogLightColor = new Color(0.74f, 0.76f, 0.79f),
             TonemapMode = Godot.Environment.ToneMapper.Linear,
         };
         root.AddChild(new WorldEnvironment { Environment = env });
@@ -469,6 +470,16 @@ public partial class ModelViewport : Control
 
     private Godot.Environment? _environment;
     private Bounds3 _fogBounds = Bounds3.Empty;
+    private (double Start, double End) _fogRange = (0, 1);
+
+    /// <summary>Fog panel: start and end (0 to 1 across the model's depth) and colour (null for the background's).</summary>
+    public void SetFog(double start, double end, Color? color)
+    {
+        _fogRange = (start, Math.Max(end, start + 0.01));
+        if (_environment != null)
+            _environment.FogLightColor = color ?? new Color(0.74f, 0.76f, 0.79f);
+        UpdateFog();
+    }
 
     /// <summary>View › Fog: geometry fades into the background colour with distance, as SketchUp's fog.</summary>
     public bool ShowFog
@@ -480,7 +491,6 @@ public partial class ModelViewport : Control
                 return;
             _environment.FogEnabled = value;
             _environment.FogMode = Godot.Environment.FogModeEnum.Depth;
-            _environment.FogLightColor = new Color(0.74f, 0.76f, 0.79f); // SketchUp's ground grey
             _environment.FogDensity = 1;
             _environment.FogDepthCurve = 1;
             _environment.FogSkyAffect = 0; // the sky gradient stays
@@ -498,8 +508,10 @@ public partial class ModelViewport : Control
         var distance = Camera.Distance;
         var radius = bounds.IsEmpty ? distance : bounds.Diagonal * 0.5;
         var centreDepth = bounds.IsEmpty ? distance : Math.Max(Camera.DepthOf(bounds.Center), 1);
-        _environment.FogDepthBegin = (float)(Math.Max(centreDepth - radius, 0) * Space.MetersPerUnit);
-        _environment.FogDepthEnd = (float)((centreDepth + radius * 1.5) * Space.MetersPerUnit);
+        var near = Math.Max(centreDepth - radius, 0);
+        var far = centreDepth + radius * 1.5;
+        _environment.FogDepthBegin = (float)((near + (far - near) * _fogRange.Start) * Space.MetersPerUnit);
+        _environment.FogDepthEnd = (float)((near + (far - near) * _fogRange.End) * Space.MetersPerUnit);
     }
 
     private DirectionalLight3D _sun = null!;

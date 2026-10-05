@@ -216,7 +216,8 @@ public class DogFileTests
     {
         var model = new Model();
         var doc = new Document(model);
-        var options = new ModelOptions { Author = "Ada", FadeRest = 0.2, FadeSimilar = 0.9, ShowComponentAxes = true, SmoothTextures = false };
+        var options = new ModelOptions { Author = "Ada", FadeRest = 0.2, FadeSimilar = 0.9, ShowComponentAxes = true, SmoothTextures = false,
+            FogStart = 0.25, FogEnd = 0.8, FogColor = new Rgba(10, 20, 30) };
         doc.Undo.Begin("Model Info");
         model.Options = options;
         doc.Undo.Commit();

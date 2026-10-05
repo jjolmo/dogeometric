@@ -34,6 +34,12 @@ public sealed record ModelOptions
 
     /// <summary>Rendering › Use anti-aliased textures.</summary>
     public bool SmoothTextures { get; init; } = true;
+
+    /// <summary>Fog panel: where fog starts and is full, from 0 (the model's near side) to 1 (well past its far
+    /// side), and its colour when it isn't the background's.</summary>
+    public double FogStart { get; init; }
+    public double FogEnd { get; init; } = 1;
+    public Rgba? FogColor { get; init; }
 }
 
 /// <summary>SketchUp's dimension endpoint styles.</summary>

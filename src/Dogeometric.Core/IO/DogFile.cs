@@ -62,6 +62,10 @@ public static class DogFile
             w.WriteNumber("fadeSimilar", model.Options.FadeSimilar);
             w.WriteBoolean("componentAxes", model.Options.ShowComponentAxes);
             w.WriteBoolean("smoothTextures", model.Options.SmoothTextures);
+            w.WriteNumber("fogStart", model.Options.FogStart);
+            w.WriteNumber("fogEnd", model.Options.FogEnd);
+            if (model.Options.FogColor is { } fog)
+                w.WriteString("fogColor", $"{fog.R},{fog.G},{fog.B}");
             w.WriteEndObject();
             w.WriteStartObject("annotation");
             w.WriteNumber("dimensionFontSize", model.DimensionFontSize);
@@ -500,6 +504,10 @@ public static class DogFile
                 FadeSimilar = opts.GetProperty("fadeSimilar").GetDouble(),
                 ShowComponentAxes = opts.GetProperty("componentAxes").GetBoolean(),
                 SmoothTextures = opts.GetProperty("smoothTextures").GetBoolean(),
+                FogStart = opts.TryGetProperty("fogStart", out var fs) ? fs.GetDouble() : 0,
+                FogEnd = opts.TryGetProperty("fogEnd", out var fe) ? fe.GetDouble() : 1,
+                FogColor = opts.TryGetProperty("fogColor", out var fc) && fc.GetString()!.Split(',') is [var fr, var fg, var fb]
+                    ? new Rgba(byte.Parse(fr), byte.Parse(fg), byte.Parse(fb)) : null,
             };
         if (r.TryGetProperty("shadows", out var shadows))
             model.Shadows = ReadShadows(shadows);
