@@ -113,7 +113,6 @@ public partial class Toolbar : PanelContainer
             var cmd = _registry.Get(id);
             var button = new Button
             {
-                Flat = true,
                 FocusMode = FocusModeEnum.None,
                 CustomMinimumSize = new Vector2(30, 30),
                 ExpandIcon = false,
@@ -122,11 +121,29 @@ public partial class Toolbar : PanelContainer
             };
             if (_icons.TryGetValue(id, out var icon) && ResourceLoader.Exists($"res://icons/{icon}.svg"))
                 button.Icon = GD.Load<Texture2D>($"res://icons/{icon}.svg");
+            button.AddThemeStyleboxOverride("hover", HoverBox);
+            button.AddThemeStyleboxOverride("pressed", OnBox);
+            button.AddThemeStyleboxOverride("hover_pressed", OnBox);
+            button.AddThemeStyleboxOverride("disabled", Rest);
+            button.AddThemeStyleboxOverride("focus", Rest);
             button.Pressed += () => _registry.Execute(id);
             _box.AddChild(button);
             _buttons.Add((button, cmd));
         }
         Refresh();
+    }
+
+    // SketchUp's toolbar buttons: bare at rest, a blue-edged box under the mouse, a deeper one while active.
+    private static readonly StyleBox Rest = new StyleBoxEmpty();
+    private static readonly StyleBox HoverBox = Edged(LightTheme.Hover);
+    private static readonly StyleBox OnBox = Edged(Color.Color8(179, 215, 243));
+
+    private static StyleBoxFlat Edged(Color fill)
+    {
+        var box = LightTheme.Box(fill);
+        box.BorderColor = Color.Color8(0, 120, 215);
+        box.SetBorderWidthAll(1);
+        return box;
     }
 
     /// <summary>Re-reads enabled and checked state (active tool, projection, toggles).</summary>
@@ -137,7 +154,7 @@ public partial class Toolbar : PanelContainer
             button.Disabled = !cmd.IsImplemented;
             button.Modulate = cmd.IsImplemented ? Colors.White : new Color(1, 1, 1, 0.35f);
             var on = cmd.IsChecked?.Invoke() == true;
-            button.Flat = !on;
+            button.AddThemeStyleboxOverride("normal", on ? OnBox : Rest);
             button.TooltipText = Tooltip(cmd);
         }
     }
