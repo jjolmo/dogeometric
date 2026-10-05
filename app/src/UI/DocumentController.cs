@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.step, *.stp ; STEP (AP214)", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -478,6 +478,14 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         if (ext == ".skp")
         {
             WriteSkp(path);
+            return;
+        }
+        if (ext is ".step" or ".stp")
+        {
+            StepWriter.Result? step = null;
+            Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p)));
+            if (step != null)
+                status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
             return;
         }
         var selectionOnly = _exportOptionsDialog?.GetSelectedOptions() is { } opts && opts.TryGetValue("Export selection only", out var v) && (bool)v
