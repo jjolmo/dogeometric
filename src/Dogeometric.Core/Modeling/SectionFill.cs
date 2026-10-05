@@ -38,6 +38,32 @@ public static class SectionFill
         return result;
     }
 
+    /// <summary>
+    /// Section plane › Troubleshoot Section Fill: where the cut doesn't close, so it can't be filled: points where a
+    /// run of the cut stops (an odd number of its segments meet there), as left by holes or gaps in the geometry.
+    /// </summary>
+    public static List<Vec3> Problems(IReadOnlyList<(Vec3 A, Vec3 B)> segments)
+    {
+        var cell = Tolerance.Length * 10;
+        var ends = new List<(Vec3 Point, int Count)>();
+        void Touch(Vec3 p)
+        {
+            var i = ends.FindIndex(e => e.Point.DistanceTo(p) < cell);
+            if (i < 0)
+                ends.Add((p, 1));
+            else
+                ends[i] = (ends[i].Point, ends[i].Count + 1);
+        }
+        foreach (var (a, b) in segments)
+        {
+            if (a.DistanceTo(b) < cell)
+                continue;
+            Touch(a);
+            Touch(b);
+        }
+        return ends.Where(e => e.Count % 2 == 1).Select(e => e.Point).ToList();
+    }
+
     /// <summary>The segments joined end to end into closed loops; open runs are dropped.</summary>
     public static List<List<Vec3>> Loops(IReadOnlyList<(Vec3 A, Vec3 B)> segments)
     {

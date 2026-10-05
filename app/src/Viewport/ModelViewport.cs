@@ -681,6 +681,9 @@ public partial class ModelViewport : Control
     /// <summary>World segments where the active section cuts the model (drawn as thick lines).</summary>
     public List<(Vec3 A, Vec3 B)> SectionCut { get; private set; } = [];
 
+    /// <summary>Section plane › Troubleshoot Section Fill: the points where the active cut doesn't close (world).</summary>
+    public List<Vec3> SectionProblems { get; set; } = [];
+
     /// <summary>Places the drawn axes where the model's drawing axes are (Axes tool).</summary>
     public void UpdateAxes()
     {
@@ -722,6 +725,8 @@ public partial class ModelViewport : Control
     /// <summary>Applies the model's active section: the shaders' cut plane and the cut lines.</summary>
     public void UpdateSection()
     {
+        // Troubleshooting marks belong to the cut they were found on.
+        SectionProblems = [];
         var plane = Document?.Model.Entities.ActiveSection;
         if (plane == null || !ShowSectionCuts)
         {

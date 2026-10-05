@@ -123,6 +123,15 @@ public static class ContextMenu
             Item("Reverse", () => runCommand(CommandIds.ReverseSection));
             Item(doc.Context.Entities.ActiveSection == section ? "Active Cut ✓" : "Active Cut", () => runCommand(CommandIds.ActiveSectionCut));
             Item("Align View", () => AlignView(doc, view, section));
+            Item("Troubleshoot Section Fill", () =>
+            {
+                var problems = SectionFill.Problems(Intersect.Slice(doc.Model, section));
+                view.SectionProblems = problems;
+                view.QueueOverlayRedraw();
+                view.ShowHint(problems.Count == 0
+                    ? "Section Fill: the cut closes everywhere."
+                    : $"Section Fill: the cut breaks at {problems.Count} point(s), marked in red; the geometry there is not closed.");
+            });
             Item("Create Group from Slice", () =>
             {
                 ComponentInstance? made = null;

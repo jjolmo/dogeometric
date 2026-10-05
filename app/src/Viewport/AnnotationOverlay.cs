@@ -46,6 +46,13 @@ public sealed class AnnotationOverlay
             foreach (var (a, b) in view.SectionCut)
                 if (view.ToScreen(a) is { } sa && view.ToScreen(b) is { } sb)
                     canvas.DrawLine(sa, sb, ToColor(style.SectionCutColor), style.SectionCutWidth, true);
+        // Where the cut breaks: red rings, so the gaps in the geometry can be found.
+        foreach (var p in view.SectionProblems)
+            if (view.ToScreen(p) is { } at)
+            {
+                canvas.DrawArc(at, 9, 0, Mathf.Tau, 24, new Color(0.9f, 0.1f, 0.1f), 2.5f, true);
+                canvas.DrawCircle(at, 3, new Color(0.9f, 0.1f, 0.1f));
+            }
 
         Walk(doc.Model.Entities, Transform.Identity, [doc.Model.Entities]);
 
