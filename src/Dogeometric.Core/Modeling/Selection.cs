@@ -100,10 +100,12 @@ public static class Topology
 
     public static IEnumerable<Edge> EdgesOf(Face face) => face.Loops.SelectMany(l => l.Edges.Select(x => x.Edge)).Distinct();
 
-    /// <summary>Double-click: a face with its edges, or an edge with the faces that share it.</summary>
+    /// <summary>Double-click: a face with its edges, or an edge (its whole curve, for a curve's) with the faces on it.</summary>
     public static IEnumerable<object> DoubleClickSet(Entities e, object item) => item switch
     {
         Face f => EdgesOf(f).Cast<object>().Prepend(f),
+        Edge { Curve: { } curve } => e.Edges.Where(x => x.Curve == curve).ToList() is var edges
+            ? edges.Cast<object>().Concat(edges.SelectMany(x => FacesOf(e, x)).Distinct()) : [],
         Edge edge => FacesOf(e, edge).Cast<object>().Prepend(edge),
         _ => [item],
     };

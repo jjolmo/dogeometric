@@ -71,4 +71,15 @@ public class ContextOpsTests
         Assert.Contains(ends, p => p.DistanceTo(new Vec3(60, 0, 0)) < 1e-9);
         Assert.Contains(ends, p => p.DistanceTo(new Vec3(50, -10, 0)) < 1e-9);
     }
+
+    [Fact]
+    public void Double_clicking_a_circle_picks_all_its_edges_and_its_face()
+    {
+        var e = new Entities();
+        var circle = new Curve { Center = Vec3.Zero, Normal = Vec3.UnitZ, Radius = 10, Segments = 24 };
+        var edges = StickyGeometry.DrawEdges(e, Shapes.RegularPolygon(Vec3.Zero, Vec3.UnitZ, Vec3.UnitX, 10, 24), closed: true, Vec3.UnitZ, circle);
+        var set = Topology.DoubleClickSet(e, edges[5]).ToList();
+        Assert.Equal(25, set.Count);
+        Assert.Contains(e.Faces[0], set);
+    }
 }
