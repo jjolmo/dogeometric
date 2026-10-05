@@ -35,6 +35,7 @@ public static class SkpLegacyScenes
             scenes.Add(new Scene
             {
                 Name = name.Text,
+                Saves = SceneProperties.Camera | SceneProperties.VisibleTags,
                 Camera = new CameraState(eye * MmPerInch, target * MmPerInch, up, perspective, fov, orthoHeight * MmPerInch),
             });
         }

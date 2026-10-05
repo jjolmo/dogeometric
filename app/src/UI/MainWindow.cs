@@ -59,7 +59,7 @@ public partial class MainWindow : Control
         // Scene tabs sit above the drawing area, shown once the model has scenes.
         var drawing = new VBoxContainer { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         drawing.AddThemeConstantOverride("separation", 0);
-        _scenes = SceneTabs.Create(() => _document.Document, _viewport, () => _document.RebuildAll());
+        _scenes = SceneTabs.Create(() => _document.Document, _viewport, () => _document.ApplySceneState());
         var tabsBar = new PanelContainer();
         tabsBar.AddThemeStyleboxOverride("panel", LightTheme.Box(LightTheme.BarBackground, 2, 1));
         tabsBar.AddChild(_scenes);

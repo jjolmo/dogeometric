@@ -4,7 +4,7 @@ using Godot;
 namespace Dogeometric.App.UI.Tray;
 
 /// <summary>SketchUp's Scenes panel: the scenes in order, buttons to add, remove, update and reorder them, and the
-/// selected one's name, description and whether animations include it.</summary>
+/// selected one's name, description, whether animations include it and the properties it saves.</summary>
 public partial class ScenesPanel : VBoxContainer
 {
     private Func<Document> _doc = null!;
@@ -69,6 +69,18 @@ public partial class ScenesPanel : VBoxContainer
         var animation = new CheckBox { Text = "Include in animation", ButtonPressed = scene.InAnimation };
         animation.Toggled += on => scene.InAnimation = on;
         AddChild(animation);
+        AddChild(new Label { Text = "Properties to save:" });
+        foreach (var (label, flag) in new[]
+        {
+            ("Camera Location", SceneProperties.Camera), ("Visible Tags", SceneProperties.VisibleTags),
+            ("Active Section Planes", SceneProperties.ActiveSections), ("Style and Fog", SceneProperties.StyleAndFog),
+            ("Shadow Settings", SceneProperties.Shadows), ("Axes Location", SceneProperties.Axes),
+        })
+        {
+            var check = new CheckBox { Text = label, ButtonPressed = scene.Saves.HasFlag(flag), FocusMode = FocusModeEnum.None };
+            check.Toggled += on => scene.Saves = on ? scene.Saves | flag : scene.Saves & ~flag;
+            AddChild(check);
+        }
     }
 
     private void Rename(Scene scene, string text)

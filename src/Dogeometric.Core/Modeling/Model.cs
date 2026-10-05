@@ -1,3 +1,4 @@
+using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Units;
 using Dogeometric.Core.View;
 
@@ -11,11 +12,66 @@ public sealed class Scene
 
     /// <summary>Scenes panel › Include in animation: off, playing and exporting skip the scene.</summary>
     public bool InAnimation { get; set; } = true;
+
+    /// <summary>Scenes panel › Properties to save: what this scene remembers and puts back when shown.</summary>
+    public SceneProperties Saves { get; set; } = SceneProperties.All;
+
     public CameraState? Camera { get; set; }
     public HashSet<string> HiddenTags { get; } = [];
+    public StyleSettings? Style { get; set; }
+    public ShadowSettings? Shadows { get; set; }
+    public Transform? Axes { get; set; }
+
+    /// <summary>The top level's active section cut (null: none), when <see cref="SceneProperties.ActiveSections"/> is saved.</summary>
+    public SectionPlane? ActiveSection { get; set; }
 
     /// <summary>The photo this scene's camera was matched to (Camera › Match New Photo).</summary>
     public MatchedPhoto? Photo { get; set; }
+
+    /// <summary>Scene › Update: remembers the model's current state for what this scene saves (the camera comes from the view).</summary>
+    public void Capture(Model model, CameraState camera)
+    {
+        if (Saves.HasFlag(SceneProperties.Camera))
+            Camera = camera;
+        HiddenTags.Clear();
+        if (Saves.HasFlag(SceneProperties.VisibleTags))
+            foreach (var t in model.Tags.Where(t => !t.Visible))
+                HiddenTags.Add(t.Name);
+        Style = Saves.HasFlag(SceneProperties.StyleAndFog) ? model.Style : null;
+        Shadows = Saves.HasFlag(SceneProperties.Shadows) ? model.Shadows : null;
+        Axes = Saves.HasFlag(SceneProperties.Axes) ? model.Axes : null;
+        ActiveSection = model.Entities.ActiveSection;
+    }
+
+    /// <summary>Showing the scene: puts back what it saves (the camera is the caller's, to animate it).</summary>
+    public void Apply(Model model)
+    {
+        if (Saves.HasFlag(SceneProperties.VisibleTags))
+            foreach (var t in model.Tags)
+                t.Visible = !HiddenTags.Contains(t.Name);
+        if (Saves.HasFlag(SceneProperties.StyleAndFog) && Style is { } style)
+            model.Style = style;
+        if (Saves.HasFlag(SceneProperties.Shadows) && Shadows is { } shadows)
+            model.Shadows = shadows;
+        if (Saves.HasFlag(SceneProperties.Axes) && Axes is { } axes)
+            model.Axes = axes;
+        if (Saves.HasFlag(SceneProperties.ActiveSections))
+            model.Entities.ActiveSection = ActiveSection is { } a && model.Entities.SectionPlanes.Contains(a) ? a : null;
+    }
+}
+
+/// <summary>SketchUp's scene "Properties to save".</summary>
+[Flags]
+public enum SceneProperties
+{
+    None = 0,
+    Camera = 1,
+    VisibleTags = 2,
+    ActiveSections = 4,
+    StyleAndFog = 8,
+    Shadows = 16,
+    Axes = 32,
+    All = Camera | VisibleTags | ActiveSections | StyleAndFog | Shadows | Axes,
 }
 
 /// <summary>View › Face Style.</summary>

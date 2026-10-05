@@ -199,6 +199,20 @@ public static class DogFile
                 foreach (var t in s.HiddenTags)
                     w.WriteStringValue(t);
                 w.WriteEndArray();
+                if (s.Saves != SceneProperties.All)
+                    w.WriteString("saves", s.Saves.ToString());
+                if (s.Style is { } style)
+                    WriteStyle(w, style);
+                if (s.Shadows is { } shadows)
+                    WriteShadows(w, shadows);
+                if (s.Axes is { } axes)
+                {
+                    w.WriteStartArray("axes");
+                    foreach (var v in axes.ToColumnMajor())
+                        w.WriteNumberValue(v);
+                    w.WriteEndArray();
+                }
+                w.WriteNumber("activeSection", s.ActiveSection is { } section ? model.Entities.SectionPlanes.IndexOf(section) : -1);
                 if (s.Photo is { } p)
                 {
                     w.WriteStartObject("photo");
@@ -892,6 +906,17 @@ public static class DogFile
             }
             foreach (var t in s.GetProperty("hiddenTags").EnumerateArray())
                 scene.HiddenTags.Add(t.GetString() ?? "");
+            // Older files saved the camera and tags only.
+            scene.Saves = s.TryGetProperty("saves", out var saves) && Enum.TryParse<SceneProperties>(saves.GetString(), out var flags) ? flags
+                : s.TryGetProperty("activeSection", out _) ? SceneProperties.All : SceneProperties.Camera | SceneProperties.VisibleTags;
+            if (s.TryGetProperty("style", out var sceneStyle))
+                scene.Style = ReadStyle(sceneStyle);
+            if (s.TryGetProperty("shadows", out var sceneShadows))
+                scene.Shadows = ReadShadows(sceneShadows);
+            if (s.TryGetProperty("axes", out var sceneAxes))
+                scene.Axes = Transform.FromColumnMajor(sceneAxes.EnumerateArray().Select(x => x.GetDouble()).ToArray());
+            if (s.TryGetProperty("activeSection", out var sceneSection) && sceneSection.GetInt32() is var si && si >= 0 && si < model.Entities.SectionPlanes.Count)
+                scene.ActiveSection = model.Entities.SectionPlanes[si];
             if (s.TryGetProperty("photo", out var pj))
             {
                 var l = pj.GetProperty("lines").EnumerateArray().Select(x => x.GetDouble()).ToArray();

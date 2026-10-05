@@ -422,4 +422,38 @@ public class DogFileTests
         Assert.True(model.Style.Profiles);
         Assert.Equal(FaceStyle.Wireframe, model.Style.FaceStyle);
     }
+
+    [Fact]
+    public void Scenes_remember_style_shadows_axes_and_section_cut()
+    {
+        var m = new Model();
+        var cut = new SectionPlane(new Vec3(0, 50, 0), new Vec3(0, 1, 0));
+        m.Entities.SectionPlanes.Add(cut);
+        m.Entities.ActiveSection = cut;
+        m.Style = m.Style with { FaceStyle = FaceStyle.HiddenLine, Name = "Plans" };
+        m.Shadows = m.Shadows with { Enabled = true };
+        m.Axes = Transform.Translation(new Vec3(10, 20, 0));
+        var plan = new Scene { Name = "Plan" };
+        plan.Capture(m, new CameraState(new Vec3(0, 0, 100), Vec3.Zero, Vec3.UnitY, false, 35, 100));
+        var free = new Scene { Name = "Free", Saves = SceneProperties.Camera };
+        free.Capture(m, new CameraState(new Vec3(100, 100, 100), Vec3.Zero, Vec3.UnitZ, true, 35, 100));
+        m.Scenes.AddRange([plan, free]);
+
+        var back = RoundTrip(m);
+        // Change everything, then show each scene.
+        back.Style = new StyleSettings();
+        back.Shadows = back.Shadows with { Enabled = false };
+        back.Axes = Transform.Identity;
+        back.Entities.ActiveSection = null;
+        back.Scenes[1].Apply(back);
+        Assert.Equal(FaceStyle.ShadedWithTextures, back.Style.FaceStyle);
+        Assert.Null(back.Entities.ActiveSection);
+        back.Scenes[0].Apply(back);
+        Assert.Equal("Plans", back.Style.Name);
+        Assert.Equal(FaceStyle.HiddenLine, back.Style.FaceStyle);
+        Assert.True(back.Shadows.Enabled);
+        Assert.Equal(new Vec3(10, 20, 0), back.Axes.Origin);
+        Assert.Same(back.Entities.SectionPlanes[0], back.Entities.ActiveSection);
+        Assert.Equal(SceneProperties.Camera, back.Scenes[1].Saves);
+    }
 }

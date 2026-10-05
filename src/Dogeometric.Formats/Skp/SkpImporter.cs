@@ -92,7 +92,7 @@ public static class SkpImporter
 
         foreach (var page in skp.Pages)
         {
-            var scene = new Scene { Name = page.Name };
+            var scene = new Scene { Name = page.Name, Saves = SceneProperties.Camera | SceneProperties.VisibleTags };
             if (page is { Eye: { } eye, Target: { } target })
             {
                 var up = page.Up is { } u ? new Vec3(u.X, u.Y, u.Z) : Vec3.UnitZ;

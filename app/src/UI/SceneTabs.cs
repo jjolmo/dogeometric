@@ -8,7 +8,8 @@ namespace Dogeometric.App.UI;
 
 /// <summary>
 /// SketchUp's scene tabs above the drawing area: one tab per scene; clicking one flies the camera there (the model's
-/// transition time) and applies its tag visibility; right-click offers Update, Add and Delete. Play cycles through them.
+/// transition time) and puts back what it saves (tags, style, shadows, axes, section cut); right-click offers Update,
+/// Add and Delete. Play cycles through them.
 /// </summary>
 public partial class SceneTabs : HBoxContainer
 {
@@ -101,13 +102,7 @@ public partial class SceneTabs : HBoxContainer
             Go(((_current + delta) % count + count) % count);
     }
 
-    private void Capture(Model model, Scene scene)
-    {
-        scene.Camera = _view.Camera.Save();
-        scene.HiddenTags.Clear();
-        foreach (var t in model.Tags.Where(t => !t.Visible))
-            scene.HiddenTags.Add(t.Name);
-    }
+    private void Capture(Model model, Scene scene) => scene.Capture(model, _view.Camera.Save());
 
     public Scene? Current => _current >= 0 && _current < _doc().Model.Scenes.Count ? _doc().Model.Scenes[_current] : null;
 
@@ -120,11 +115,10 @@ public partial class SceneTabs : HBoxContainer
             return;
         _current = index;
         var scene = model.Scenes[index];
-        foreach (var t in model.Tags)
-            t.Visible = !scene.HiddenTags.Contains(t.Name);
+        scene.Apply(model);
         _tagsChanged();
         Refresh();
-        if (scene.Camera is not { } to)
+        if (scene.Camera is not { } to || !scene.Saves.HasFlag(SceneProperties.Camera))
         {
             _view.ShowPhoto(scene.Photo);
             return;

@@ -643,6 +643,21 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>Redraws everything (after a visibility change such as a tag toggled).</summary>
     public void RebuildAll() => Rebuild();
 
+    /// <summary>After a scene is shown: its style, shadows, axes, section cut and tag visibility take effect.</summary>
+    public void ApplySceneState()
+    {
+        _renderer.SetStyle(Model.Style, Model.Axes);
+        viewport.ApplyStyle(Model.Style);
+        StyleChanged?.Invoke();
+        _renderer.SetShadows(Model.Shadows);
+        viewport.ApplyShadows(Model.Shadows);
+        ShadowsChanged?.Invoke();
+        UpdateDepthRange();
+        Rebuild();
+        viewport.UpdateAxes();
+        viewport.UpdateSection();
+    }
+
     /// <summary>Hides the camera being looked through (null shows it again).</summary>
     public void LookThrough(ComponentInstance? camera)
     {
