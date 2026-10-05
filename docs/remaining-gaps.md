@@ -18,7 +18,7 @@ textures.
 
 | Gap | Notes |
 |---|---|
-| Ruby API | Extensions › Developer › Ruby Console runs C# against the model (Model, Entities, Selection, puts, Pt, AddFace; one undo step per line), but there is no Ruby: SketchUp's .rb extensions and scripts do not run. |
+| File formats | Missing against SketchUp 2021 Pro's lists: DEM/DDF terrain import, IFCZIP, TIF/TGA/PSD image import, and EPS, BMP, TIF and 2D DWG in Export › 2D Graphic. |
 
 ## Low impact
 
@@ -45,3 +45,9 @@ saved with the file and shown in collections, Help › Welcome (templates, Open,
 B-spline surfaces, extrusions, revolutions, offset surfaces, assemblies; Delaunay on the surface, closed and within 0.4 % of FreeCAD's areas) and STEP colours both ways (AP214 styled items; only
 checked against our own reader, as FreeCAD loads colours only with its GUI), IFC import (extrusions, face sets,
 faceted B-reps, mapped items, placements, colours, classified, openings cut from the walls they void; checked against ifcopenshell).
+
+## TODO (not planned)
+
+| Gap | Notes |
+|---|---|
+| Ruby API | Extensions › Developer › Ruby Console runs C# against the model (Model, Entities, Selection, puts, Pt, AddFace; one undo step per line), but there is no Ruby: SketchUp's .rb extensions and scripts do not run. It would take an embedded Ruby interpreter plus the SketchUp API on top. Ruby API Documentation (Extensions › Developer) has no handler either. |
