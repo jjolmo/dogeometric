@@ -27,7 +27,6 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Notes |
 |---|---|
-| Thumbnails in `.dog` files | Local collections show the preview SketchUp stores in a `.skp`; `.dog` files get a generic icon until saving stores one. |
 | Help › Welcome to SketchUp | A start dialog with templates and recent files (templates and recent files exist in File). |
 | BezierSpline › About / Documentation, Fredo6 About/Video/Donation entries | Plugin chrome; no modelling function. |
 | Advanced Camera Tools sub-categories | All 93 cameras are there; RED Mysterium sits under RED® (as in SketchUp's CSV). |
@@ -44,4 +43,5 @@ Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STE
 (checked with files exported by SketchUp), KMZ export (checked by importing it in SketchUp), DWG import and
 DWG/DXF 3D export through ACadSharp (both checked against SketchUp 2021), DXF 3D faces, ellipses and circles off the XY plane, VRML export (read back with VTK), 3DS import and export (checked
 against SketchUp both ways), FBX export (read by Godot's importer at true size; SketchUp's own FBX comes out 10× too
-big there), dotXSI export (same structure as SketchUp's).
+big there), dotXSI export (same structure as SketchUp's), `.dog` previews
+saved with the file and shown in collections.

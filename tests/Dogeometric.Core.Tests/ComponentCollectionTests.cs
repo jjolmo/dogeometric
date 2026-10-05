@@ -48,4 +48,15 @@ public class ComponentCollectionTests : IDisposable
         File.WriteAllBytes(path, [1, 2, 3]);
         Assert.Null(ComponentCollection.Thumbnail(path));
     }
+
+    [Fact]
+    public void A_dog_saved_with_a_thumbnail_shows_it()
+    {
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+        var path = Path.Combine(_root, "Parts.dog");
+        DogFile.Save(new Dogeometric.Core.Modeling.Model(), path, png);
+        Assert.Equal(png, ComponentCollection.Thumbnail(path));
+        DogFile.Save(new Dogeometric.Core.Modeling.Model(), path);
+        Assert.Null(ComponentCollection.Thumbnail(path));
+    }
 }

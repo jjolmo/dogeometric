@@ -332,7 +332,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private bool SaveTo(string path)
     {
         Backups.KeepPreviousVersion(path);
-        if (!Write(path, DogFile.Save))
+        if (!Write(path, (m, p) => DogFile.Save(m, p, Thumbnail())))
             return false;
         _savedRevision = Document.Undo.Revision;
         Changed?.Invoke();
@@ -346,8 +346,19 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (path.EndsWith(".skp", StringComparison.OrdinalIgnoreCase))
                 WriteSkp(path);
             else
-                Write(WithExtension(path, ".dog"), DogFile.Save);
+                Write(WithExtension(path, ".dog"), (m, p) => DogFile.Save(m, p, Thumbnail()));
         });
+
+    /// <summary>The view as a PNG of at most 256 px a side, the file's preview in component collections.</summary>
+    private byte[]? Thumbnail()
+    {
+        var image = viewport.Snapshot();
+        if (image == null || image.IsEmpty())
+            return null;
+        var scale = 256f / Math.Max(image.GetWidth(), image.GetHeight());
+        image.Resize(Math.Max(1, (int)(image.GetWidth() * scale)), Math.Max(1, (int)(image.GetHeight() * scale)), Image.Interpolation.Bilinear);
+        return image.SavePngToBuffer();
+    }
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
         ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.wrl ; VRML", "*.3ds ; 3D Studio", "*.fbx ; FBX", "*.xsi ; Softimage dotXSI", "*.skp ; SketchUp (2017 format)"],

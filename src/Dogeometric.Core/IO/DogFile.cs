@@ -17,13 +17,16 @@ public static class DogFile
     public const string Format = "dogeometric";
     public const int Version = 1;
 
-    public static void Save(Model model, string path)
+    /// <param name="thumbnail">A PNG preview of the view, shown for the file in component collections.</param>
+    public static void Save(Model model, string path, byte[]? thumbnail = null)
     {
         using var stream = File.Create(path);
-        Save(model, stream);
+        Save(model, stream, thumbnail);
     }
 
-    public static void Save(Model model, Stream stream)
+    public static void Save(Model model, Stream stream) => Save(model, stream, null);
+
+    public static void Save(Model model, Stream stream, byte[]? thumbnail)
     {
         using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true);
 
@@ -271,6 +274,32 @@ public static class DogFile
             var entry = zip.CreateEntry(name, CompressionLevel.NoCompression);
             using var es = entry.Open();
             es.Write(data);
+        }
+        if (thumbnail != null)
+        {
+            using var ts = zip.CreateEntry(ThumbnailEntry, CompressionLevel.NoCompression).Open();
+            ts.Write(thumbnail);
+        }
+    }
+
+    private const string ThumbnailEntry = "thumbnail.png";
+
+    /// <summary>The PNG preview saved with the file, or null.</summary>
+    public static byte[]? ReadThumbnail(string path)
+    {
+        try
+        {
+            using var zip = ZipFile.OpenRead(path);
+            if (zip.GetEntry(ThumbnailEntry) is not { } entry)
+                return null;
+            using var s = entry.Open();
+            using var copy = new MemoryStream();
+            s.CopyTo(copy);
+            return copy.ToArray();
+        }
+        catch (InvalidDataException)
+        {
+            return null;
         }
     }
 

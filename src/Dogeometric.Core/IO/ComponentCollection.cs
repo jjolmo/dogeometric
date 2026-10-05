@@ -44,10 +44,14 @@ public static class ComponentCollection
 
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-    /// <summary>The PNG preview SketchUp stores near the start of a .skp, or null.</summary>
+    /// <summary>The PNG preview stored in the file (near the start of a .skp, as an entry of a .dog), or null.</summary>
     public static byte[]? Thumbnail(string path)
     {
-        if (!System.IO.Path.GetExtension(path).Equals(".skp", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        if (!File.Exists(path))
+            return null;
+        if (System.IO.Path.GetExtension(path).Equals(".dog", StringComparison.OrdinalIgnoreCase))
+            return DogFile.ReadThumbnail(path);
+        if (!System.IO.Path.GetExtension(path).Equals(".skp", StringComparison.OrdinalIgnoreCase))
             return null;
         var head = new byte[64 * 1024];
         int read;
