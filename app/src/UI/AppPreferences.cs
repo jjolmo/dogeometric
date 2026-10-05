@@ -46,6 +46,9 @@ public sealed class AppPreferences
     /// <summary>Print a hidden-line drawing instead of the view as drawn.</summary>
     public bool PrintAsDrawing { get; set; }
 
+    /// <summary>Preferences › Template: the template File › New starts from (by name).</summary>
+    public string DefaultTemplate { get; set; } = "";
+
     /// <summary>File › Recent File, newest first.</summary>
     public List<string> RecentFiles { get; set; } = [];
 

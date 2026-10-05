@@ -111,6 +111,7 @@ public partial class MainWindow : Control
         RegisterExtensions();
         RegisterSubdExtras();
         RegisterHelp();
+        RegisterTemplates();
         ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
@@ -187,6 +188,8 @@ public partial class MainWindow : Control
         // `dogeometric model.skp`: open files given on the command line (after Godot's own "--").
         if (OS.GetCmdlineUserArgs().FirstOrDefault(a => File.Exists(a)) is { } file)
             CallDeferred(MethodName.OpenFromCommandLine, file);
+        else if (crashed == null)
+            _document.NewFrom(Templates.Create(Templates.Default));
     }
 
     /// <summary>The cloned SketchUp extensions: their menu items (where each extension puts them) and commands.</summary>

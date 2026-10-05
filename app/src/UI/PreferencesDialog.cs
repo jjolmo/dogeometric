@@ -20,7 +20,7 @@ public partial class PreferencesDialog : AcceptDialog
     private bool _capturing;
     private List<Command> _shown = [];
 
-    private static readonly string[] Sections = ["Compatibility", "Drawing", "Extensions", "General", "Graphics", "Shortcuts", "Workspace"];
+    private static readonly string[] Sections = ["Compatibility", "Drawing", "Extensions", "General", "Graphics", "Shortcuts", "Template", "Workspace"];
 
     /// <summary>The section shown last, opened again next time.</summary>
     private static string _lastSection = "General";
@@ -149,6 +149,21 @@ public partial class PreferencesDialog : AcceptDialog
                     AppPreferences.Save();
                 };
                 box.AddChild(aa);
+                break;
+
+            case "Template":
+                Heading(box, "Default Drawing Template");
+                var templates = Templates.All();
+                var list = new ItemList { CustomMinimumSize = new Vector2(0, 300) };
+                foreach (var t in templates)
+                    list.AddItem(t.Description.Length > 0 ? $"{t.Name}  —  {t.Description}" : t.Name);
+                list.Select(Math.Max(0, templates.IndexOf(Templates.Default)));
+                list.ItemSelected += i =>
+                {
+                    p.DefaultTemplate = templates[(int)i].Name;
+                    AppPreferences.Save();
+                };
+                box.AddChild(list);
                 break;
 
             case "Workspace":

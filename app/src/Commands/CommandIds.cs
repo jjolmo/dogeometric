@@ -80,6 +80,8 @@ public static class CommandIds
     public const int MatchNewPhoto = 23006;
     public const int RecentFile = 57616;
     public const int Revert = 21485;
+    public const int NewFromTemplate = 24446;
+    public const int SaveAsTemplate = 24183;
     public const int ZoomToPhoto = 10625;
 
     // Tools

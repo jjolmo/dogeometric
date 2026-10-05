@@ -220,7 +220,10 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         d.PopupCentered();
     }
 
-    public void New() => ConfirmDiscard(() => SetModel(new Model(), null, zoomExtents: false));
+    public void New() => ConfirmDiscard(() => NewFrom(Templates.Create(Templates.Default)));
+
+    /// <summary>An untitled document starting as <paramref name="model"/> (File › New, New From Template).</summary>
+    public void NewFrom(Model model) => SetModel(model, null, zoomExtents: false);
 
     public void ShowOpen() => ConfirmDiscard(() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Open",
         ["*.skp, *.dog ; Models", "*.dog ; Dogeometric", "*.skp ; SketchUp"], Open));
