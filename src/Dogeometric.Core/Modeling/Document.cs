@@ -300,6 +300,9 @@ public static class Transforming
                     vertices.Add(edge.Start);
                     vertices.Add(edge.End);
                     break;
+                case Vertex v:
+                    vertices.Add(v);
+                    break;
                 case ComponentInstance inst:
                     inst.Transform = inst.Transform.Then(t);
                     break;
@@ -318,8 +321,10 @@ public static class Transforming
                     break;
             }
         }
+        var bendable = AutoFold.Prepare(e, vertices);
         foreach (var v in vertices)
             v.Position = t.ApplyPoint(v.Position);
+        AutoFold.Fold(e, bendable);
     }
 
     /// <summary>

@@ -9,7 +9,8 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Move: pick up a point, drop it on another; moves the selection, or what is under the cursor when
-/// nothing is selected. Ctrl copies; after a copy, typing "5x" makes an array of 5, "/5" divides the distance.
+/// nothing is selected (a corner when on an endpoint). Faces bent by the move fold into flat pieces (auto-fold).
+/// Ctrl copies; after a copy, typing "5x" makes an array of 5, "/5" divides the distance.
 /// Typed lengths move along the current direction.
 /// </summary>
 public sealed class MoveTool : DrawingTool
@@ -136,7 +137,7 @@ public sealed class MoveTool : DrawingTool
             return;
         if (_from == null)
         {
-            _items = doc.Selection.IsEmpty ? ItemUnderCursor(doc, position) : doc.Selection.Items.ToList();
+            _items = doc.Selection.IsEmpty ? VertexUnderCursor(doc, inf) ?? ItemUnderCursor(doc, position) : doc.Selection.Items.ToList();
             if (_items.Count == 0)
                 return;
             // Components glued to a moving face go with it.
@@ -150,6 +151,16 @@ public sealed class MoveTool : DrawingTool
             return;
         }
         Finish(doc, Slide(inf.Point - _from.Value));
+    }
+
+    /// <summary>With nothing selected, Move picks up a corner of the geometry being edited by its endpoint.</summary>
+    private static List<object>? VertexUnderCursor(Document doc, InferenceResult inf)
+    {
+        if (inf.Kind != InferenceKind.Endpoint)
+            return null;
+        var local = doc.Context.ToWorld.Inverse().ApplyPoint(inf.Point);
+        var vertex = doc.Context.Entities.Vertices.FirstOrDefault(v => v.Position.DistanceTo(local) <= Tolerance.Length);
+        return vertex != null && doc.Context.Entities.Edges.Any(e => e.Start == vertex || e.End == vertex) ? [vertex] : null;
     }
 
     private List<object> ItemUnderCursor(Document doc, Vector2 position)
