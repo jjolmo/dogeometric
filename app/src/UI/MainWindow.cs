@@ -1397,7 +1397,17 @@ public partial class MainWindow : Control
         }
     }
 
-    private void OpenFromCommandLine(string path) => _document.Open(path);
+    /// <summary>A model opens; any other file the importer reads comes into a new model.</summary>
+    private void OpenFromCommandLine(string path)
+    {
+        if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".skp" or ".dog")
+        {
+            _document.Open(path);
+            return;
+        }
+        _document.NewFrom(Templates.Create(Templates.Default));
+        _document.ImportFile(path);
+    }
 
     private static string NativeRid() =>
         OperatingSystem.IsWindows() ? "win-x64" : OperatingSystem.IsMacOS() ? "osx" :

@@ -466,6 +466,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         ComponentImportRequested?.Invoke(def!);
     }
 
+    public void ImportFile(string path) => Import(path);
+
     private void Import(string path)
     {
         if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
