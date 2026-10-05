@@ -141,12 +141,11 @@ public sealed class ViewCamera
         var dir = Direction;
         if (Perspective)
         {
-            var delta = (anchor - Eye) * (1 - 1 / factor);
-            Eye += delta;
-            Target += delta;
-            // Keep the orbit target in front of the camera after zooming past it.
-            if ((Target - Eye).Dot(dir) <= 0)
-                Target = Eye + dir * Math.Max(anchor.DistanceTo(Eye), 1);
+            var distance = Distance;
+            Eye += (anchor - Eye) * (1 - 1 / factor);
+            // The target comes closer with the view: the near plane follows it, and a target left behind at the
+            // starting distance would clip small parts the camera has zoomed up to.
+            Target = Eye + dir * (distance / factor);
             return;
         }
 

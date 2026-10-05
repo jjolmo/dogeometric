@@ -77,6 +77,21 @@ public class ViewCameraTests
     }
 
     [Fact]
+    public void Zooming_up_to_a_small_part_brings_the_orbit_target_along()
+    {
+        // From an architectural view 10 m away, the wheel goes in on a 1 mm detail beside the target.
+        var cam = new ViewCamera(new Vec3(0, -10000, 0), Vec3.Zero);
+        var detail = new Vec3(500, 0, 0);
+        for (var i = 0; i < 40; i++)
+            cam.ZoomAt(detail, 1.25);
+
+        // The near plane follows the target's distance: it must shrink with the view, not stay at metres.
+        Assert.True(cam.Distance < 10, $"target still {cam.Distance} mm away");
+        Assert.True(cam.Eye.DistanceTo(detail) < 10);
+        AssertClose(new Vec3(0, 1, 0), cam.Direction);
+    }
+
+    [Fact]
     public void Parallel_zoom_shrinks_view_and_keeps_anchor_fixed()
     {
         var cam = new ViewCamera(new Vec3(0, -1000, 0), Vec3.Zero) { Perspective = false, OrthoHeight = 1000 };
