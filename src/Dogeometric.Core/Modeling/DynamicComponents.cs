@@ -4,10 +4,8 @@ using Dogeometric.Core.Geometry;
 
 namespace Dogeometric.Core.Modeling;
 
-/// <summary>
-/// Dynamic Components' Interact: a component's "onClick" attribute, such as ANIMATE("rotz",0,90) or SET("x",0,50),
-/// moves it to the next value each click: turning about or sliding along its own axes from where it started.
-/// </summary>
+/// <summary>Dynamic Components' Interact: an "onClick" attribute such as ANIMATE("rotz",0,90) or SET("x",0,50) moves the
+/// component to its next value each click, turning about or sliding along its own axes.</summary>
 public static partial class DynamicComponents
 {
     public const string OnClick = "onClick";

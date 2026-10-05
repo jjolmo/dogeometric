@@ -15,7 +15,7 @@ public sealed class InteractTool : Tool
     public override Input.CursorShape Cursor => _over ? Input.CursorShape.PointingHand : Input.CursorShape.Arrow;
     public override string StatusText => "Click on Dynamic Components to activate their onClick behavior.";
 
-    /// <summary>The outermost instance under the cursor that has an onClick action, from the inside out.</summary>
+    /// <summary>The innermost instance under the cursor that has an onClick action.</summary>
     private ComponentInstance? Under(Vector2 position) =>
         View.Pick(position) is { } hit ? hit.Path.Reverse().FirstOrDefault(DynamicComponents.CanInteract) : null;
 

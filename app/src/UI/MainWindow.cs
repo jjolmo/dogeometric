@@ -197,6 +197,7 @@ public partial class MainWindow : Control
         Bar("SUbD", Toolbars.Subd, ToolbarDocks.Dock.Top, visible: false);
         Bar("Section", Toolbars.Section, ToolbarDocks.Dock.Top, visible: false);
         Bar("Advanced Camera Tools", Toolbars.AdvancedCameraTools, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Dynamic Components", Toolbars.DynamicComponents, ToolbarDocks.Dock.Top, visible: false);
         Bar("Tags", Toolbars.Tags, ToolbarDocks.Dock.Top, visible: false);
         Bar("Shadows", Toolbars.Shadows, ToolbarDocks.Dock.Top, visible: false);
         _docks.Load();

@@ -11,6 +11,7 @@ public static class Toolbars
     public static readonly int[] Styles = [10596, 10619, 10597, 10598, 10599, 10600, 10601];
     public static readonly int[] SolidTools = [24198, 24200, 24201, 24202, 24203, 24204];
     public static readonly int[] Section = [21337, 21347, 21348, 21349];
+    public static readonly int[] DynamicComponents = [Commands.ExtensionIds.Interact, Commands.ExtensionIds.ComponentOptions, Commands.ExtensionIds.ComponentAttributes];
     public static readonly int[] AdvancedCameraTools =
     [
         Commands.ExtensionIds.CameraCreate, Commands.ExtensionIds.CameraLookThrough, Commands.ExtensionIds.CameraLock, Commands.ExtensionIds.CameraShowAll,
@@ -164,6 +165,9 @@ public static class Toolbars
         Icons[Commands.ExtensionIds.SubdQuadPushPull] = "subd_quad_pushpull";
         Icons[21347] = "display_section_planes";
         Icons[Commands.ExtensionIds.CameraCreate] = "act_create";
+        Icons[Commands.ExtensionIds.Interact] = "dc_interact";
+        Icons[Commands.ExtensionIds.ComponentOptions] = "dc_options";
+        Icons[Commands.ExtensionIds.ComponentAttributes] = "dc_attributes";
         Icons[Commands.ExtensionIds.CameraLookThrough] = "act_look_through";
         Icons[Commands.ExtensionIds.CameraLock] = "act_lock";
         Icons[Commands.ExtensionIds.CameraShowAll] = "act_show_cameras";
