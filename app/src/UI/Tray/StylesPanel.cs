@@ -43,6 +43,9 @@ public partial class StylesPanel : VBoxContainer
             ("Shaded With Textures", CommandIds.StyleShadedTextures), ("Monochrome", CommandIds.StyleMonochrome), ("X-ray", CommandIds.StyleXRay),
         })
             p.Switch(label, id, group);
+        p.Slider("X-ray opacity", s => s.XrayOpacity, (s, v) => s with { XrayOpacity = v });
+        p.Flag("Enable transparency", s => s.Transparency, (s, v) => s with { Transparency = v });
+        p.Choice("Transparency quality", ["Faster", "Nicer"], s => (int)s.TransparencyQuality, (s, v) => s with { TransparencyQuality = (TransparencyQuality)v });
         p.Section("Background Settings");
         p.Colour("Background", s => s.BackgroundColor, (s, c) => s with { BackgroundColor = c });
         p.Flag("Sky", s => s.Sky, (s, v) => s with { Sky = v });

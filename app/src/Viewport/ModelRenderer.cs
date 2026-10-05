@@ -49,7 +49,8 @@ public sealed class ModelRenderer
             m.SetShaderParameter("color", edge);
             m.SetShaderParameter("endpoint_px", (float)s.EndpointLength);
         }
-        var rebuild = old.Dashes != s.Dashes || old.Endpoints != s.Endpoints || old.Jitter != s.Jitter || old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
+        var rebuild = old.XrayOpacity != s.XrayOpacity || old.Transparency != s.Transparency || old.TransparencyQuality != s.TransparencyQuality
+            || old.Dashes != s.Dashes || old.Endpoints != s.Endpoints || old.Jitter != s.Jitter || old.EdgeColorMode != s.EdgeColorMode || old.FrontColor != s.FrontColor || old.BackColor != s.BackColor
             || s.EdgeColorMode != EdgeColorMode.AllSame && old.EdgeColor != s.EdgeColor;
         if (rebuild)
             ForgetMaterials();
@@ -72,6 +73,8 @@ public sealed class ModelRenderer
     private readonly Shader _faceShader = GD.Load<Shader>("res://shaders/face.gdshader");
     private readonly Shader _faceLitShader = GD.Load<Shader>("res://shaders/face_lit.gdshader");
     private readonly Shader _faceTransparentShader = GD.Load<Shader>("res://shaders/face_transparent.gdshader");
+    private readonly Shader _faceNicerShader = GD.Load<Shader>("res://shaders/face_transparent_nicer.gdshader");
+    private readonly Shader _faceNearShader = GD.Load<Shader>("res://shaders/face_transparent_near.gdshader");
     private readonly ShaderMaterial _edgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/edge.gdshader") };
     private readonly ShaderMaterial _backEdgeMaterial = new() { Shader = GD.Load<Shader>("res://shaders/back_edge.gdshader") };
 
@@ -725,45 +728,62 @@ public sealed class ModelRenderer
         if (FaceStyle is FaceStyle.Monochrome or FaceStyle.HiddenLine)
             (front, back) = (null, null);
         var xray = FaceStyle == FaceStyle.XRay;
-        var transparent = xray || (front?.Opacity ?? 1) < 1 || (back?.Opacity ?? 1) < 1;
+        var seeThrough = _style.Transparency && ((front?.Opacity ?? 1) < 1 || (back?.Opacity ?? 1) < 1);
+        var transparent = xray || seeThrough;
         var lit = SunLit && !transparent && FaceStyle != FaceStyle.HiddenLine;
-        m = new ShaderMaterial { Shader = transparent ? _faceTransparentShader : lit ? _faceLitShader : _faceShader };
+        var transparentShader = _style.TransparencyQuality == TransparencyQuality.Nicer ? _faceNicerShader : _faceTransparentShader;
+        m = new ShaderMaterial { Shader = transparent ? transparentShader : lit ? _faceLitShader : _faceShader };
+        var parameters = new List<(StringName, Variant)>();
+        void Set(StringName name, Variant value)
+        {
+            m.SetShaderParameter(name, value);
+            parameters.Add((name, value));
+        }
         if (lit)
         {
-            m.SetShaderParameter("sun_light", _shadows.Light / 100f);
-            m.SetShaderParameter("sun_dark", _shadows.Dark / 100f);
-            m.SetShaderParameter("receive_shadows", _shadows.Enabled && _shadows.OnFaces);
+            Set("sun_light", _shadows.Light / 100f);
+            Set("sun_dark", _shadows.Dark / 100f);
+            Set("receive_shadows", _shadows.Enabled && _shadows.OnFaces);
         }
         var frontColor = ToColor(front, DefaultFront);
         var backColor = ToColor(back, DefaultBack);
         if (FaceStyle == FaceStyle.HiddenLine)
             backColor = frontColor = Colors.White;
+        if (!seeThrough)
+            frontColor.A = backColor.A = 1;
         if (xray)
         {
-            frontColor.A *= 0.5f;
-            backColor.A *= 0.5f;
+            frontColor.A *= (float)_style.XrayOpacity;
+            backColor.A *= (float)_style.XrayOpacity;
         }
         // Mirrored instances see their triangles' fronts as backs: give each side the other's colour.
         if (flipped)
             (frontColor, backColor) = (backColor, frontColor);
-        m.SetShaderParameter("front_color", frontColor);
-        m.SetShaderParameter("back_color", backColor);
-        m.SetShaderParameter("smooth_textures", SmoothTextures);
+        Set("front_color", frontColor);
+        Set("back_color", backColor);
+        Set("smooth_textures", SmoothTextures);
         // Shaded With Textures shows the pictures; the other styles keep the material's average colour.
         if (FaceStyle == FaceStyle.ShadedWithTextures || xray)
         {
             var (ft, bt) = (TextureOf(front), TextureOf(back));
             if (flipped)
                 (ft, bt) = (bt, ft);
-            m.SetShaderParameter("front_tex", ft);
-            m.SetShaderParameter("back_tex", bt);
-            m.SetShaderParameter("has_front_tex", ft != null);
-            m.SetShaderParameter("has_back_tex", bt != null);
-            m.SetShaderParameter("swap_uv", flipped);
+            Set("front_tex", ft);
+            Set("back_tex", bt);
+            Set("has_front_tex", ft != null);
+            Set("has_back_tex", bt != null);
+            Set("swap_uv", flipped);
         }
         // Hidden Line draws faces flat white, without shading.
         if (FaceStyle == FaceStyle.HiddenLine)
-            m.SetShaderParameter("light_dir", Vector3.Zero);
+            Set("light_dir", Vector3.Zero);
+        if (m.Shader == _faceNicerShader)
+        {
+            var near = new ShaderMaterial { Shader = _faceNearShader, RenderPriority = 1 };
+            foreach (var (name, value) in parameters)
+                near.SetShaderParameter(name, value);
+            m.NextPass = near;
+        }
         _faceMaterials[(front, back, flipped)] = m;
         return m;
     }

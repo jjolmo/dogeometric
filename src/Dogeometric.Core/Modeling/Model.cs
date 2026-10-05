@@ -18,6 +18,9 @@ public sealed class Scene
     public MatchedPhoto? Photo { get; set; }
 }
 
+/// <summary>Styles › Edit › Face Settings › Transparency quality.</summary>
+public enum TransparencyQuality { Faster, Nicer }
+
 /// <summary>Styles › Edit › Edge Settings: what colour edges take.</summary>
 public enum EdgeColorMode { AllSame, ByMaterial, ByAxis }
 
@@ -40,6 +43,11 @@ public sealed record StyleSettings
 
     public Rgba FrontColor { get; init; } = new(255, 255, 255);
     public Rgba BackColor { get; init; } = new(164, 178, 187);
+    /// <summary>How opaque faces are in X-ray, 0 to 1.</summary>
+    public double XrayOpacity { get; init; } = 0.65;
+    /// <summary>Whether materials' opacity shows (off draws every face opaque).</summary>
+    public bool Transparency { get; init; } = true;
+    public TransparencyQuality TransparencyQuality { get; init; }
 
     public Rgba BackgroundColor { get; init; } = new(255, 255, 255);
     public bool Sky { get; init; } = true;

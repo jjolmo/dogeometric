@@ -256,6 +256,9 @@ public static class DogFile
         w.WriteString("edgeColor", RgbaText(s.EdgeColor));
         w.WriteString("frontColor", RgbaText(s.FrontColor));
         w.WriteString("backColor", RgbaText(s.BackColor));
+        w.WriteNumber("xrayOpacity", s.XrayOpacity);
+        w.WriteBoolean("transparency", s.Transparency);
+        w.WriteString("transparencyQuality", s.TransparencyQuality.ToString());
         w.WriteString("backgroundColor", RgbaText(s.BackgroundColor));
         w.WriteBoolean("sky", s.Sky);
         w.WriteString("skyColor", RgbaText(s.SkyColor));
@@ -285,6 +288,9 @@ public static class DogFile
             EdgeColor = ReadRgba(j, "edgeColor", d.EdgeColor),
             FrontColor = ReadRgba(j, "frontColor", d.FrontColor),
             BackColor = ReadRgba(j, "backColor", d.BackColor),
+            XrayOpacity = j.TryGetProperty("xrayOpacity", out var x) ? x.GetDouble() : d.XrayOpacity,
+            Transparency = Bool("transparency", d.Transparency),
+            TransparencyQuality = j.TryGetProperty("transparencyQuality", out var q) && Enum.TryParse<TransparencyQuality>(q.GetString(), out var quality) ? quality : d.TransparencyQuality,
             BackgroundColor = ReadRgba(j, "backgroundColor", d.BackgroundColor),
             Sky = Bool("sky", d.Sky),
             SkyColor = ReadRgba(j, "skyColor", d.SkyColor),
