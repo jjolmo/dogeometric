@@ -32,6 +32,8 @@ public sealed class ToolManager
             _previous = Active;
         tool.Attach(_view, this);
         Active = tool;
+        // The Measurements box starts from the new tool's value, not the last one's (activation may set its own).
+        _view.ShowVcbValue(tool.VcbValue);
         tool.Activate();
         NotifyChanged();
     }
