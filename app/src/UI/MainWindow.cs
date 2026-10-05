@@ -112,6 +112,7 @@ public partial class MainWindow : Control
         RegisterSubdExtras();
         RegisterHelp();
         RegisterTemplates();
+        _commands.Register(CommandIds.ExportAnimation, ExportAnimation);
         ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.

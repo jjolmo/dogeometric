@@ -674,6 +674,10 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     private static string WithExtension(string path, string ext) =>
         System.IO.Path.GetExtension(path).Length == 0 ? path + ext : path;
 
+    /// <summary>A save-file picker for exports (File › Export › Animation).</summary>
+    public void PickExport(string title, string[] filters, Action<string> onPicked) =>
+        ShowDialog(FileDialog.FileModeEnum.SaveFile, title, filters, onPicked);
+
     /// <summary>Camera › Match New Photo's file picker.</summary>
     public void PickPhoto(Action<string> onPicked) =>
         ShowDialog(FileDialog.FileModeEnum.OpenFile, "Select Photo", ["*.jpg, *.jpeg, *.png ; Photos"], onPicked);
