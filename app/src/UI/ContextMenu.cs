@@ -45,6 +45,10 @@ public static class ContextMenu
             Item("Entity Info", () => { }, sel.Count > 0);
             Item("Erase", () => runCommand(CommandIds.Delete), sel.Count > 0);
             Item("Hide", () => runCommand(CommandIds.Hide), sel.Count > 0);
+            if (sel.OfType<ComponentInstance>().Any())
+                Item("Lock", () => runCommand(CommandIds.Lock));
+            if (doc.Context.Path.Count > 0)
+                Item(doc.Context.Path[^1].IsGroup ? "Close Group" : "Close Component", () => runCommand(CommandIds.CloseGroup));
             menu.AddSeparator();
         }
 
@@ -206,6 +210,8 @@ public static class ContextMenu
                 foreach (var f in faces)
                     FaceFinder.Reverse(f);
             }));
+            if (faces.Count == 1)
+                Item("Orient Faces", () => doc.Operation("Orient Faces", e => OrientFaces.Apply(e, faces[0])));
         }
         if (sel.Any(x => x is Face or Edge or ComponentInstance))
         {
