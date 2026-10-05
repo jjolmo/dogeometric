@@ -36,8 +36,23 @@ public sealed class LineTool : DrawingTool
         Segment(start, inf.Point);
     }
 
+    public override bool StartsVcb(char c) => c is '[' or '<';
+
     public override bool ApplyVcb(string text)
     {
+        // Typed coordinates: the first point, or the end of the next segment.
+        if (TryCoordinates(text, _start, out var typed))
+        {
+            if (_start is { } from)
+                Segment(from, typed);
+            else
+            {
+                _start = typed;
+                RefreshStatus();
+                UpdateInference();
+            }
+            return true;
+        }
         if (_start is not { } start || Current is not { } inf || !Length.TryParse(text, LengthUnit.Millimeters, out var mm) || mm == 0)
             return false;
         var dir = (inf.Point - start).Normalized();

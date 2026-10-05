@@ -120,6 +120,29 @@ public abstract class DrawingTool : Tool
         Inference.LockedLine = null;
     }
 
+    /// <summary>
+    /// SketchUp's typed coordinates: "[x,y,z]" a point in the drawing axes, "&lt;x,y,z&gt;" an offset along them from
+    /// <paramref name="from"/> (world). Each value is a length with optional units; missing ones are 0.
+    /// </summary>
+    protected bool TryCoordinates(string text, Vec3? from, out Vec3 point)
+    {
+        point = default;
+        var t = text.Trim();
+        var absolute = t.StartsWith('[') && t.EndsWith(']');
+        if (!absolute && !(t.StartsWith('<') && t.EndsWith('>')) || !absolute && from == null)
+            return false;
+        var parts = t[1..^1].Split(',');
+        if (parts.Length is < 1 or > 3)
+            return false;
+        var v = new double[3];
+        for (var i = 0; i < parts.Length; i++)
+            if (parts[i].Trim().Length > 0 && !Core.Units.Length.TryParse(parts[i], Core.Units.LengthUnit.Millimeters, out v[i]))
+                return false;
+        var along = Red * v[0] + Green * v[1] + Blue * v[2];
+        point = absolute ? Axes.Origin + along : from!.Value + along;
+        return true;
+    }
+
     /// <summary>World point → active context's local point (where new geometry goes).</summary>
     protected Vec3 ToLocal(Vec3 world) => View.Document!.Context.ToWorld.Inverse().ApplyPoint(world);
 

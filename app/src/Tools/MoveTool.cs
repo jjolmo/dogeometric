@@ -208,7 +208,7 @@ public sealed class MoveTool : DrawingTool
         View.QueueOverlayRedraw();
     }
 
-    public override bool StartsVcb(char c) => _lastCopy != null && c is 'x' or 'X' or '*' or '/';
+    public override bool StartsVcb(char c) => c is '[' or '<' || _lastCopy != null && c is 'x' or 'X' or '*' or '/';
 
     public override bool ApplyVcb(string text)
     {
@@ -228,6 +228,12 @@ public sealed class MoveTool : DrawingTool
                 for (var i = 1; i <= n; i++)
                     Transforming.Copy(e, last.Source, Transform.Translation(step * i));
             });
+            return true;
+        }
+        // Typed coordinates: "[x,y,z]" moves the picked point there, "<x,y,z>" moves by that much.
+        if (_from is { } picked && TryCoordinates(text, picked, out var target))
+        {
+            Finish(doc, Slide(target - picked));
             return true;
         }
         if (_from is not { } from || Current is not { } c || !Length.TryParse(text, LengthUnit.Millimeters, out var mm))
