@@ -21,6 +21,24 @@ public sealed class DimensionTool : DrawingTool
 
     public override int CommandId => CommandIds.Dimension;
     public override string CursorImage => "dimension";
+    public override string VcbLabel => _end != null ? "Offset" : "";
+    public override string VcbValue => _start is { } && _end is { } ? Core.Units.Length.Format(Offset().Length, Core.Units.LengthUnit.Millimeters, 1) : "";
+
+    protected override void OnInferenceChanged() => View.ShowVcbValue(VcbValue);
+
+    /// <summary>A typed offset places the dimension line that far out, on the side the cursor is.</summary>
+    public override bool ApplyVcb(string text)
+    {
+        if (_start == null || _end == null || View.Document is not { } doc
+            || !Core.Units.Length.TryParse(text, Core.Units.LengthUnit.Millimeters, out var mm) || mm <= 0)
+            return false;
+        var direction = Offset();
+        if (direction.IsZero(1e-9))
+            return false;
+        Place(doc, direction.Normalized() * mm);
+        RefreshStatus();
+        return true;
+    }
     protected override Vec3? From => _end == null ? _start : null;
 
     public override string StatusText => (_start, _end) switch
@@ -122,12 +140,12 @@ public sealed class DimensionTool : DrawingTool
         return offset;
     }
 
-    private void Place(Document doc)
+    private void Place(Document doc, Vec3? worldOffset = null)
     {
         var toLocal = doc.Context.ToWorld.Inverse();
         var s = toLocal.ApplyPoint(_start!.Value);
         var e = toLocal.ApplyPoint(_end!.Value);
-        var offset = toLocal.ApplyVector(Offset());
+        var offset = toLocal.ApplyVector(worldOffset ?? Offset());
         doc.Operation("Dimension", ent => ent.Dimensions.Add(new LinearDimension(s, e, offset) { Style = doc.Model.Dimensions }));
         _start = null;
         _end = null;
