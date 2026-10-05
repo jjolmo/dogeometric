@@ -22,12 +22,26 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>View › Face Style.</summary>
     public FaceStyle FaceStyle
     {
-        get => _renderer.FaceStyle;
-        set
-        {
-            _renderer.FaceStyle = value;
+        get => Model.Style.FaceStyle;
+        set => SetView(s => s with { FaceStyle = value });
+    }
+
+    /// <summary>A View menu switch: changes the model's style without an undo step, as SketchUp does.</summary>
+    private void SetView(Func<StyleSettings, StyleSettings> change)
+    {
+        Model.Style = change(Model.Style);
+        ApplyModelStyle();
+    }
+
+    private void ApplyModelStyle()
+    {
+        var rebuild = _renderer.SetStyle(Model.Style, Model.Axes);
+        viewport.ApplyStyle(Model.Style);
+        UpdateDepthRange();
+        StyleChanged?.Invoke();
+        if (rebuild)
             Rebuild();
-        }
+        viewport.UpdateSection();
     }
 
     /// <summary>Redraws the openings of glued instances being dragged at <paramref name="placement"/> (null when the drag ends).</summary>
@@ -59,35 +73,22 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>View › Edge Style › Edges.</summary>
     public bool ShowEdges
     {
-        get => _renderer.ShowEdges;
-        set
-        {
-            _renderer.ShowEdges = value;
-            Rebuild();
-        }
+        get => Model.Style.Edges;
+        set => SetView(s => s with { Edges = value });
     }
 
     /// <summary>View › Edge Style › Extension.</summary>
     public bool ShowExtension
     {
-        get => _renderer.ShowExtension;
-        set
-        {
-            _renderer.ShowExtension = value;
-            Rebuild();
-        }
+        get => Model.Style.Extension;
+        set => SetView(s => s with { Extension = value });
     }
 
     /// <summary>View › Edge Style › Depth Cue.</summary>
     public bool ShowDepthCue
     {
-        get => _renderer.ShowDepthCue;
-        set
-        {
-            _renderer.ShowDepthCue = value;
-            UpdateDepthRange();
-            Rebuild();
-        }
+        get => Model.Style.DepthCue;
+        set => SetView(s => s with { DepthCue = value });
     }
 
     /// <summary>Depth Cue follows the camera: the nearest and farthest corners of the model's box.</summary>
@@ -107,12 +108,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>View › Edge Style › Profiles.</summary>
     public bool ShowProfiles
     {
-        get => _renderer.ShowProfiles;
-        set
-        {
-            _renderer.ShowProfiles = value;
-            Rebuild();
-        }
+        get => Model.Style.Profiles;
+        set => SetView(s => s with { Profiles = value });
     }
 
     /// <summary>View › Hidden Objects.</summary>
@@ -129,19 +126,15 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>View › Hidden Geometry.</summary>
     public bool ShowHiddenGeometry
     {
-        get => _renderer.ShowHiddenGeometry;
-        set
-        {
-            _renderer.ShowHiddenGeometry = value;
-            Rebuild();
-        }
+        get => Model.Style.HiddenGeometry;
+        set => SetView(s => s with { HiddenGeometry = value });
     }
 
     /// <summary>View › Edge Style › Back Edges.</summary>
     public bool ShowBackEdges
     {
-        get => _renderer.ShowBackEdges;
-        set => _renderer.ShowBackEdges = value;
+        get => Model.Style.BackEdges;
+        set => SetView(s => s with { BackEdges = value });
     }
 
     private List<CenterPoint>? _centers;
@@ -168,12 +161,27 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     /// <summary>View › Guides.</summary>
     public bool ShowGuides
     {
-        get => _renderer.ShowGuides;
-        set
-        {
-            _renderer.ShowGuides = value;
-            _renderer.Build(Model, viewport.ModelRoot, []);
-        }
+        get => Model.Style.Guides;
+        set => SetView(s => s with { Guides = value });
+    }
+
+    /// <summary>View › Section Planes, Section Cuts and Axes.</summary>
+    public bool ShowSectionPlanes
+    {
+        get => Model.Style.SectionPlanes;
+        set => SetView(s => s with { SectionPlanes = value });
+    }
+
+    public bool ShowSectionCuts
+    {
+        get => Model.Style.SectionCuts;
+        set => SetView(s => s with { SectionCuts = value });
+    }
+
+    public bool ShowModelAxes
+    {
+        get => Model.Style.ModelAxes;
+        set => SetView(s => s with { ModelAxes = value });
     }
     public Model Model => Document.Model;
     public string? Path { get; private set; }

@@ -18,6 +18,9 @@ public sealed class Scene
     public MatchedPhoto? Photo { get; set; }
 }
 
+/// <summary>View › Face Style.</summary>
+public enum FaceStyle { XRay, Wireframe, HiddenLine, Shaded, ShadedWithTextures, Monochrome }
+
 /// <summary>Styles › Watermark Settings: how a watermark covers the view.</summary>
 public enum WatermarkLayout { Stretched, Tiled, Positioned }
 
@@ -68,6 +71,20 @@ public enum EdgeColorMode { AllSame, ByMaterial, ByAxis }
 public sealed record StyleSettings
 {
     public string Name { get; init; } = "Default Style";
+    public string Description { get; init; } = "";
+
+    // The View menu's Edge Style, Face Style and display switches, which SketchUp keeps in the style.
+    public bool Edges { get; init; } = true;
+    public bool BackEdges { get; init; }
+    public bool Profiles { get; init; }
+    public bool DepthCue { get; init; }
+    public bool Extension { get; init; }
+    public FaceStyle FaceStyle { get; init; } = FaceStyle.ShadedWithTextures;
+    public bool HiddenGeometry { get; init; }
+    public bool Guides { get; init; } = true;
+    public bool ModelAxes { get; init; } = true;
+    public bool SectionPlanes { get; init; } = true;
+    public bool SectionCuts { get; init; } = true;
 
     public int ProfileWidth { get; init; } = 3;
     public int DepthCueWidth { get; init; } = 4;
@@ -109,6 +126,14 @@ public sealed record StyleSettings
 
     public bool ShowWatermarks { get; init; } = true;
     public ValueList<Watermark> Watermarks { get; init; } = ValueList<Watermark>.Empty;
+
+    /// <summary>This style with <paramref name="view"/>'s View menu switches.</summary>
+    public StyleSettings WithViewOf(StyleSettings view) => this with
+    {
+        Edges = view.Edges, BackEdges = view.BackEdges, Profiles = view.Profiles, DepthCue = view.DepthCue, Extension = view.Extension,
+        FaceStyle = view.FaceStyle, HiddenGeometry = view.HiddenGeometry, Guides = view.Guides, ModelAxes = view.ModelAxes,
+        SectionPlanes = view.SectionPlanes, SectionCuts = view.SectionCuts,
+    };
 }
 
 /// <summary>Model Info's Components, Credits and Rendering settings.</summary>

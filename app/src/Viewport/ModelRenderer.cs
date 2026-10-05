@@ -7,17 +7,6 @@ using Model = Dogeometric.Core.Modeling.Model;
 
 namespace Dogeometric.App.Viewport;
 
-/// <summary>View › Face Style.</summary>
-public enum FaceStyle
-{
-    XRay,
-    Wireframe,
-    HiddenLine,
-    Shaded,
-    ShadedWithTextures,
-    Monochrome,
-}
-
 /// <summary>
 /// Turns a <see cref="Model"/> into Godot nodes. Each definition becomes one face mesh and one edge mesh, shared by
 /// all its instances (the way SketchUp stores components), so big models stay light.
@@ -31,12 +20,24 @@ public sealed class ModelRenderer
 
     public StyleSettings Style => _style;
 
-    /// <summary>Applies the model's style; returns true when the meshes must be built again (edge or face colours).</summary>
+    /// <summary>Applies the model's style; returns true when the meshes must be built again (colours or View switches).</summary>
     public bool SetStyle(StyleSettings s, Transform axes)
     {
         var old = _style;
         _style = s;
         _axes = axes;
+        var switched = ShowEdges != s.Edges || ShowProfiles != s.Profiles || ShowExtension != s.Extension || ShowDepthCue != s.DepthCue
+            || ShowGuides != s.Guides || ShowHiddenGeometry != s.HiddenGeometry || FaceStyle != s.FaceStyle;
+        ShowEdges = s.Edges;
+        ShowBackEdges = s.BackEdges;
+        ShowProfiles = s.Profiles;
+        ShowExtension = s.Extension;
+        ShowDepthCue = s.DepthCue;
+        ShowGuides = s.Guides;
+        if (ShowHiddenGeometry != s.HiddenGeometry)
+            ShowHiddenGeometry = s.HiddenGeometry;
+        if (FaceStyle != s.FaceStyle)
+            FaceStyle = s.FaceStyle;
         _profileMaterial.SetShaderParameter("profile_width", _showProfiles ? (float)s.ProfileWidth : 0f);
         _profileMaterial.SetShaderParameter("extension_px", _extension ? (float)s.ExtensionLength : 0f);
         _profileMaterial.SetShaderParameter("depth_cue_px", _depthCue ? (float)s.DepthCueWidth : 0f);
@@ -55,7 +56,7 @@ public sealed class ModelRenderer
             || s.EdgeColorMode != EdgeColorMode.AllSame && old.EdgeColor != s.EdgeColor;
         if (rebuild)
             ForgetMaterials();
-        return rebuild;
+        return rebuild || switched;
     }
 
     /// <summary>An edge's colour by the style: its material's, or its axis colour, else the style's edge colour.</summary>

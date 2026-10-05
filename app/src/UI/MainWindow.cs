@@ -937,14 +937,14 @@ public partial class MainWindow : Control
         }, () => _document.ShowBackEdges);
         _commands.Register(CommandIds.DisplaySectionPlanes, () =>
         {
-            _viewport.ShowSectionPlanes = !_viewport.ShowSectionPlanes;
+            _document.ShowSectionPlanes = !_document.ShowSectionPlanes;
             _viewport.QueueOverlayRedraw();
-        }, () => _viewport.ShowSectionPlanes);
+        }, () => _document.ShowSectionPlanes);
         _commands.Register(CommandIds.DisplaySectionCuts, () =>
         {
-            _viewport.ShowSectionCuts = !_viewport.ShowSectionCuts;
+            _document.ShowSectionCuts = !_document.ShowSectionCuts;
             _viewport.UpdateSection();
-        }, () => _viewport.ShowSectionCuts);
+        }, () => _document.ShowSectionCuts);
         _commands.Register(CommandIds.DisplaySectionFill, () =>
         {
             var doc = Doc();
@@ -1127,7 +1127,7 @@ public partial class MainWindow : Control
         });
         _commands.Register(CommandIds.About, ShowAbout);
 
-        _commands.Register(CommandIds.ToggleAxes, () => v.Axes.Visible = !v.Axes.Visible, () => v.Axes.Visible);
+        _commands.Register(CommandIds.ToggleAxes, () => _document.ShowModelAxes = !_document.ShowModelAxes, () => _document.ShowModelAxes);
 
         _commands.Register(CommandIds.PreviousCamera, v.PreviousCamera);
         _commands.Register(CommandIds.NextCamera, v.NextCamera);

@@ -527,6 +527,10 @@ public partial class ModelViewport : Control
         _skyMaterial.SetShaderParameter("ground_transparency", (float)s.GroundTransparency);
         _skyMaterial.SetShaderParameter("ground_from_below", s.GroundFromBelow);
         _style = s;
+        ShowSectionPlanes = s.SectionPlanes;
+        ShowSectionCuts = s.SectionCuts;
+        if (Axes != null)
+            Axes.Visible = s.ModelAxes;
         UpdateWatermarks();
         _sectionFillColor = C(s.SectionFillColor);
         if (_sectionFill?.MaterialOverride is StandardMaterial3D fill)

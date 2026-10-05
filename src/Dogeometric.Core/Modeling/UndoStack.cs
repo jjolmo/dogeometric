@@ -157,7 +157,8 @@ public sealed class UndoStack(Model model)
             m.ShowSectionFill = SectionFill;
             (m.DimensionFontSize, m.DimensionEndpoints, m.TextFontSize) = Annotation;
             m.Options = Options;
-            m.Style = Style;
+            // The View menu's switches change outside operations, so undo keeps them as they are.
+            m.Style = Style.WithViewOf(m.Style);
             // Only colours and dashes: visibility and names change outside operations, and undo must not take those back.
             for (var i = 0; i < Tags.Length; i++)
                 (Tags[i].Color, Tags[i].Dashes) = TagLooks[i];

@@ -342,6 +342,7 @@ public class DogFileTests
         var model = new Model();
         var doc = new Document(model);
         var style = new StyleSettings { Name = "Plans", ProfileWidth = 5, EdgeColorMode = EdgeColorMode.ByAxis, EdgeColor = new Rgba(10, 20, 30),
+            Profiles = true, Edges = false, FaceStyle = FaceStyle.XRay, ModelAxes = false, SectionCuts = false, Description = "For plans",
             Endpoints = true, EndpointLength = 12, Jitter = true, XrayOpacity = 0.3, Transparency = false, TransparencyQuality = TransparencyQuality.Nicer,
             BackColor = new Rgba(1, 2, 3), Sky = false, GroundTransparency = 0.4, GroundFromBelow = true,
             LockedColor = new Rgba(9, 9, 9), SectionFillColor = new Rgba(4, 5, 6), SectionCutWidth = 7 };
@@ -354,7 +355,7 @@ public class DogFileTests
         File.Delete(path);
         Assert.Equal(style, back);
         doc.Undo.Undo();
-        Assert.Equal(new StyleSettings(), model.Style);
+        Assert.Equal(new StyleSettings().WithViewOf(style), model.Style);
     }
 
     [Fact]
@@ -396,5 +397,20 @@ public class DogFileTests
         Assert.Equal([1, 2, 3, 4], read.Image.Data);
         Assert.Equal(mark with { Image = read.Image }, read);
         Assert.Equal(new ValueList<int>([1, 2]), new ValueList<int>([1, 2]));
+    }
+
+    [Fact]
+    public void Undo_keeps_the_view_switches()
+    {
+        var model = new Model();
+        var doc = new Document(model);
+        doc.Undo.Begin("Rename");
+        model.Options = model.Options with { Name = "Shed" };
+        doc.Undo.Commit();
+        model.Style = model.Style with { Profiles = true, FaceStyle = FaceStyle.Wireframe };
+        doc.Undo.Undo();
+        Assert.Equal("", model.Options.Name);
+        Assert.True(model.Style.Profiles);
+        Assert.Equal(FaceStyle.Wireframe, model.Style.FaceStyle);
     }
 }

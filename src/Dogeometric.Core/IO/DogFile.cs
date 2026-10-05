@@ -245,6 +245,18 @@ public static class DogFile
     {
         w.WriteStartObject("style");
         w.WriteString("name", s.Name);
+        w.WriteString("description", s.Description);
+        w.WriteBoolean("edges", s.Edges);
+        w.WriteBoolean("backEdges", s.BackEdges);
+        w.WriteBoolean("profiles", s.Profiles);
+        w.WriteBoolean("depthCue", s.DepthCue);
+        w.WriteBoolean("extension", s.Extension);
+        w.WriteString("faceStyle", s.FaceStyle.ToString());
+        w.WriteBoolean("hiddenGeometry", s.HiddenGeometry);
+        w.WriteBoolean("guides", s.Guides);
+        w.WriteBoolean("modelAxes", s.ModelAxes);
+        w.WriteBoolean("sectionPlanes", s.SectionPlanes);
+        w.WriteBoolean("sectionCuts", s.SectionCuts);
         w.WriteNumber("profileWidth", s.ProfileWidth);
         w.WriteNumber("depthCueWidth", s.DepthCueWidth);
         w.WriteNumber("extensionLength", s.ExtensionLength);
@@ -304,6 +316,18 @@ public static class DogFile
         return new StyleSettings
         {
             Name = j.TryGetProperty("name", out var n) ? n.GetString() ?? d.Name : d.Name,
+            Description = j.TryGetProperty("description", out var desc) ? desc.GetString() ?? "" : d.Description,
+            Edges = Bool("edges", d.Edges),
+            BackEdges = Bool("backEdges", d.BackEdges),
+            Profiles = Bool("profiles", d.Profiles),
+            DepthCue = Bool("depthCue", d.DepthCue),
+            Extension = Bool("extension", d.Extension),
+            FaceStyle = j.TryGetProperty("faceStyle", out var fs) && Enum.TryParse<FaceStyle>(fs.GetString(), out var face) ? face : d.FaceStyle,
+            HiddenGeometry = Bool("hiddenGeometry", d.HiddenGeometry),
+            Guides = Bool("guides", d.Guides),
+            ModelAxes = Bool("modelAxes", d.ModelAxes),
+            SectionPlanes = Bool("sectionPlanes", d.SectionPlanes),
+            SectionCuts = Bool("sectionCuts", d.SectionCuts),
             ProfileWidth = Int("profileWidth", d.ProfileWidth),
             DepthCueWidth = Int("depthCueWidth", d.DepthCueWidth),
             ExtensionLength = Int("extensionLength", d.ExtensionLength),
