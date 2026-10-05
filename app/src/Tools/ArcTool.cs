@@ -9,14 +9,22 @@ using Curve = Dogeometric.Core.Modeling.Curve;
 namespace Dogeometric.App.Tools;
 
 /// <summary>SketchUp's 2-Point Arc: click the start, the end (or type the chord), then the bulge (or type it); "12s" sets the
-/// segments. Started at an edge's end, the bulge snaps where the arc is tangent to that edge (cyan).</summary>
+/// segments. Started at an edge's end, the bulge snaps where the arc is tangent to that edge (cyan). With its ends on
+/// two edges of a corner, it snaps tangent to both (magenta) and rounds the corner off; double-clicking another
+/// corner then rounds it with the same radius.</summary>
 public sealed class ArcTool : DrawingTool
 {
     private static int _segments = Shapes.DefaultArcSegments;
+    private static double _filletRadius;
 
     private Vec3? _start;
     private Vec3? _end;
     private Vec3? _tangent;
+    private Edge? _startEdge;
+    private Edge? _endEdge;
+    private bool _filletSnap;
+    private ulong _lastClickMs;
+    private Vector2 _lastClickAt;
 
     public override int CommandId => CommandIds.Arc2Point;
     public override string CursorImage => "arc1";
@@ -37,19 +45,98 @@ public sealed class ArcTool : DrawingTool
     {
         if (button != MouseButton.Left || Current is not { } inf)
             return;
+        var now = Time.GetTicksMsec();
+        var doubleClick = now - _lastClickMs < 450 && position.DistanceTo(_lastClickAt) < 6;
+        (_lastClickMs, _lastClickAt) = (now, position);
+        if (doubleClick && _start != null && _end == null && _filletRadius > 0 && RoundCorner(inf))
+            return;
         if (_start == null)
         {
             _start = inf.Point;
             _tangent = TangentAt(inf);
+            _startEdge = ContextEdge(inf);
         }
         else if (_end == null)
+        {
             _end = inf.Point;
+            _endEdge = ContextEdge(inf);
+        }
         else
         {
             var (bulge, dir, _) = Arc(_start.Value, _end.Value, inf.Point);
-            Create(bulge, dir);
+            if (_filletSnap && FilletCorner() is { } fillet)
+                Round(fillet.Corner, fillet.Radius);
+            else
+                Create(bulge, dir);
         }
         RefreshStatus();
+    }
+
+    /// <summary>The edge of the open context the inference lies on, if any.</summary>
+    private Edge? ContextEdge(InferenceResult inf) =>
+        inf is { Kind: InferenceKind.OnEdge or InferenceKind.Midpoint, Edge: { } e } && View.Document is { } doc && doc.Context.Entities.Edges.Contains(e) ? e : null;
+
+    /// <summary>
+    /// The corner the arc can round off: its ends on the two edges of one corner, as far from it as each other.
+    /// Returns the corner, the fillet's radius and where its middle is (world).
+    /// </summary>
+    private (Vertex Corner, double Radius, Vec3 Apex, Vec3 Side, double Bulge)? FilletCorner()
+    {
+        if (_start is not { } s || _end is not { } e || _startEdge is not { } a || _endEdge is not { } b || a == b || View.Document is not { } doc)
+            return null;
+        var shared = new[] { a.Start, a.End }.Intersect([b.Start, b.End]).FirstOrDefault();
+        if (shared == null || Fillet.Corner(doc.Context.Entities, shared) is not var (_, _, da, db))
+            return null;
+        var toWorld = doc.Context.ToWorld;
+        var corner = toWorld.ApplyPoint(shared.Position);
+        var (ds, de) = (s.DistanceTo(corner), e.DistanceTo(corner));
+        if (Math.Abs(ds - de) > Math.Max(ds, de) * 0.02 || ds <= Tolerance.Length)
+            return null;
+        // Angles survive the context's (uniform) scale, so the radius is worked out in world units.
+        var radius = Fillet.RadiusFor(da, db, (ds + de) / 2);
+        var half = Math.Acos(Math.Clamp(da.Dot(db), -1, 1)) / 2;
+        var bulge = radius * (1 - Math.Cos(Math.PI / 2 - half));
+        var mid = (s + e) * 0.5;
+        var side = (corner - mid).Normalized();
+        return (shared, radius / toWorld.ApplyVector(da).Length, mid + side * bulge, side, bulge);
+    }
+
+    private void Round(Vertex corner, double radius)
+    {
+        if (View.Document is not { } doc)
+            return;
+        var ok = false;
+        doc.Operation("Fillet", e => ok = Fillet.Apply(e, corner, radius, _segments));
+        if (ok)
+            _filletRadius = radius;
+        Reset();
+    }
+
+    /// <summary>Double-click on a corner: rounds it with the last fillet's radius.</summary>
+    private bool RoundCorner(InferenceResult inf)
+    {
+        if (View.Document is not { } doc)
+            return false;
+        var local = doc.Context.ToWorld.Inverse().ApplyPoint(inf.Point);
+        var v = doc.Context.Entities.Vertices.FirstOrDefault(x => x.Position.DistanceTo(local) <= Tolerance.Length);
+        if (v == null || Fillet.Corner(doc.Context.Entities, v) == null)
+            return false;
+        Round(v, _filletRadius);
+        return true;
+    }
+
+    private void Reset()
+    {
+        _tangent = null;
+        _start = null;
+        _end = null;
+        _startEdge = null;
+        _endEdge = null;
+        _filletSnap = false;
+        ResetLocks();
+        RefreshStatus();
+        UpdateInference();
+        View.QueueOverlayRedraw();
     }
 
     /// <summary>Signed distance of <paramref name="p"/> from the chord, measured in the drawing plane.</summary>
@@ -75,6 +162,12 @@ public sealed class ArcTool : DrawingTool
     /// <summary>The arc's bulge and its side for the cursor at <paramref name="p"/>; near the tangent arc it snaps to it.</summary>
     private (double Bulge, Vec3 Direction, bool Tangent) Arc(Vec3 s, Vec3 e, Vec3 p)
     {
+        _filletSnap = false;
+        if (FilletCorner() is { } fillet && View.ToScreen(fillet.Apex) is { } filletApex && View.ToScreen(p) is { } cursor && filletApex.DistanceTo(cursor) < 10)
+        {
+            _filletSnap = true;
+            return (fillet.Bulge, fillet.Side, true);
+        }
         if (_tangent is { } t && Shapes.TangentArc(s, e, t) is var (bulge, side))
         {
             var apex = (s + e) * 0.5 + side * bulge;
@@ -133,12 +226,7 @@ public sealed class ArcTool : DrawingTool
         var local = pts.Select(toLocal.ApplyPoint).ToList();
         var curve = new Curve { Segments = _segments };
         doc.Operation("Arc", ent => StickyGeometry.DrawEdges(ent, local, closed: false, curve: curve));
-        _tangent = null;
-        _start = null;
-        _end = null;
-        ResetLocks();
-        RefreshStatus();
-        UpdateInference();
+        Reset();
     }
 
     public override bool KeyDown(InputEventKey key)
