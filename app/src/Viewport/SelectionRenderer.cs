@@ -6,13 +6,13 @@ namespace Dogeometric.App.Viewport;
 
 /// <summary>
 /// Draws the selection like SketchUp: selected edges in blue, selected faces with a blue dot pattern, selected
-/// groups/components with a blue bounding box; and the box of the group being edited, dashed grey.
+/// groups/components with a blue bounding box (red when locked); and the box of the group being edited, dashed grey.
+/// The colours are the style's (Styles › Modeling).
 /// </summary>
 public sealed class SelectionRenderer
 {
-    private static readonly Color Selected = new(0, 0, 1);
-
-    private readonly ShaderMaterial _lines = Lines(Selected);
+    private readonly ShaderMaterial _lines = Lines(new Color(0, 0, 1));
+    private readonly ShaderMaterial _lockedLines = Lines(new Color(1, 0, 0));
     private readonly ShaderMaterial _contextLines = Lines(new Color(0.45f, 0.45f, 0.45f));
     private readonly ShaderMaterial _faces = new() { Shader = GD.Load<Shader>("res://shaders/selection_face.gdshader") };
 
@@ -31,8 +31,13 @@ public sealed class SelectionRenderer
             root.RemoveChild(child);
             child.QueueFree();
         }
+        Color C(Rgba c) => Color.Color8(c.R, c.G, c.B);
+        _lines.SetShaderParameter("color", C(doc.Model.Style.SelectedColor));
+        _faces.SetShaderParameter("color", C(doc.Model.Style.SelectedColor));
+        _lockedLines.SetShaderParameter("color", C(doc.Model.Style.LockedColor));
         var xf = doc.Context.ToWorld;
         var lines = new List<Vector3>();
+        var locked = new List<Vector3>();
         var tris = new List<Vector3>();
 
         foreach (var item in doc.Selection.Items)
@@ -51,7 +56,7 @@ public sealed class SelectionRenderer
                         tris.Add(all[i]);
                     break;
                 case ComponentInstance inst:
-                    AddBox(lines, CatmullClark.ShownBounds(inst.Definition.Entities), inst.Transform.Then(xf));
+                    AddBox(inst.Locked ? locked : lines, CatmullClark.ShownBounds(inst.Definition.Entities), inst.Transform.Then(xf));
                     // Its edges light up too, unless Preferences › Compatibility asks for the box only.
                     if (!UI.AppPreferences.Current.BoundingBoxOnly)
                         AddEdges(lines, inst.Definition.Entities, inst.Transform.Then(xf), budget: 20000);
@@ -60,6 +65,7 @@ public sealed class SelectionRenderer
         }
 
         AddMesh(root, lines, Mesh.PrimitiveType.Lines, _lines);
+        AddMesh(root, locked, Mesh.PrimitiveType.Lines, _lockedLines);
         AddMesh(root, tris, Mesh.PrimitiveType.Triangles, _faces);
 
         // The group/component being edited gets a grey box, as in SketchUp.

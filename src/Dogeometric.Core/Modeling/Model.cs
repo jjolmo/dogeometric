@@ -58,6 +58,15 @@ public sealed record StyleSettings
     /// <summary>0 opaque to 1 invisible, as SketchUp's ground transparency slider.</summary>
     public double GroundTransparency { get; init; }
     public bool GroundFromBelow { get; init; }
+
+    public Rgba SelectedColor { get; init; } = new(0, 1, 255);
+    public Rgba LockedColor { get; init; } = new(255, 0, 0);
+    public Rgba GuideColor { get; init; } = new(0, 0, 0);
+    public Rgba ActiveSectionColor { get; init; } = new(255, 135, 0);
+    public Rgba InactiveSectionColor { get; init; } = new(112, 105, 97);
+    public Rgba SectionCutColor { get; init; } = new(0, 0, 0);
+    public Rgba SectionFillColor { get; init; } = new(63, 63, 63);
+    public int SectionCutWidth { get; init; } = 3;
 }
 
 /// <summary>Model Info's Components, Credits and Rendering settings.</summary>

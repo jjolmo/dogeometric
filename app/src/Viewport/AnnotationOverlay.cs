@@ -14,9 +14,11 @@ public sealed class AnnotationOverlay
     private const float ArrowLength = 9;
     private const float ArrowHalfWidth = 3;
     private static readonly Color Ink = Colors.Black;
-    private static readonly Color Selected = new(0, 0, 1);
+    private Color _selected = new(0, 0, 1);
 
     private readonly List<(object Item, IReadOnlyList<Entities> Owner, Rect2? Text, (Vector2 A, Vector2 B)[] Lines)> _drawn = [];
+
+    private static Color ToColor(Rgba c) => Color.Color8(c.R, c.G, c.B);
 
     public void Draw(ModelViewport view, Control canvas)
     {
@@ -24,12 +26,14 @@ public sealed class AnnotationOverlay
         if (view.Document is not { } doc)
             return;
         var font = canvas.GetThemeDefaultFont();
+        var style = doc.Model.Style;
+        _selected = ToColor(style.SelectedColor);
 
-        // Section cut: thick black lines where the active section slices the model.
+        // Section cut: thick lines where the active section slices the model.
         if (view.ShowSectionCuts)
             foreach (var (a, b) in view.SectionCut)
                 if (view.ToScreen(a) is { } sa && view.ToScreen(b) is { } sb)
-                    canvas.DrawLine(sa, sb, Ink, 3, true);
+                    canvas.DrawLine(sa, sb, ToColor(style.SectionCutColor), style.SectionCutWidth, true);
 
         Walk(doc.Model.Entities, Transform.Identity, [doc.Model.Entities]);
 
@@ -87,7 +91,7 @@ public sealed class AnnotationOverlay
         if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } p1 || view.ToScreen(xf.ApplyPoint(d.End)) is not { } p2 ||
             view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } q1 || view.ToScreen(xf.ApplyPoint(d.End + d.Offset)) is not { } q2)
             return;
-        var color = doc.Selection.Contains(d) ? Selected : Ink;
+        var color = doc.Selection.Contains(d) ? _selected : Ink;
         var lines = new List<(Vector2, Vector2)>();
 
         // Extension lines run from the measured points past the dimension line by a few pixels.
@@ -122,7 +126,7 @@ public sealed class AnnotationOverlay
     {
         if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } tip || view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } end)
             return;
-        var color = doc.Selection.Contains(d) ? Selected : Ink;
+        var color = doc.Selection.Contains(d) ? _selected : Ink;
         canvas.DrawLine(tip, end, color, 1, true);
         if ((end - tip).Length() > ArrowLength)
             Endpoint(canvas, tip, (tip - end).Normalized(), color, doc.Model.DimensionEndpoints);
@@ -139,7 +143,7 @@ public sealed class AnnotationOverlay
 
     private void DrawText(ModelViewport view, Control canvas, Font font, Document doc, TextLabel t, Transform xf, IReadOnlyList<Entities> owners)
     {
-        var color = doc.Selection.Contains(t) ? Selected : Ink;
+        var color = doc.Selection.Contains(t) ? _selected : Ink;
         var fontSize = Pixels(doc.Model.TextFontSize);
         var size = font.GetStringSize(t.Text, HorizontalAlignment.Left, -1, fontSize);
         if (t.ScreenPosition is { } sp)
@@ -186,7 +190,7 @@ public sealed class AnnotationOverlay
 
     private void DrawSectionPlane(ModelViewport view, Control canvas, Document doc, SectionPlane s, bool active, Transform xf, IReadOnlyList<Entities> owners)
     {
-        var color = doc.Selection.Contains(s) ? Selected : active ? new Color("#f28c28") : new Color("#a0a0a0");
+        var color = ToColor(doc.Selection.Contains(s) ? doc.Model.Style.SelectedColor : active ? doc.Model.Style.ActiveSectionColor : doc.Model.Style.InactiveSectionColor);
         var lines = new List<(Vector2, Vector2)>();
         foreach (var (a, b) in SectionPlaneLines(s, xf, SectionHalfSize(doc)))
         {

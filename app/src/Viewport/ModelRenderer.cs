@@ -44,6 +44,7 @@ public sealed class ModelRenderer
         _edgeMaterial.SetShaderParameter("color", edge);
         _edgeMaterial.SetShaderParameter("vertex_colors", s.EdgeColorMode != EdgeColorMode.AllSame);
         _profileMaterial.SetShaderParameter("color", edge);
+        _guideMaterial.SetShaderParameter("color", Color.Color8(s.GuideColor.R, s.GuideColor.G, s.GuideColor.B));
         foreach (var m in _endpointMaterials.Concat(_jitterMaterials))
         {
             m.SetShaderParameter("color", edge);

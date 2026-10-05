@@ -55,6 +55,14 @@ public partial class StylesPanel : VBoxContainer
         p.Slider("Transparency", s => s.GroundTransparency, (s, v) => s with { GroundTransparency = v });
         p.Flag("Show ground from below", s => s.GroundFromBelow, (s, v) => s with { GroundFromBelow = v });
         p.Section("Modeling Settings");
+        p.Colour("Selected", s => s.SelectedColor, (s, c) => s with { SelectedColor = c });
+        p.Colour("Locked", s => s.LockedColor, (s, c) => s with { LockedColor = c });
+        p.Colour("Guides", s => s.GuideColor, (s, c) => s with { GuideColor = c });
+        p.Colour("Inactive Section", s => s.InactiveSectionColor, (s, c) => s with { InactiveSectionColor = c });
+        p.Colour("Active Section", s => s.ActiveSectionColor, (s, c) => s with { ActiveSectionColor = c });
+        p.Colour("Section Fill", s => s.SectionFillColor, (s, c) => s with { SectionFillColor = c });
+        p.Colour("Section Cuts", s => s.SectionCutColor, (s, c) => s with { SectionCutColor = c });
+        p.Number("Section Line Width", 1, 20, s => s.SectionCutWidth, (s, v) => s with { SectionCutWidth = v });
         p.Switch("Hidden Geometry", CommandIds.HiddenGeometry);
         p.Switch("Section Planes", CommandIds.DisplaySectionPlanes);
         p.Switch("Section Cuts", CommandIds.DisplaySectionCuts);

@@ -509,7 +509,12 @@ public partial class ModelViewport : Control
         _skyMaterial.SetShaderParameter("ground_on", s.Ground);
         _skyMaterial.SetShaderParameter("ground_transparency", (float)s.GroundTransparency);
         _skyMaterial.SetShaderParameter("ground_from_below", s.GroundFromBelow);
+        _sectionFillColor = C(s.SectionFillColor);
+        if (_sectionFill?.MaterialOverride is StandardMaterial3D fill)
+            fill.AlbedoColor = _sectionFillColor;
     }
+
+    private Color _sectionFillColor = Color.Color8(63, 63, 63);
 
     /// <summary>Fog panel: start and end (0 to 1 across the model's depth) and colour (null for the background's).</summary>
     public void SetFog(double start, double end, Color? color)
@@ -616,7 +621,7 @@ public partial class ModelViewport : Control
             {
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
                 CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-                AlbedoColor = new Color(0.3f, 0.3f, 0.3f),
+                AlbedoColor = _sectionFillColor,
             };
             _sectionFill = new MeshInstance3D { MaterialOverride = material, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             ModelRoot.GetParent().AddChild(_sectionFill);

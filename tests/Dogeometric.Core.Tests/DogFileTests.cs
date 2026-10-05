@@ -343,7 +343,8 @@ public class DogFileTests
         var doc = new Document(model);
         var style = new StyleSettings { Name = "Plans", ProfileWidth = 5, EdgeColorMode = EdgeColorMode.ByAxis, EdgeColor = new Rgba(10, 20, 30),
             Endpoints = true, EndpointLength = 12, Jitter = true, XrayOpacity = 0.3, Transparency = false, TransparencyQuality = TransparencyQuality.Nicer,
-            BackColor = new Rgba(1, 2, 3), Sky = false, GroundTransparency = 0.4, GroundFromBelow = true };
+            BackColor = new Rgba(1, 2, 3), Sky = false, GroundTransparency = 0.4, GroundFromBelow = true,
+            LockedColor = new Rgba(9, 9, 9), SectionFillColor = new Rgba(4, 5, 6), SectionCutWidth = 7 };
         doc.Undo.Begin("Style");
         model.Style = style;
         doc.Undo.Commit();

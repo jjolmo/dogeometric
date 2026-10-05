@@ -266,6 +266,14 @@ public static class DogFile
         w.WriteString("groundColor", RgbaText(s.GroundColor));
         w.WriteNumber("groundTransparency", s.GroundTransparency);
         w.WriteBoolean("groundFromBelow", s.GroundFromBelow);
+        w.WriteString("selectedColor", RgbaText(s.SelectedColor));
+        w.WriteString("lockedColor", RgbaText(s.LockedColor));
+        w.WriteString("guideColor", RgbaText(s.GuideColor));
+        w.WriteString("activeSectionColor", RgbaText(s.ActiveSectionColor));
+        w.WriteString("inactiveSectionColor", RgbaText(s.InactiveSectionColor));
+        w.WriteString("sectionCutColor", RgbaText(s.SectionCutColor));
+        w.WriteString("sectionFillColor", RgbaText(s.SectionFillColor));
+        w.WriteNumber("sectionCutWidth", s.SectionCutWidth);
         w.WriteEndObject();
     }
 
@@ -298,6 +306,14 @@ public static class DogFile
             GroundColor = ReadRgba(j, "groundColor", d.GroundColor),
             GroundTransparency = j.TryGetProperty("groundTransparency", out var t) ? t.GetDouble() : d.GroundTransparency,
             GroundFromBelow = Bool("groundFromBelow", d.GroundFromBelow),
+            SelectedColor = ReadRgba(j, "selectedColor", d.SelectedColor),
+            LockedColor = ReadRgba(j, "lockedColor", d.LockedColor),
+            GuideColor = ReadRgba(j, "guideColor", d.GuideColor),
+            ActiveSectionColor = ReadRgba(j, "activeSectionColor", d.ActiveSectionColor),
+            InactiveSectionColor = ReadRgba(j, "inactiveSectionColor", d.InactiveSectionColor),
+            SectionCutColor = ReadRgba(j, "sectionCutColor", d.SectionCutColor),
+            SectionFillColor = ReadRgba(j, "sectionFillColor", d.SectionFillColor),
+            SectionCutWidth = Int("sectionCutWidth", d.SectionCutWidth),
         };
     }
 
