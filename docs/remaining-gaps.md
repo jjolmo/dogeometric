@@ -14,14 +14,14 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
 | STEP import | Vendor enclosure and connector models come as STEP. | Export is done (AP214, solids validated in FreeCAD). Import needs curved-surface tessellation. |
-| Remaining file formats | Import: DWG (mechanical drawings), 3DS, DAE, IFC, KMZ. Export: DWG, 3DS, FBX, IFC, KMZ, VRML, XSI. | OpenSKP already has an IFC writer (`third_party/OpenSkp/IfcExport.cs`) to wire to File › Export. DWG needs a reader/writer (DXF is done both ways). |
+| Remaining file formats | Import: DWG (mechanical drawings), 3DS, DAE, IFC, KMZ. Export: DWG, 3DS, FBX, KMZ, VRML, XSI. | DWG needs a reader/writer (DXF is done both ways). |
 
 ## Medium impact
 
 | Gap | Notes |
 |---|---|
 | Ruby Console and Ruby API | SketchUp's extension mechanism. Our extensions are rebuilt natively; no scripting yet. A console with a small command language (or an embedded scripting host) would cover macros. |
-| Classifier tool and Model Info › Classifications | IFC types on components; only matters with IFC export. |
+| Classifier tool and Model Info › Classifications | IFC types on components. IFC export exists; every element goes out as IfcBuildingElementProxy until this is done. |
 
 ## Low impact
 
@@ -39,4 +39,5 @@ from the Instructor pages, VCB coordinates/arrays/offsets, imperial units and fo
 plane naming/symbol/fill troubleshooting/slice to group, Dimension and Text options, 2D image and vector export
 options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture, STEP export,
 Solid Tools tests (Outer Shell now fills cavities), Transparency quality Nicer, Rotate about a dragged axis and Image
-Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STEP, local component collections (browse, search, place).
+Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STEP, local component collections (browse, search, place), IFC 4 export
+(checked with ifcopenshell).

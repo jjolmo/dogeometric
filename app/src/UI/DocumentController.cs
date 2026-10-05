@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.step, *.stp ; STEP (AP214)", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -510,6 +510,13 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options));
             if (step != null)
                 status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
+            return;
+        }
+        if (ext == ".ifc")
+        {
+            var elements = 0;
+            if (Write(path, (m, p) => elements = IfcWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options)))
+                status.SetHint($"Exported {elements} IFC building elements");
             return;
         }
         var triangles = MeshExtractor.Extract(Model, options);
