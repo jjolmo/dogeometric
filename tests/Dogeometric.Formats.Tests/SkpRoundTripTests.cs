@@ -240,12 +240,16 @@ public class SkpRoundTripTests
         foreach (var (name, type) in new[] { ("Wall", "IfcWall"), ("Plain", "") })
         {
             var def = new ComponentDefinition { Name = name, IsGroup = false, IfcType = type };
+            if (type.Length > 0)
+                def.SchemaTypes["Uniclass"] = "Ss_25_10";
             def.Entities.AddFace([new Vec3(0, 0, 0), new Vec3(10, 0, 0), new Vec3(10, 10, 0), new Vec3(0, 10, 0)]);
             model.Definitions.Add(def);
             model.Entities.AddInstance(def, Transform.Identity);
         }
         var back = RoundTrip(model);
         Assert.Equal("IfcWall", back.Definitions.Single(d => d.Name == "Wall").IfcType);
+        Assert.Equal("Ss_25_10", back.Definitions.Single(d => d.Name == "Wall").SchemaTypes["Uniclass"]);
         Assert.Equal("", back.Definitions.Single(d => d.Name == "Plain").IfcType);
+        Assert.Empty(back.Definitions.Single(d => d.Name == "Plain").SchemaTypes);
     }
 }

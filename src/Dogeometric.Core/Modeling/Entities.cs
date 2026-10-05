@@ -275,6 +275,9 @@ public sealed class ComponentDefinition
     /// <summary>Classifier: the IFC type its copies export as ("" when unclassified).</summary>
     public string IfcType { get; set; } = "";
 
+    /// <summary>Classifier types from imported schemas, by schema name (IFC types stay in <see cref="IfcType"/>).</summary>
+    public Dictionary<string, string> SchemaTypes { get; } = [];
+
     /// <summary>Groups are definitions with a single instance, shown without a name in the Components panel.</summary>
     public bool IsGroup { get; set; }
 

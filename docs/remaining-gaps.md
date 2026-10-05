@@ -19,7 +19,6 @@ textures.
 | Gap | Notes |
 |---|---|
 | Ruby API | Extensions › Developer › Ruby Console runs C# against the model (Model, Entities, Selection, puts, Pt, AddFace; one undo step per line), but there is no Ruby: SketchUp's .rb extensions and scripts do not run. |
-| Model Info › Classifications | Classifier types go to and from `.skp` (AppliedSchemaTypes, checked in SketchUp 2021) and `.dog`; importing other schemas (gbXML, .skc files) is missing. |
 
 ## Low impact
 
@@ -37,7 +36,7 @@ plane naming/symbol/fill troubleshooting/slice to group, Dimension and Text opti
 options, scene properties to save, Orient Faces, Colorize, Cast/Receive Shadows, Make Unique Texture, STEP export,
 Solid Tools tests (Outer Shell now fills cavities), Transparency quality Nicer, Rotate about a dragged axis and Image
 Igloo Shift/Ctrl + arrows (all checked on screen), Export selection only for STEP, local component collections (browse, search, place), IFC 4 export
-(checked with ifcopenshell), Classifier tool (Shift/Alt/Ctrl, pre-selection, IFC types in the export), COLLADA and KMZ import
+(checked with ifcopenshell), Classifier tool (Shift/Alt/Ctrl, pre-selection, IFC types in the export; other schemas imported from .skc files in Model Info › Classifications, kept in .dog and .skp), COLLADA and KMZ import
 (checked with files exported by SketchUp), KMZ export (checked by importing it in SketchUp), DWG import and
 DWG/DXF 3D export through ACadSharp (both checked against SketchUp 2021), DXF 3D faces, ellipses and circles off the XY plane, VRML export (read back with VTK), 3DS import and export (checked
 against SketchUp both ways), FBX export (read by Godot's importer at true size; SketchUp's own FBX comes out 10× too

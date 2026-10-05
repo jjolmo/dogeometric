@@ -86,6 +86,10 @@ public static class SkpImporter
                     ? applied.Where(kv => kv.Key.StartsWith("IFC", StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Value as string).FirstOrDefault(v => !string.IsNullOrEmpty(v)) ?? ""
                     : "",
             };
+            if (d.AttributeDictionaries.TryGetValue("AppliedSchemaTypes", out var schemaTypes))
+                foreach (var (schema, value) in schemaTypes)
+                    if (!Classification.IsIfc(schema) && value is string { Length: > 0 } type)
+                        def.SchemaTypes[schema] = type;
             definitions[id] = def;
             model.Definitions.Add(def);
         }

@@ -14,7 +14,7 @@ public partial class ModelInfoDialog : AcceptDialog
     private Control _pane = null!;
     private DocumentController? _controller;
 
-    private static readonly string[] Panes = ["Animation", "Components", "Credits", "Dimensions", "File", "Geo-location", "Rendering", "Statistics", "Text", "Units"];
+    private static readonly string[] Panes = ["Animation", "Classifications", "Components", "Credits", "Dimensions", "File", "Geo-location", "Rendering", "Statistics", "Text", "Units"];
 
     public static void Show(Node parent, Document doc, string? path, Action changed, DocumentController? controller = null, string pane = "Units")
     {
@@ -67,6 +67,9 @@ public partial class ModelInfoDialog : AcceptDialog
                 break;
             case "Credits":
                 Credits();
+                break;
+            case "Classifications":
+                Classifications();
                 break;
             case "Geo-location":
                 GeoLocation();
@@ -396,6 +399,78 @@ public partial class ModelInfoDialog : AcceptDialog
         var axes = new CheckBox { Text = "Show component axes", ButtonPressed = o.ShowComponentAxes };
         axes.Toggled += on => Options("Component Axes", m => m with { ShowComponentAxes = on });
         _pane.AddChild(axes);
+    }
+
+    /// <summary>The classification schemas the Classifier offers: IFC built in, others imported from .skc files.</summary>
+    private void Classifications()
+    {
+        var list = new ItemList { CustomMinimumSize = new Vector2(0, 180), SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        void Fill()
+        {
+            list.Clear();
+            list.AddItem("IFC 2x3");
+            list.SetItemTooltip(0, "Built in: its types are the ones the IFC export writes.");
+            foreach (var schema in _doc.Model.Schemas)
+            {
+                list.AddItem(schema.Name);
+                list.SetItemTooltip(list.ItemCount - 1, $"{schema.Description}\n{schema.Types.Count} types");
+            }
+        }
+        Fill();
+        _pane.AddChild(list);
+        var buttons = new HBoxContainer();
+        var import = new Button { Text = "Import..." };
+        var unload = new Button { Text = "Unload", Disabled = true };
+        list.ItemSelected += i => unload.Disabled = i == 0;
+        import.Pressed += () =>
+        {
+            var dialog = new FileDialog
+            {
+                FileMode = FileDialog.FileModeEnum.OpenFile, Access = FileDialog.AccessEnum.Filesystem, Title = "Import Classification",
+                Filters = ["*.skc ; SketchUp Classification"], UseNativeDialog = OS.GetEnvironment("DOGEOMETRIC_NO_NATIVE_DIALOGS") == "",
+            };
+            if (AppPreferences.Current.Location("Classifications") is { } folder)
+                dialog.CurrentDir = folder;
+            dialog.FileSelected += path =>
+            {
+                try
+                {
+                    var schema = Dogeometric.Core.IO.SkcFile.Load(path);
+                    if (schema.Name == "IFC 2x3" || _doc.Model.Schemas.Any(s => s.Name == schema.Name))
+                        MessageDialog.Show(this, "Import Classification", $"{schema.Name} is already loaded.");
+                    else
+                    {
+                        _doc.Model.Schemas.Add(schema);
+                        _changed();
+                        Fill();
+                    }
+                }
+                catch (Exception ex) when (ex is InvalidDataException or IOException or System.Xml.XmlException)
+                {
+                    MessageDialog.Show(this, "Import Classification", $"Could not import {System.IO.Path.GetFileName(path)}:\n{ex.Message}");
+                }
+                dialog.QueueFree();
+            };
+            dialog.Canceled += dialog.QueueFree;
+            AddChild(dialog);
+            dialog.PopupCentered(new Vector2I(720, 480));
+        };
+        unload.Pressed += () =>
+        {
+            if (list.GetSelectedItems() is not [var index] || index == 0)
+                return;
+            var name = list.GetItemText(index);
+            _doc.Model.Schemas.RemoveAll(s => s.Name == name);
+            // A schema no longer loaded leaves no types behind.
+            foreach (var d in _doc.Model.Definitions)
+                d.SchemaTypes.Remove(name);
+            _changed();
+            Fill();
+            unload.Disabled = true;
+        };
+        buttons.AddChild(import);
+        buttons.AddChild(unload);
+        _pane.AddChild(buttons);
     }
 
     private void Credits()

@@ -314,6 +314,9 @@ public sealed class Model
     public List<Material> Materials { get; } = [];
     public List<Tag> Tags { get; } = [new() { Name = Tag.UntaggedName }];
     public List<Scene> Scenes { get; } = [];
+
+    /// <summary>Classification schemas imported in Model Info › Classifications (the IFC types are built in).</summary>
+    public List<ClassificationSchema> Schemas { get; } = [];
     public LengthUnit Units { get; set; } = LengthUnit.Millimeters;
     public int UnitPrecision { get; set; } = 1;
 

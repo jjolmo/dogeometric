@@ -115,6 +115,8 @@ public partial class EntityInfoPanel : VBoxContainer
                     Edit("Definition", i.Definition.Name, v => doc.Operation("Rename", _ => i.Definition.Name = v));
                 if (i.Definition.IfcType.Length > 0)
                     Row("Type", i.Definition.IfcType);
+                foreach (var (schema, type) in i.Definition.SchemaTypes)
+                    Row(schema, type);
                 var b = CatmullClark.ShownBounds(i.Definition.Entities);
                 if (!b.IsEmpty)
                 {

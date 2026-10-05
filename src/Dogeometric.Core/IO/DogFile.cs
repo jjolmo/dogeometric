@@ -146,6 +146,13 @@ public static class DogFile
                     w.WriteString("description", d.Description);
                 if (d.IfcType.Length > 0)
                     w.WriteString("ifcType", d.IfcType);
+                if (d.SchemaTypes.Count > 0)
+                {
+                    w.WriteStartObject("schemaTypes");
+                    foreach (var (schema, type) in d.SchemaTypes)
+                        w.WriteString(schema, type);
+                    w.WriteEndObject();
+                }
                 w.WriteBoolean("group", d.IsGroup);
                 if (d.IsImage)
                     w.WriteBoolean("image", true);
@@ -184,6 +191,28 @@ public static class DogFile
             w.WriteEndArray();
 
             WriteEntities(w, "entities", model.Entities, materialIndex, tagIndex, defIndex);
+
+            if (model.Schemas.Count > 0)
+            {
+                w.WriteStartArray("schemas");
+                foreach (var schema in model.Schemas)
+                {
+                    w.WriteStartObject();
+                    w.WriteString("name", schema.Name);
+                    w.WriteString("description", schema.Description);
+                    w.WriteStartObject("types");
+                    foreach (var (type, attributes) in schema.Types)
+                    {
+                        w.WriteStartArray(type);
+                        foreach (var a in attributes)
+                            w.WriteStringValue(a);
+                        w.WriteEndArray();
+                    }
+                    w.WriteEndObject();
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+            }
 
             w.WriteStartArray("scenes");
             foreach (var s in model.Scenes)
@@ -955,6 +984,22 @@ public static class DogFile
             ReadEntities(defsJson[i].GetProperty("entities"), model.Definitions[i].Entities, model);
         }
         ReadEntities(r.GetProperty("entities"), model.Entities, model);
+        for (var i = 0; i < defsJson.Count; i++)
+            if (defsJson[i].TryGetProperty("schemaTypes", out var applied))
+                foreach (var kv in applied.EnumerateObject())
+                    model.Definitions[i].SchemaTypes[kv.Name] = kv.Value.GetString() ?? "";
+        if (r.TryGetProperty("schemas", out var schemas))
+            foreach (var sj in schemas.EnumerateArray())
+            {
+                var schema = new ClassificationSchema
+                {
+                    Name = sj.GetProperty("name").GetString() ?? "",
+                    Description = sj.TryGetProperty("description", out var sd) ? sd.GetString() ?? "" : "",
+                };
+                foreach (var t in sj.GetProperty("types").EnumerateObject())
+                    schema.Types.Add((t.Name, t.Value.EnumerateArray().Select(a => a.GetString() ?? "").ToList()));
+                model.Schemas.Add(schema);
+            }
 
         foreach (var s in r.GetProperty("scenes").EnumerateArray())
         {

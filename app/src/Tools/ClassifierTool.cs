@@ -10,6 +10,9 @@ public sealed class ClassifierTool : Tool
     /// <summary>The type the tool applies, kept between uses as SketchUp's drop-down keeps it.</summary>
     public static string Current { get; private set; } = "";
 
+    /// <summary>The imported schema <see cref="Current"/> belongs to; null for the built-in IFC types.</summary>
+    public static string? CurrentSchema { get; private set; }
+
     private bool _over;
 
     public override int CommandId => CommandIds.Classifier;
@@ -59,13 +62,15 @@ public sealed class ClassifierTool : Tool
         if (Input.IsKeyPressed(Key.Alt))
         {
             if (inst.Definition.IfcType.Length > 0)
-                Current = inst.Definition.IfcType;
+                (Current, CurrentSchema) = (inst.Definition.IfcType, null);
+            else if (inst.Definition.SchemaTypes.FirstOrDefault() is { Key: not null } applied)
+                (Current, CurrentSchema) = (applied.Value, applied.Key);
             RefreshStatus();
             return;
         }
         if (Input.IsKeyPressed(Key.Ctrl))
         {
-            doc.Operation("Erase Types", _ => inst.Definition.IfcType = "");
+            doc.Operation("Erase Types", _ => Classification.Erase(inst.Definition));
             return;
         }
         if (Current.Length == 0)
@@ -74,38 +79,43 @@ public sealed class ClassifierTool : Tool
             return;
         }
         var unique = Input.IsKeyPressed(Key.Shift);
-        doc.Operation("Classify", _ => Classification.Apply(doc.Model, inst, Current, unique));
+        doc.Operation("Classify", _ => Classification.Apply(doc.Model, inst, Current, unique, CurrentSchema));
     }
 
     /// <summary>The IFC types by category, as the Classifier toolbar's drop-down lists them.</summary>
     private void ShowTypes(Vector2 at)
     {
         var menu = new PopupMenu();
-        var submenus = new List<PopupMenu>();
-        var ids = new Dictionary<long, string>();
-        foreach (var category in Classification.Types.GroupBy(t => t.Category))
+        var ids = new Dictionary<long, (string Type, string? Schema)>();
+        void Add(string title, IEnumerable<string> types, string? schema)
         {
             var sub = new PopupMenu();
-            foreach (var type in category.OrderBy(t => t.Name))
+            foreach (var type in types.Order())
             {
-                ids[ids.Count] = type.Name;
-                sub.AddRadioCheckItem(type.Name, ids.Count - 1);
-                sub.SetItemChecked(sub.ItemCount - 1, type.Name == Current);
+                ids[ids.Count] = (type, schema);
+                sub.AddRadioCheckItem(type, ids.Count - 1);
+                sub.SetItemChecked(sub.ItemCount - 1, type == Current && schema == CurrentSchema);
             }
             sub.IdPressed += Pick;
-            submenus.Add(sub);
-            menu.AddSubmenuNodeItem(category.Key, sub);
+            menu.AddSubmenuNodeItem(title, sub);
         }
+        foreach (var category in Classification.Types.GroupBy(t => t.Category))
+            Add(category.Key, category.Select(t => t.Name), null);
+        var schemas = View.Document?.Model.Schemas.Where(s => !Classification.IsIfc(s.Name)).ToList() ?? [];
+        if (schemas.Count > 0)
+            menu.AddSeparator();
+        foreach (var schema in schemas)
+            Add(schema.Name, schema.Types.Select(t => t.Type), schema.Name);
         void Pick(long id)
         {
-            Current = ids[id];
+            (Current, CurrentSchema) = ids[id];
             RefreshStatus();
             // Pre-selected groups and components take the type at once.
             if (View.Document is { } doc && doc.Selection.Items.OfType<ComponentInstance>().ToList() is { Count: > 0 } picked)
                 doc.Operation("Classify", _ =>
                 {
                     foreach (var i in picked)
-                        Classification.Apply(doc.Model, i, Current);
+                        Classification.Apply(doc.Model, i, Current, schema: CurrentSchema);
                 });
         }
         menu.PopupHide += menu.QueueFree;
