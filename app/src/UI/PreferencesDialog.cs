@@ -446,9 +446,39 @@ public partial class PreferencesDialog : AcceptDialog
             ShowAssigned();
             return;
         }
-        _commands.SetShortcut(cmd.Id, key.GetKeycodeWithModifiers());
-        ShortcutsSaved();
-        // Another command may have lost these keys: refresh the column.
-        FillShortcuts(_filter.Text);
+        var keys = key.GetKeycodeWithModifiers();
+        void Assign()
+        {
+            _commands.SetShortcut(cmd.Id, keys);
+            ShortcutsSaved();
+            // Another command may have lost these keys: refresh the column.
+            FillShortcuts(_filter.Text);
+        }
+        // Keys another command already has are only taken from it once the user agrees, as SketchUp asks.
+        var owner = _commands.Shortcuts().Where(s => s.Keys == keys && s.Id != cmd.Id).Select(s => _commands.Get(s.Id)).FirstOrDefault();
+        if (owner == null)
+        {
+            Assign();
+            return;
+        }
+        var ask = new ConfirmationDialog
+        {
+            Title = "Shortcuts",
+            DialogText = $"{CommandRegistry.ShortcutText(keys)} is already assigned to {(owner.MenuPath.Length > 0 ? owner.MenuPath : owner.Label)}.\nDo you want to reassign it?",
+            OkButtonText = "Yes",
+            CancelButtonText = "No",
+        };
+        ask.Confirmed += () =>
+        {
+            Assign();
+            ask.QueueFree();
+        };
+        ask.Canceled += () =>
+        {
+            ShowAssigned();
+            ask.QueueFree();
+        };
+        AddChild(ask);
+        ask.PopupCentered();
     }
 }
