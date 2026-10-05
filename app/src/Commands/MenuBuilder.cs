@@ -21,30 +21,67 @@ public static class MenuBuilder
     private static PopupMenu BuildPopup(MenuNode node, CommandRegistry registry, Action<string> showHint, Action restoreHint)
     {
         var popup = new PopupMenu();
-        foreach (var child in node.Children ?? [])
+        var submenus = new Dictionary<MenuNode, PopupMenu>();
+        // Items expanded from dynamic entries (recent files) run from here; their ids sit above every command id.
+        var dynamicActions = new List<Action>();
+        const int dynamicBase = 1_000_000;
+        void Fill()
         {
-            if (child.IsSeparator)
+            popup.Clear(false);
+            dynamicActions.Clear();
+            foreach (var child in node.Children ?? [])
             {
-                popup.AddSeparator();
-            }
-            else if (child.Children != null && registry.DynamicMenus.TryGetValue(child.Label, out var items))
-            {
-                popup.AddSubmenuNodeItem(child.Label, Dynamic(items));
-            }
-            else if (child.Children != null)
-            {
-                var sub = BuildPopup(child, registry, showHint, restoreHint);
-                popup.AddSubmenuNodeItem(child.Label, sub);
-            }
-            else
-            {
-                AddCommandItem(popup, registry.Get(child.Id!.Value), child.Label);
+                if (child.IsSeparator)
+                    popup.AddSeparator();
+                else if (child.Children != null && registry.DynamicMenus.TryGetValue(child.Label, out var items))
+                {
+                    if (!submenus.TryGetValue(child, out var sub))
+                        submenus[child] = sub = Dynamic(items);
+                    popup.AddSubmenuNodeItem(child.Label, sub);
+                }
+                else if (child.Children != null)
+                {
+                    if (!submenus.TryGetValue(child, out var sub))
+                        submenus[child] = sub = BuildPopup(child, registry, showHint, restoreHint);
+                    popup.AddSubmenuNodeItem(child.Label, sub);
+                }
+                else if (registry.DynamicItems.TryGetValue(child.Id!.Value, out var inline))
+                {
+                    var added = false;
+                    foreach (var (label, run) in inline())
+                    {
+                        popup.AddItem(label, dynamicBase + dynamicActions.Count);
+                        dynamicActions.Add(run);
+                        added = true;
+                    }
+                    if (!added)
+                        AddCommandItem(popup, registry.Get(child.Id.Value), child.Label);
+                }
+                else
+                    AddCommandItem(popup, registry.Get(child.Id!.Value), child.Label);
             }
         }
+        Fill();
 
-        popup.IdPressed += id => registry.Execute((int)id);
-        popup.IdFocused += id => showHint(registry.Get((int)id).Description);
-        popup.AboutToPopup += () => Refresh(popup, registry);
+        popup.IdPressed += id =>
+        {
+            if (id >= dynamicBase)
+                dynamicActions[(int)id - dynamicBase]();
+            else
+                registry.Execute((int)id);
+        };
+        popup.IdFocused += id =>
+        {
+            if (id < dynamicBase)
+                showHint(registry.Get((int)id).Description);
+        };
+        var hasDynamic = (node.Children ?? []).Any(c => c.Id is { } id && registry.DynamicItems.ContainsKey(id));
+        popup.AboutToPopup += () =>
+        {
+            if (hasDynamic)
+                Fill();
+            Refresh(popup, registry);
+        };
         // Like SketchUp, the status bar shows the hovered command's description, then the tool hint again.
         popup.PopupHide += restoreHint;
         return popup;
@@ -85,7 +122,7 @@ public static class MenuBuilder
         for (var i = 0; i < popup.ItemCount; i++)
         {
             var id = popup.GetItemId(i);
-            if (id < 0 || popup.IsItemSeparator(i))
+            if (id < 0 || id >= 1_000_000 || popup.IsItemSeparator(i))
                 continue;
             var cmd = registry.Get(id);
             if (popup.GetItemSubmenuNode(i) == null)

@@ -31,7 +31,6 @@ public static class ExtensionIds
     public const int Sphere = 90054;
     /// <summary>BezierSpline's curve tools, one id per family from 90101.</summary>
     public static int Spline(Dogeometric.Core.Modeling.SplineKind kind) => 90101 + (int)kind;
-    public const int SplineTBone = 90113;
     public const int SplineDividerAnimation = 90114;
     public const int SplineEdit = 90120;
 
@@ -99,6 +98,17 @@ public static class ExtensionIds
     public const int CameraFrustumLines = 90264;
     public const int CameraFrustumVolume = 90265;
     public const int CameraReset = 90266;
+}
+
+/// <summary>SketchUp's Help menu commands.</summary>
+public static class HelpIds
+{
+    public const int Welcome = 24182;
+    public const int HelpCenter = 57667;
+    public const int ContactUs = 24184;
+    public const int CheckForUpdate = 21931;
+    public const int CheckYourSystem = 24435;
+    public const int Search = 59423;
 }
 
 /// <summary>Dogeometric's own commands, which SketchUp does not have.</summary>

@@ -32,7 +32,7 @@ public static class ExtensionMenus
               Cubic Bezier curve | {{S(SplineKind.CubicBezier)}}
               Polyline Divider | {{S(SplineKind.Divider)}}
               Polyline Dog-Bone Corners | {{S(SplineKind.DogBone)}}
-              Polyline T-Bone Corners | {{E.SplineTBone}}
+              Polyline T-Bone Corners | {{S(SplineKind.TBone)}}
               F-Spline | {{S(SplineKind.FSpline)}}
               Polyline Segmentor | {{S(SplineKind.Segmentor)}}
             ---

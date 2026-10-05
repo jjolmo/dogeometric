@@ -95,4 +95,17 @@ public class SplinesTests
         Assert.Equal(e.Edges.Count, e.Faces[0].OuterLoop.Edges.Count);
         Assert.True(e.Vertices.Max(v => v.Position.X) > 29);
     }
+
+    [Fact]
+    public void T_bone_corners_notch_along_the_incoming_side()
+    {
+        // A 20 × 10 rectangle's corner at (20, 0): the notch runs along the bottom side, past the corner outwards.
+        var pts = Splines.Compute(SplineKind.TBone, [new(0, 0, 0), new(20, 0, 0), new(20, 10, 0)], 24, 2, false);
+        Assert.Equal(new Vec3(0, 0, 0), pts[0]);
+        Assert.Equal(new Vec3(20, 10, 0), pts[^1]);
+        Assert.Contains(pts, p => p.DistanceTo(new Vec3(16, 0, 0)) < 1e-9);
+        Assert.Contains(pts, p => p.DistanceTo(new Vec3(20, 0, 0)) < 1e-9);
+        Assert.Contains(pts, p => p.DistanceTo(new Vec3(18, -2, 0)) < 1e-9);
+        Assert.All(pts, p => Assert.True(p.Y >= -2 - 1e-9 && p.X <= 20 + 1e-9));
+    }
 }

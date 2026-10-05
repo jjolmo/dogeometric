@@ -78,6 +78,8 @@ public static class CommandIds
     public const int Zoom = 10509;
     public const int ZoomExtents = 10527;
     public const int MatchNewPhoto = 23006;
+    public const int RecentFile = 57616;
+    public const int Revert = 21485;
     public const int ZoomToPhoto = 10625;
 
     // Tools

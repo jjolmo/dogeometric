@@ -46,6 +46,19 @@ public sealed class AppPreferences
     /// <summary>Print a hidden-line drawing instead of the view as drawn.</summary>
     public bool PrintAsDrawing { get; set; }
 
+    /// <summary>File › Recent File, newest first.</summary>
+    public List<string> RecentFiles { get; set; } = [];
+
+    /// <summary>Puts <paramref name="path"/> first in the recent files (eight at most, as SketchUp keeps).</summary>
+    public static void AddRecent(string path)
+    {
+        Current.RecentFiles.RemoveAll(p => p == path);
+        Current.RecentFiles.Insert(0, path);
+        if (Current.RecentFiles.Count > 8)
+            Current.RecentFiles.RemoveRange(8, Current.RecentFiles.Count - 8);
+        Save();
+    }
+
     // SUbD › Preferences.
     /// <summary>Check a mesh is manifold before subdividing it.</summary>
     public bool SubdFixManifolds { get; set; } = true;

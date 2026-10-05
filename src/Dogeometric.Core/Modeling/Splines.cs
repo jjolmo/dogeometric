@@ -6,7 +6,7 @@ namespace Dogeometric.Core.Modeling;
 public enum SplineKind
 {
     ClassicBezier, Polyline, CubicBezier, UniformBSpline, CatmullSpline, FSpline, Courbette,
-    ArcCorners, Chamfer, DogBone, Divider, Segmentor,
+    ArcCorners, Chamfer, DogBone, Divider, Segmentor, TBone,
 }
 
 /// <summary>
@@ -31,6 +31,7 @@ public static class Splines
         SplineKind.DogBone => new("Polyline Dog-Bone Corners", 2, 1, 120, 24, "Radius"),
         SplineKind.Divider => new("Polyline Divider", 2, 1, 1, 1, "Length"),
         SplineKind.Segmentor => new("Polyline Segmentor", 2, 1, 1, 1, "Segments"),
+        SplineKind.TBone => new("Polyline T-Bone Corners", 2, 1, 120, 24, "Radius"),
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -52,6 +53,7 @@ public static class Splines
             SplineKind.ArcCorners => Corners(p, closed, parameter, precision, Fillet),
             SplineKind.Chamfer => Corners(p, closed, parameter, precision, ChamferCorner),
             SplineKind.DogBone => Corners(p, closed, parameter, precision, DogBoneCorner),
+            SplineKind.TBone => Corners(p, closed, parameter, precision, TBoneCorner),
             SplineKind.Divider => Resample(p, parameter > Tolerance.Length ? Math.Max(1, (int)Math.Round(Length(p) / parameter)) : 1),
             SplineKind.Segmentor => Resample(p, Math.Max(1, (int)Math.Round(parameter))),
             _ => p,
@@ -377,6 +379,24 @@ public static class Splines
     /// A dog-bone corner: the cut of a round cutter of radius <paramref name="r"/> pushed along the bisector until it
     /// touches the corner, so a square part fits in the pocket.
     /// </summary>
+    /// <summary>A T-bone corner: a half circle of radius <paramref name="r"/> cut along the incoming side, past the corner
+    /// on the outside, so a round cutter reaches it travelling along that side only.</summary>
+    private static List<Vec3> TBoneCorner(Vec3 before, Vec3 corner, Vec3 after, double r, int circleSegments)
+    {
+        var u = (before - corner).Normalized();
+        var v = (after - corner).Normalized();
+        var w = v - u * u.Dot(v);
+        if (w.Length < 1e-9)
+            return [corner];
+        w = w.Normalized();
+        var centre = corner + u * r;
+        var steps = Math.Max(2, (int)Math.Ceiling(circleSegments / 2.0));
+        return Enumerable.Range(0, steps + 1)
+            .Select(k => Math.PI * k / steps)
+            .Select(t => centre + u * (Math.Cos(t) * r) - w * (Math.Sin(t) * r))
+            .ToList();
+    }
+
     private static List<Vec3> DogBoneCorner(Vec3 before, Vec3 corner, Vec3 after, double r, int circleSegments)
     {
         var u = (before - corner).Normalized();

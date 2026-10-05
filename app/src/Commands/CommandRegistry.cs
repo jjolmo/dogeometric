@@ -218,7 +218,8 @@ public sealed class CommandRegistry
         {
             foreach (var n in nodes)
             {
-                sb.Append(' ', depth * 2).AppendLine(n.IsSeparator ? "---" : n.Label.Replace("&", ""));
+                var off = n.Id is { } id && !Get(id).IsImplemented ? "  [off]" : "";
+                sb.Append(' ', depth * 2).AppendLine(n.IsSeparator ? "---" : n.Label.Replace("&", "") + off);
                 if (n.Children != null)
                     Walk(n.Children, depth + 1);
             }
@@ -226,6 +227,10 @@ public sealed class CommandRegistry
         Walk(_menus, 0);
         return sb.ToString();
     }
+
+    /// <summary>Items replaced, when their menu opens, by a list (File › Recent File becomes the recent files); the item
+    /// itself shows when the list is empty.</summary>
+    public Dictionary<int, Func<IEnumerable<(string Label, Action Run)>>> DynamicItems { get; } = [];
 
     /// <summary>Submenus filled when they open (Camera › Edit Matched Photo lists the photo scenes), by label.</summary>
     public Dictionary<string, Func<IEnumerable<(string Label, Action Run)>>> DynamicMenus { get; } = [];

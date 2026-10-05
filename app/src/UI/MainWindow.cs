@@ -110,6 +110,7 @@ public partial class MainWindow : Control
         RegisterCommands();
         RegisterExtensions();
         RegisterSubdExtras();
+        RegisterHelp();
         ExtensionMenus.Apply(_commands);
 
         // Shortcuts the reference SketchUp install has beyond its built-in tables.
@@ -1088,6 +1089,9 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.Perspective, () => v.SetPerspective(true), () => v.Camera.Perspective, radio: true);
         _commands.Register(CommandIds.ZoomExtents, v.ZoomExtents);
         _commands.Register(CommandIds.MatchNewPhoto, MatchNewPhoto);
+        _commands.Register(CommandIds.Revert, _document.Revert);
+        _commands.DynamicItems[CommandIds.RecentFile] = () => AppPreferences.Current.RecentFiles
+            .Select((p, i) => ($"{i + 1} {System.IO.Path.GetFileName(p)}", (Action)(() => _document.OpenRecent(p))));
         _commands.Register(CommandIds.ZoomToPhoto, () =>
         {
             if (_scenes.Current?.Photo is { } photo)

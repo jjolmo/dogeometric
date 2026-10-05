@@ -5,7 +5,8 @@ using Godot;
 
 namespace Dogeometric.App.UI;
 
-/// <summary>SUbD's dialogs and toggles: its Entity Info, Preferences, Getting Started, Display Edges and Quad Push/Pull.</summary>
+/// <summary>SUbD's dialogs and toggles (Entity Info, Preferences, Getting Started, Display Edges, Quad Push/Pull), and other
+/// small extension commands.</summary>
 public partial class MainWindow
 {
     private Window? _subdInfo;
@@ -24,6 +25,18 @@ public partial class MainWindow
             "drag their labels, or double-click for infinitely sharp. Quad Push/Pull extrudes faces keeping quads.\n\n" +
             "Convert to Plain Mesh turns the surface into ordinary geometry."));
         _commands.Register(ExtensionIds.SubdPreferences, ShowSubdPreferences);
+        _commands.Register(ExtensionIds.SelectEdgeLoops, () =>
+        {
+            var doc = _document.Document;
+            doc.Selection.Set(SelectionToys.EdgeLoops(doc.Context.Entities, doc.Selection.Items.ToList()));
+        });
+        _commands.Register(ExtensionIds.FredoScaleMakeUnique, () =>
+        {
+            var doc = _document.Document;
+            var shared = doc.Selection.Items.OfType<ComponentInstance>().Where(i => !i.IsGroup).ToList();
+            if (shared.Count > 0)
+                doc.Operation("Make Unique", _ => shared.ForEach(i => Grouping.MakeUnique(doc.Model, i)));
+        });
     }
 
     private void Alert(string title, string text)

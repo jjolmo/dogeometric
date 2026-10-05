@@ -195,6 +195,31 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     public event Action? Changed;
 
     /// <summary>File › New: an empty model; the camera keeps SketchUp's new-model view.</summary>
+    /// <summary>File › Recent File: opens one of the recent files (asking to save changes first).</summary>
+    public void OpenRecent(string path) => ConfirmDiscard(() =>
+    {
+        if (System.IO.File.Exists(path))
+            Open(path);
+        else
+            Alert("Open", $"{path} no longer exists.");
+    });
+
+    /// <summary>File › Revert: back to the file as last saved, after confirming.</summary>
+    public void Revert()
+    {
+        if (Path is not { } path || !System.IO.File.Exists(path))
+            return;
+        var d = new ConfirmationDialog { Title = "Revert", DialogText = "Revert to the last saved version? Changes since then will be lost." };
+        d.Confirmed += () =>
+        {
+            d.QueueFree();
+            Open(path);
+        };
+        d.Canceled += d.QueueFree;
+        host.AddChild(d);
+        d.PopupCentered();
+    }
+
     public void New() => ConfirmDiscard(() => SetModel(new Model(), null, zoomExtents: false));
 
     public void ShowOpen() => ConfirmDiscard(() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Open",
@@ -294,6 +319,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             return false;
         _savedRevision = Document.Undo.Revision;
         Changed?.Invoke();
+        AppPreferences.AddRecent(path);
         return true;
     }
 
@@ -375,6 +401,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             if (Path == null)
                 Path = path;
             Changed?.Invoke();
+            AppPreferences.AddRecent(path);
             status.SetHint($"Opened {System.IO.Path.GetFileName(path)} ({model.SourceVersion})");
         }
         catch (Exception ex)
