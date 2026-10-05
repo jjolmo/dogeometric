@@ -283,7 +283,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
@@ -350,7 +350,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         });
 
     public void ShowExport3D() => ShowDialog(FileDialog.FileModeEnum.SaveFile, "Export 3D Model",
-        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.skp ; SketchUp (2017 format)"],
+        ["*.stl ; STL (binary)", "*.obj ; Wavefront OBJ", "*.glb ; glTF binary", "*.dae ; COLLADA", "*.kmz ; Google Earth (KMZ)", "*.step, *.stp ; STEP (AP214)", "*.ifc ; IFC 4", "*.dwg ; AutoCAD DWG", "*.dxf ; AutoCAD DXF", "*.skp ; SketchUp (2017 format)"],
         Export, dialog =>
         {
             // SketchUp's "Export selection only" option, on when something is selected.
@@ -472,6 +472,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             }
             var imported = System.IO.Path.GetExtension(path).Equals(".dxf", StringComparison.OrdinalIgnoreCase)
                 ? Dogeometric.Core.IO.DxfImport.Load(path)
+                : System.IO.Path.GetExtension(path).Equals(".dwg", StringComparison.OrdinalIgnoreCase)
+                ? Dogeometric.Formats.CadFiles.LoadDwg(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".dae" or ".kmz"
                 ? Dogeometric.Core.IO.DaeImport.Load(path)
                 : System.IO.Path.GetExtension(path).ToLowerInvariant() is ".stl" or ".obj"
@@ -512,6 +514,13 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options));
             if (step != null)
                 status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
+            return;
+        }
+        if (ext is ".dwg" or ".dxf")
+        {
+            var written = (Faces: 0, Lines: 0);
+            if (Write(path, (m, p) => written = Dogeometric.Formats.CadFiles.Write3D(m, p, options)))
+                status.SetHint($"Exported {written.Faces} 3D faces and {written.Lines} lines");
             return;
         }
         if (ext == ".ifc")

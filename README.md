@@ -27,13 +27,23 @@ dotnet build Dogeometric.sln
 ~/Godot/godot.x86_64 --path app
 ```
 
-Tests: `dotnet test tests/Dogeometric.Core.Tests`.
+Tests: `dotnet test tests/Dogeometric.Core.Tests` (also `Dogeometric.Formats.Tests` and `Dogeometric.Solids.Tests`).
+
+Linux release: `scripts/release-linux.sh` (needs Godot's .NET export templates and `tools/native/build-manifold.sh` run once).
 
 ## Decisions
 
 - Native format `.dog`; open `.skp`; import/export open formats (STL, OBJ, glTF…); STL export of the selection or the whole model.
-- Metric units only.
+- Metric and imperial units (Architectural, Engineering, Fractional), as SketchUp's Model Info › Units.
 - SketchUp's behaviour is the spec. When in doubt, check SketchUp 2021 (installed in the `SketchUp` Bottles bottle on undine) and measure it.
+
+## Third-party libraries
+
+| Library | Licence | Used for |
+|---|---|---|
+| [OpenSKP](https://github.com/iamahsanmehmood/openskp) (vendored in `third_party/OpenSkp`) | MIT | Reading and writing `.skp` |
+| [Manifold](https://github.com/elalish/manifold) (built by `tools/native/build-manifold.sh`) | Apache-2.0 | Solid Tools booleans |
+| [ACadSharp](https://github.com/DomCR/ACadSharp) (NuGet) | MIT | DWG import and export |
 
 ## Licence
 

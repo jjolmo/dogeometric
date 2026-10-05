@@ -12,4 +12,7 @@
          Re-run the corpus check (tools/Dogeometric.SkpCorpus) after any change. -->
     <ProjectReference Include="../../third_party/OpenSkp/OpenSkp.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ACadSharp" Version="3.8.0" />
+  </ItemGroup>
 </Project>

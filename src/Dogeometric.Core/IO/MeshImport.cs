@@ -86,7 +86,21 @@ public static class MeshImport
     {
         var model = new Model();
         var def = new ComponentDefinition { Name = name, IsGroup = true };
+        var keyed = polygons.Select((p, i) => (p.Select(x => x * mmPerUnit).ToList(), (object?)(materials != null && i < materials.Count ? materials[i] : null))).ToList();
+        foreach (var (face, front, back) in AddMerged(def.Entities, keyed))
+            (face.FrontMaterial, face.BackMaterial) = ((Material?)front, (Material?)back);
+        foreach (var m in def.Entities.Faces.SelectMany(f => new[] { f.FrontMaterial, f.BackMaterial }).OfType<Material>().Distinct())
+            model.Materials.Add(m);
+        model.Definitions.Add(def);
+        model.Entities.AddInstance(def, Transform.Identity);
+        return model;
+    }
 
+    /// <summary>Adds the polygons welded, coplanar neighbours with the same key merged into faces with holes unless
+    /// <paramref name="keepEdge"/> keeps the edge between them; returns each face with its front and back keys.</summary>
+    public static List<(Face Face, object? Key, object? BackKey)> AddMerged(Entities e, IReadOnlyList<(List<Vec3> Points, object? Key)> polygons,
+        Func<Vec3, Vec3, bool>? keepEdge = null)
+    {
         // Corners welded by position, polygons cut into triangles (fans; files hold convex faces).
         var points = new List<Vec3>();
         var grid = new Dictionary<(long, long, long), List<int>>();
@@ -108,13 +122,10 @@ public static class MeshImport
             return points.Count - 1;
         }
         var triangles = new List<(int A, int B, int C, Vec3 Normal)>();
-        var painted = new List<Material?>();
-        var index = -1;
-        foreach (var polygon in polygons)
+        var keys = new List<object?>();
+        foreach (var (polygon, polygonKey) in polygons)
         {
-            index++;
-            var material = materials != null && index < materials.Count ? materials[index] : null;
-            var ids = polygon.Select(p => Id(p * mmPerUnit)).ToList();
+            var ids = polygon.Select(Id).ToList();
             for (var i = 1; i + 1 < ids.Count; i++)
             {
                 var (a, b, c) = (ids[0], ids[i], ids[i + 1]);
@@ -122,12 +133,12 @@ public static class MeshImport
                 if (a == b || b == c || a == c || n.Length < Tolerance.Length * Tolerance.Length)
                     continue;
                 triangles.Add((a, b, c, n.Normalized()));
-                painted.Add(material);
+                keys.Add(polygonKey);
             }
         }
 
         // A triangle repeated with the opposite winding is the back of the first (COLLADA writes back sides apart).
-        var backs = new Material?[triangles.Count];
+        var backs = new object?[triangles.Count];
         var seen = new Dictionary<(int, int, int), int>();
         var kept = new List<int>();
         for (var t = 0; t < triangles.Count; t++)
@@ -138,15 +149,15 @@ public static class MeshImport
             if (seen.TryGetValue((corners[0], corners[1], corners[2]), out var first))
             {
                 if (triangles[first].Normal.Dot(triangles[t].Normal) < 0)
-                    backs[first] ??= painted[t];
+                    backs[first] ??= keys[t];
                 continue;
             }
             seen[(corners[0], corners[1], corners[2])] = t;
             kept.Add(t);
         }
         triangles = kept.Select(t => triangles[t]).ToList();
-        var backPainted = kept.Select(t => backs[t]).ToList();
-        painted = kept.Select(t => painted[t]).ToList();
+        var backKeys = kept.Select(t => backs[t]).ToList();
+        keys = kept.Select(t => keys[t]).ToList();
 
         // Neighbouring triangles in the same plane, facing the same way, make one face.
         var parent = Enumerable.Range(0, triangles.Count).ToArray();
@@ -163,15 +174,17 @@ public static class MeshImport
                 list.Add(t);
             }
         }
-        foreach (var list in byEdge.Values.Where(l => l.Count == 2))
+        foreach (var (edge, list) in byEdge.Where(x => x.Value.Count == 2))
         {
             var (t1, t2) = (triangles[list[0]], triangles[list[1]]);
             if (t1.Normal.Dot(t2.Normal) > 1 - 1e-9 && Math.Abs((points[t2.A] - points[t1.A]).Dot(t1.Normal)) < Tolerance.Length
-                && painted[list[0]] == painted[list[1]] && backPainted[list[0]] == backPainted[list[1]])
+                && Equals(keys[list[0]], keys[list[1]]) && Equals(backKeys[list[0]], backKeys[list[1]])
+                && keepEdge?.Invoke(points[edge.Item1], points[edge.Item2]) != true)
                 parent[Find(list[0])] = Find(list[1]);
         }
 
-        var welder = new Welder(def.Entities);
+        var welder = new Welder(e);
+        var result = new List<(Face, object?, object?)>();
         foreach (var cluster in Enumerable.Range(0, triangles.Count).GroupBy(Find))
         {
             // The cluster's outline: directed edges whose reverse is not in the cluster, chained into loops.
@@ -179,9 +192,9 @@ public static class MeshImport
             foreach (var t in cluster)
             {
                 var (a, b, c, _) = triangles[t];
-                foreach (var e in new[] { (a, b), (b, c), (c, a) })
-                    if (!directed.Remove((e.Item2, e.Item1)))
-                        directed.Add(e);
+                foreach (var d in new[] { (a, b), (b, c), (c, a) })
+                    if (!directed.Remove((d.Item2, d.Item1)))
+                        directed.Add(d);
             }
             var next = new Dictionary<int, Queue<int>>();
             foreach (var (u, v) in directed)
@@ -215,15 +228,10 @@ public static class MeshImport
                 var flat = Flat(outer);
                 var mine = holes.Where(h => Inside(Flat(h)[0], flat)).ToList();
                 holes = holes.Except(mine).ToList();
-                var face = welder.Face(outer, mine);
-                (face.FrontMaterial, face.BackMaterial) = (painted[cluster.First()], backPainted[cluster.First()]);
+                result.Add((welder.Face(outer, mine), keys[cluster.First()], backKeys[cluster.First()]));
             }
         }
-        foreach (var m in painted.Concat(backPainted).OfType<Material>().Distinct())
-            model.Materials.Add(m);
-        model.Definitions.Add(def);
-        model.Entities.AddInstance(def, Transform.Identity);
-        return model;
+        return result;
     }
 
     private static bool Inside((double X, double Y) q, (double X, double Y)[] poly)
