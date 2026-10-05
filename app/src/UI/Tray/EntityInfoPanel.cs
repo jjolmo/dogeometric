@@ -77,6 +77,27 @@ public partial class EntityInfoPanel : VBoxContainer
                 Edit("Text", x.Text, v => doc.Operation("Edit Text", _ => x.Text = v));
                 Check("Hidden", x.Hidden, v => doc.Operation("Hide", _ => x.Hidden = v));
                 break;
+            case ComponentInstance { Definition.IsImage: true } image:
+            {
+                Title("Image");
+                TagRow(doc, image.Tag, t => doc.Operation("Change Tag", _ => image.Tag = t));
+                Edit("Name", image.Definition.Name, v => doc.Operation("Rename", _ => image.Definition.Name = v));
+                var size = image.Definition.Entities.Bounds().Size;
+                var (sx, sy) = (image.Transform.X.Length, image.Transform.Y.Length);
+                // Width and height scale the image in its own plane.
+                Edit("Width", Length.Format(size.X * sx, LengthUnit.Millimeters, 1), v =>
+                {
+                    if (Length.TryParse(v, LengthUnit.Millimeters, out var w) && w > 0 && size.X > 0)
+                        doc.Operation("Image Size", _ => image.Transform = Transform.Scaling(w / (size.X * sx), 1, 1).Then(image.Transform));
+                });
+                Edit("Height", Length.Format(size.Y * sy, LengthUnit.Millimeters, 1), v =>
+                {
+                    if (Length.TryParse(v, LengthUnit.Millimeters, out var h) && h > 0 && size.Y > 0)
+                        doc.Operation("Image Size", _ => image.Transform = Transform.Scaling(1, h / (size.Y * sy), 1).Then(image.Transform));
+                });
+                Check("Hidden", image.Hidden, v => doc.Operation("Hide", _ => image.Hidden = v));
+                break;
+            }
             case ComponentInstance i:
                 // SketchUp calls a closed, consistently oriented mesh without nested instances a solid.
                 var report = i.Definition.Entities.Instances.Count == 0

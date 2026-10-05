@@ -5,6 +5,7 @@ render_mode cull_disabled, depth_draw_opaque, specular_disabled, ambient_light_d
 #include "res://shaders/section.gdshaderinc"
 #include "res://shaders/texture_sample.gdshaderinc"
 instance uniform float fade = 0.0;
+instance uniform float pull = 0.0;
 
 uniform vec4 front_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 back_color : source_color = vec4(0.643, 0.698, 0.733, 1.0);
@@ -19,6 +20,16 @@ uniform bool receive_shadows = true;
 
 void vertex() {
 	SECTION_TRACK;
+	// Writing POSITION anywhere replaces Godot's own, so it is always written.
+	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	// Image entities lie on the faces they were placed on: they are drawn a little nearer, as SketchUp shows them.
+	if (pull > 0.0) {
+		if (PROJECTION_MATRIX[3][3] == 0.0) {
+			POSITION.z *= 1.0 + 0.0003 * pull;
+		} else {
+			POSITION.z += 2.5e-8 * pull;
+		}
+	}
 }
 
 void fragment() {

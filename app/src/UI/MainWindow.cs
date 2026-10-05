@@ -82,16 +82,24 @@ public partial class MainWindow : Control
         _document = new DocumentController(this, _viewport, _status);
         _document.Changed += () => GetWindow().Title = _document.Title;
         _document.ComponentImportRequested += def => _viewport.Tools.Activate(new ComponentPlaceTool(def));
-        _document.ImageImportRequested += path =>
+        _document.ImageImportRequested += (path, use) =>
         {
+            if (use == DocumentController.ImageUse.MatchedPhoto)
+            {
+                MatchPhoto(path);
+                return;
+            }
             var data = File.ReadAllBytes(path);
             if (TextureImages.Decode(data) is not { } image)
             {
                 _status.SetHint($"Could not read {System.IO.Path.GetFileName(path)} as an image.");
                 return;
             }
-            _viewport.Tools.Activate(new TexturePlaceTool(System.IO.Path.GetFileName(path), data, image.GetWidth(), image.GetHeight(),
-                UI.Tray.CreateMaterialDialog.AverageColor(image)));
+            var name = System.IO.Path.GetFileName(path);
+            var average = UI.Tray.CreateMaterialDialog.AverageColor(image);
+            _viewport.Tools.Activate(use == DocumentController.ImageUse.Texture
+                ? new TexturePlaceTool(name, data, image.GetWidth(), image.GetHeight(), average)
+                : new ImagePlaceTool(name, data, image.GetWidth(), image.GetHeight(), average));
         };
         BuildTray();
         _document.DocumentReplaced += HookDocument;
@@ -616,7 +624,9 @@ public partial class MainWindow : Control
     }
 
     /// <summary>Camera › Match New Photo: a new scene named after the photo, with the photo to match its camera to.</summary>
-    private void MatchNewPhoto() => _document.PickPhoto(path =>
+    private void MatchNewPhoto() => _document.PickPhoto(MatchPhoto);
+
+    private void MatchPhoto(string path)
     {
         var image = Image.LoadFromFile(path);
         if (image == null || image.IsEmpty())
@@ -630,7 +640,7 @@ public partial class MainWindow : Control
         _document.Model.Scenes.Add(scene);
         _scenes.Go(_document.Model.Scenes.Count - 1, instant: true);
         _viewport.Tools.Activate(new MatchPhotoTool(scene));
-    });
+    }
 
     private Window? _surfacePalette;
     private int _surfaceLast = ExtensionIds.SurfaceShape(SurfaceShape.Line);

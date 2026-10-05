@@ -386,6 +386,9 @@ public sealed class ModelRenderer
                 node.SetMeta("hidden", true); // shown faded (View › Hidden Objects)
             parent.AddChild(node);
             AddEntities(inst.Definition.Entities, node, _colorByTag ? TagMaterial(inst.Tag) ?? inherited : inst.Material ?? inherited, mirrored ^ inst.Transform.IsMirroring);
+            if (inst.Definition.IsImage)
+                foreach (var face in node.GetChildren().OfType<MeshInstance3D>())
+                    face.SetInstanceShaderParameter("pull", 1f);
         }
     }
 

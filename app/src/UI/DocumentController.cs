@@ -283,22 +283,25 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     }
 
     public void ShowImport() => ShowDialog(FileDialog.FileModeEnum.OpenFile, "Import",
-        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images (as texture)"], Import,
+        ["*.skp ; SketchUp", "*.dog ; Dogeometric", "*.stl ; STL", "*.obj ; OBJ", "*.dxf ; AutoCAD DXF", "*.png, *.jpg, *.jpeg, *.bmp, *.webp ; Images"], Import,
         dialog =>
         {
             // STL and OBJ carry no unit: the importer asks, as SketchUp's does.
             dialog.AddOption("Units (STL, OBJ)", [.. MeshUnits.Select(u => u.Name)], 0);
+            dialog.AddOption("Use image as", ["Image", "Texture", "New Matched Photo"], 0);
             _importOptionsDialog = dialog;
         });
+
+    public enum ImageUse { Image, Texture, MatchedPhoto }
 
     private static readonly (string Name, double Mm)[] MeshUnits = [("Millimeters", 1), ("Centimeters", 10), ("Meters", 1000), ("Inches", 25.4)];
     private FileDialog? _importOptionsDialog;
 
-    /// <summary>File › Import of a picture: the main window hands it to the texture placing tool.</summary>
     /// <summary>A model imported as a component, to be placed with the cursor.</summary>
     public event Action<ComponentDefinition>? ComponentImportRequested;
 
-    public event Action<string>? ImageImportRequested;
+    /// <summary>File › Import of a picture, used as an image, a texture or a new matched photo (SketchUp's "Use image as").</summary>
+    public event Action<string, ImageUse>? ImageImportRequested;
 
     public void Save() => Save(null);
 
@@ -436,7 +439,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     {
         if (System.IO.Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".webp")
         {
-            ImageImportRequested?.Invoke(path);
+            var use = _importOptionsDialog?.GetSelectedOptions() is { } options && options.TryGetValue("Use image as", out var chosen) ? (ImageUse)(int)chosen : ImageUse.Image;
+            ImageImportRequested?.Invoke(path, use);
             return;
         }
         try
