@@ -19,6 +19,9 @@ public enum InferenceKind
     Center,
 }
 
+/// <summary>Line tool › Alt, "Toggle Linear Inferences": which direction inferences it offers.</summary>
+public enum LinearInferences { AllOn, AllOff, ParallelPerpendicularOnly }
+
 /// <summary>The snapped point and what it snapped to (drives the cursor marker colour and tooltip).</summary>
 public sealed record InferenceResult(Vec3 Point, InferenceKind Kind, string Label, Vec3? AxisFrom = null, Vec3? AxisDirection = null)
 {
@@ -63,6 +66,8 @@ public sealed class InferenceEngine
     /// <summary>The direction of the last edge the cursor crossed while drawing from a point: lines can then run
     /// parallel or perpendicular to it, as SketchUp's magenta inferences.</summary>
     public Vec3? ReferenceDirection { get; set; }
+
+    public LinearInferences Linear { get; set; } = LinearInferences.AllOn;
 
     /// <summary>Locked axis (arrow keys), or null.</summary>
     public Vec3? LockedAxis { get; set; }
@@ -232,10 +237,12 @@ public sealed class InferenceEngine
     {
         if (view.ToScreen(from) is null)
             return null;
+        if (Linear == LinearInferences.AllOff)
+            return null;
         InferenceResult? best = null;
         var bestDist = SnapPixels;
         var axes = AxisDirections;
-        var directions = axes.Select(a => (a.Dir, $"On {a.Name} Axis")).ToList();
+        var directions = Linear == LinearInferences.AllOn ? axes.Select(a => (a.Dir, $"On {a.Name} Axis")).ToList() : [];
         bool OffAxis(Vec3 d) => axes.All(a => Math.Abs(a.Dir.Dot(d)) < 1 - 1e-6);
         if (ReferenceDirection is { } r)
         {

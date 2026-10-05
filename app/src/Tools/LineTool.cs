@@ -12,13 +12,27 @@ namespace Dogeometric.App.Tools;
 /// </summary>
 public sealed class LineTool : DrawingTool
 {
+    // Kept for the session, as SketchUp keeps it.
+    private static Core.Inference.LinearInferences _linear;
+
     private Vec3? _start;
 
     public override int CommandId => CommandIds.Line;
     public override string CursorImage => "pencil";
     protected override Vec3? From => _start;
     public override string VcbLabel => "Length";
-    public override string StatusText => _start == null ? "Select start point." : "Click to set second endpoint or enter length.";
+    public override string StatusText => (_start == null ? "Click to set first endpoint." : "Click to set second endpoint or enter length.") + _linear switch
+    {
+        Core.Inference.LinearInferences.AllOff => "  Linear Inferencing (All Off)",
+        Core.Inference.LinearInferences.ParallelPerpendicularOnly => "  Parallel/Perpendicular Inferencing Only",
+        _ => "  Alt = Toggle Linear Inferences",
+    };
+
+    public override void Activate()
+    {
+        base.Activate();
+        Inference.Linear = _linear;
+    }
 
     public override string VcbValue => _start is { } s && Current is { } c ? UI.Measure.Show(s.DistanceTo(c.Point)) : "";
 
@@ -91,6 +105,15 @@ public sealed class LineTool : DrawingTool
 
     public override bool KeyDown(InputEventKey key)
     {
+        if (key.Keycode == Key.Alt && !key.Echo)
+        {
+            // All On, then All Off, then Parallel/Perpendicular Only, as SketchUp cycles them.
+            _linear = (Core.Inference.LinearInferences)(((int)_linear + 1) % 3);
+            Inference.Linear = _linear;
+            RefreshStatus();
+            UpdateInference();
+            return true;
+        }
         if (key.Keycode == Key.Escape && _start != null)
         {
             _start = null;

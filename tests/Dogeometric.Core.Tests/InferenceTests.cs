@@ -96,4 +96,23 @@ public class InferenceTests
         var endpoint = new InferenceResult(new Vec3(13.4, 1, 0), InferenceKind.Endpoint, "Endpoint");
         Assert.Same(endpoint, InferenceEngine.SnapLength(endpoint, from, 2.5));
     }
+
+    [Fact]
+    public void Linear_inferences_can_be_limited_or_turned_off()
+    {
+        var e = new Entities();
+        var edge = StickyGeometry.DrawEdges(e, [new(0, 0, 0), new(10, 5, 0)])[0];
+        var view = new PlanViewOver(edge);
+        var engine = new InferenceEngine();
+        var from = new Vec3(30, 0, 0);
+        InferenceResult At(Vec3 p) => engine.Infer(view, p.X * 10, -p.Y * 10, from, e, Transform.Identity);
+
+        Assert.Equal("On Red Axis", At(from + new Vec3(20, 0.2, 0)).Label);
+        engine.Linear = LinearInferences.ParallelPerpendicularOnly;
+        Assert.NotEqual("On Red Axis", At(from + new Vec3(20, 0.2, 0)).Label);
+        At(new Vec3(4, 2, 0));
+        Assert.Equal("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
+        engine.Linear = LinearInferences.AllOff;
+        Assert.NotEqual("Parallel to Edge", At(from + new Vec3(20, 10.3, 0)).Label);
+    }
 }
