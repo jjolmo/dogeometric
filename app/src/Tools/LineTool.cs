@@ -7,11 +7,16 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Line tool: click, click, click… draws a chain of edges; closing a loop makes a face and ends the
-/// chain. Typing a length draws that long along the current direction. Esc cancels the chain.
+/// chain. Typing a length draws that long along the current direction. Esc cancels the chain. With Preferences ›
+/// Drawing › Click Style, pressing and dragging draws one line ending where the button is released.
 /// </summary>
 public sealed class LineTool : DrawingTool
 {
+    // Far enough to tell a drag from a click.
+    private const float DragPixels = 6;
+
     private Vec3? _start;
+    private Vector2? _pressedAt;
 
     public override int CommandId => CommandIds.Line;
     public override string CursorImage => "pencil";
@@ -30,10 +35,23 @@ public sealed class LineTool : DrawingTool
         if (_start is not { } start)
         {
             _start = inf.Point;
+            _pressedAt = position;
             RefreshStatus();
             return;
         }
         Segment(start, inf.Point);
+    }
+
+    public override void MouseUp(MouseButton button, Vector2 position)
+    {
+        if (button != MouseButton.Left || _pressedAt is not { } pressed)
+            return;
+        _pressedAt = null;
+        // Click-drag-release always ends the line here; auto detect does when the press was dragged.
+        var style = UI.AppPreferences.Current.ClickStyle;
+        var dragged = position.DistanceTo(pressed) > DragPixels;
+        if (_start is { } start && Current is { } inf && (style == 0 || style == 1 && dragged))
+            Segment(start, inf.Point);
     }
 
     public override bool StartsVcb(char c) => c is '[' or '<';

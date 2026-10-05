@@ -27,6 +27,9 @@ public sealed class AppPreferences
     public bool CheckForCrashRecovery { get; set; } = true;
 
     // Drawing.
+    /// <summary>Preferences › Drawing › Click Style: 0 click-drag-release, 1 auto detect (SketchUp's default), 2 click-move-click.</summary>
+    public int ClickStyle { get; set; } = 1;
+
     /// <summary>The Line tool keeps drawing from the end of the last line until Esc or a closed face.</summary>
     public bool ContinueLineDrawing { get; set; } = true;
 

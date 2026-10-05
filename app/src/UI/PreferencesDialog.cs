@@ -130,6 +130,21 @@ public partial class PreferencesDialog : AcceptDialog
                 break;
 
             case "Drawing":
+            {
+                Heading(box, "Click Style");
+                var style = new ButtonGroup();
+                foreach (var (label, value) in new[] { ("Click-drag-release", 0), ("Auto detect", 1), ("Click-move-click", 2) })
+                {
+                    var option = new CheckBox { Text = label, ButtonGroup = style, ButtonPressed = p.ClickStyle == value };
+                    option.Toggled += on =>
+                    {
+                        if (!on)
+                            return;
+                        p.ClickStyle = value;
+                        AppPreferences.Save();
+                    };
+                    box.AddChild(option);
+                }
                 Heading(box, "Miscellaneous");
                 Check(box, "Continue line drawing", "The Line tool keeps drawing from the end of the last line until Esc or a closed face.",
                     p.ContinueLineDrawing, v => p.ContinueLineDrawing = v);
@@ -138,6 +153,7 @@ public partial class PreferencesDialog : AcceptDialog
                 Check(box, "Disable pre-pick on Push/Pull Tool", "Push/Pull always works on the face clicked, never on one selected beforehand.",
                     p.DisablePushPullPrePick, v => p.DisablePushPullPrePick = v);
                 break;
+            }
 
             case "Compatibility":
                 Heading(box, "Component/Group Highlighting");
