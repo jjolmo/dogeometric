@@ -194,6 +194,7 @@ public partial class MainWindow : Control
         Bar("Sandbox", Toolbars.Sandbox, ToolbarDocks.Dock.Top, visible: false);
         Bar("SUbD", Toolbars.Subd, ToolbarDocks.Dock.Top, visible: false);
         Bar("Section", Toolbars.Section, ToolbarDocks.Dock.Top, visible: false);
+        Bar("Tags", Toolbars.Tags, ToolbarDocks.Dock.Top, visible: false);
         Bar("Shadows", Toolbars.Shadows, ToolbarDocks.Dock.Top, visible: false);
         _docks.Load();
         _viewport.CameraChanged += RefreshToolbars;
@@ -1228,6 +1229,8 @@ public partial class MainWindow : Control
         var doc = _document.Document;
         doc.Selection.Changed += _entityInfo.Refresh;
         doc.Selection.Changed += () => _refreshSubdInfo();
+        doc.Selection.Changed += () => _refreshTagList();
+        doc.GeometryChanged += _ => _refreshTagList();
         doc.GeometryChanged += _ => _refreshSubdInfo();
         // Deferred: the Outliner's own clicks change the model, and its tree can't be rebuilt mid-signal.
         doc.Selection.Changed += () => Callable.From(_outliner.SyncSelection).CallDeferred();

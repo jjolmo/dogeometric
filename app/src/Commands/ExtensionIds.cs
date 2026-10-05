@@ -126,4 +126,8 @@ public static class OwnIds
 
     /// <summary>The Shadows toolbar's Shadow Settings button (opens the Shadows panel).</summary>
     public const int ShadowSettings = 95005;
+
+    /// <summary>The Tags toolbar: its tag list and the button that shows the Tags panel.</summary>
+    public const int TagList = 95006;
+    public const int TagsPanel = 95007;
 }

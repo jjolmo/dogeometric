@@ -11,6 +11,58 @@ public partial class MainWindow
 {
     private const int ExtensionManager = 24257;
     private Window? _subdInfo;
+    private Action _refreshTagList = () => { };
+
+    /// <summary>The Tags toolbar's list: the selection's tag, and choosing one moves the selection to it.</summary>
+    private Control TagList()
+    {
+        var list = new OptionButton { CustomMinimumSize = new Vector2(150, 0), FocusMode = Control.FocusModeEnum.None, TooltipText = "Tag of the selection" };
+        var updating = false;
+        void Fill()
+        {
+            updating = true;
+            var doc = _document.Document;
+            list.Clear();
+            foreach (var t in doc.Model.Tags)
+                list.AddItem(t.Name);
+            var tags = doc.Selection.Items.Select(x => x switch
+            {
+                Edge e => e.Tag, Face f => f.Tag, ComponentInstance i => i.Tag, _ => null,
+            } ?? doc.Model.UntaggedTag).Distinct().ToList();
+            list.Disabled = doc.Selection.Items.Count == 0;
+            if (tags.Count == 1)
+                list.Select(doc.Model.Tags.IndexOf(tags[0]));
+            else
+                list.Select(-1);
+            updating = false;
+        }
+        list.ItemSelected += i =>
+        {
+            if (updating)
+                return;
+            var doc = _document.Document;
+            var tag = doc.Model.Tags[(int)i];
+            var value = tag == doc.Model.UntaggedTag ? null : tag;
+            doc.Operation("Tag", _ =>
+            {
+                foreach (var item in doc.Selection.Items)
+                    switch (item)
+                    {
+                        case Edge e: e.Tag = value; break;
+                        case Face f: f.Tag = value; break;
+                        case ComponentInstance c: c.Tag = value; break;
+                    }
+            });
+            _entityInfo.Refresh();
+        };
+        _refreshTagList = () =>
+        {
+            if (GodotObject.IsInstanceValid(list))
+                Fill();
+        };
+        Fill();
+        return list;
+    }
     private Action _refreshSubdInfo = () => { };
 
     private void RegisterSubdExtras()
@@ -40,6 +92,9 @@ public partial class MainWindow
             (_commands.Get(id).Label, _commands.Get(id).Description) = (label, label);
         (_commands.Get(OwnIds.ShadowSettings).Label, _commands.Get(OwnIds.ShadowSettings).Description) = ("Shadow Settings", "Show the Shadows panel.");
         _commands.Register(OwnIds.ShadowSettings, () => _panels["Shadows"].Expand());
+        (_commands.Get(OwnIds.TagsPanel).Label, _commands.Get(OwnIds.TagsPanel).Description) = ("Tags", "Show the Tags panel.");
+        _commands.Register(OwnIds.TagsPanel, () => _panels["Tags"].Expand());
+        Toolbar.Widgets[OwnIds.TagList] = TagList;
         _commands.Register(ExtensionIds.SplineVertexMarks, () =>
         {
             BezierSplineTool.VertexMarks = !BezierSplineTool.VertexMarks;

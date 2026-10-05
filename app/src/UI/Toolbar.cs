@@ -12,6 +12,9 @@ public partial class Toolbar : PanelContainer
 {
     public const int Separator = 0;
 
+    /// <summary>Toolbar items that are controls rather than buttons (the Tags toolbar's list), by their id.</summary>
+    public static Dictionary<int, Func<Control>> Widgets { get; } = [];
+
     private readonly List<(Button Button, Command Command)> _buttons = [];
     private CommandRegistry _registry = null!;
     private IReadOnlyDictionary<int, string> _icons = null!;
@@ -100,6 +103,11 @@ public partial class Toolbar : PanelContainer
             {
                 if (_lines == 0)
                     _box.AddChild(vertical ? new HSeparator() : new VSeparator());
+                continue;
+            }
+            if (Widgets.TryGetValue(id, out var widget))
+            {
+                _box.AddChild(widget());
                 continue;
             }
             var cmd = _registry.Get(id);
