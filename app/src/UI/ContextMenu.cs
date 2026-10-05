@@ -122,6 +122,16 @@ public static class ContextMenu
         {
             Item("Reverse", () => runCommand(CommandIds.ReverseSection));
             Item(doc.Context.Entities.ActiveSection == section ? "Active Cut ✓" : "Active Cut", () => runCommand(CommandIds.ActiveSectionCut));
+            Item("Align View", () => AlignView(doc, view, section));
+            Item("Create Group from Slice", () =>
+            {
+                ComponentInstance? made = null;
+                doc.Operation("Create Group from Slice", e => made = Intersect.GroupFromSlice(doc.Model, section, e, doc.Context.ToWorld));
+                if (made != null)
+                    doc.Selection.Set([made]);
+                else
+                    view.ShowHint("Create Group from Slice: the section plane cuts nothing.");
+            });
             menu.AddSeparator();
         }
 
@@ -340,6 +350,18 @@ public static class ContextMenu
         var dist = Math.Max(view.Camera.Distance, 1);
         view.Camera.Set(centre + n * dist, centre, Math.Abs(n.Z) > 0.99 ? Vec3.UnitY : Vec3.UnitZ);
         view.ZoomToBounds(Bounds3.FromPoints(face.OuterLoop.Points.Select(xf.ApplyPoint)));
+    }
+
+    /// <summary>Looks straight along the section plane's arrows at the cut, framing the model (plans and elevations).</summary>
+    private static void AlignView(Document doc, ModelViewport view, SectionPlane section)
+    {
+        var xf = doc.Context.ToWorld;
+        var n = xf.ApplyNormal(section.Normal).Normalized();
+        var at = xf.ApplyPoint(section.Point);
+        view.BeginNavigation();
+        var dist = Math.Max(view.Camera.Distance, 1);
+        view.Camera.Set(at - n * dist, at, Math.Abs(n.Z) > 0.99 ? Vec3.UnitY : Vec3.UnitZ);
+        view.ZoomToBounds(doc.Model.Entities.Bounds());
     }
 
     private static void ZoomSelection(Document doc, ModelViewport view)

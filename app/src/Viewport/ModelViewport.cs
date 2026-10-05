@@ -368,6 +368,7 @@ public partial class ModelViewport : Control
         _camera.Far = _camera.Near * 1e6f;
 
         UpdateHorizon();
+        _annotations?.QueueRedraw();
         _skyMaterial.SetShaderParameter("camera_below", Camera.Eye.Z < 0);
         UpdateFog();
         UpdateShadowRange();
@@ -889,7 +890,7 @@ public partial class ModelViewport : Control
         {
             Tools.Active.MouseMove(mm.Position, mm.Relative);
         }
-        _overlay.QueueRedraw();
+        QueueOverlayRedraw();
         AcceptEvent();
     }
 

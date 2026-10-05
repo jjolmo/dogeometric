@@ -84,11 +84,13 @@ public static class Intersect
     /// The section cut of the model's active (top-level) section plane: where it slices visible faces, in world
     /// coordinates. Empty when no section is active.
     /// </summary>
-    public static List<(Vec3 A, Vec3 B)> SectionCut(Model model)
+    public static List<(Vec3 A, Vec3 B)> SectionCut(Model model) =>
+        model.Entities.ActiveSection is { } plane ? Slice(model, plane) : [];
+
+    /// <summary>Where <paramref name="plane"/> slices the model's visible faces, in world coordinates.</summary>
+    public static List<(Vec3 A, Vec3 B)> Slice(Model model, SectionPlane plane)
     {
         var result = new List<(Vec3, Vec3)>();
-        if (model.Entities.ActiveSection is not { } plane)
-            return result;
         var faces = new List<WorldFace>();
         Collect(model.Entities, Transform.Identity, faces);
         var n = plane.Normal;
@@ -107,6 +109,27 @@ public static class Intersect
                 result.Add((origin + dir * from, origin + dir * to));
         }
         return result;
+    }
+
+    /// <summary>
+    /// Section plane › Create Group from Slice: the slice as edges in a new group of <paramref name="into"/>
+    /// (placed by <paramref name="toWorld"/>), in place. Returns the group, or null when the plane cuts nothing.
+    /// </summary>
+    public static ComponentInstance? GroupFromSlice(Model model, SectionPlane plane, Entities into, Transform toWorld)
+    {
+        var cut = Slice(model, plane);
+        if (cut.Count == 0)
+            return null;
+        var def = new ComponentDefinition { Name = "Group", IsGroup = true };
+        var toLocal = toWorld.Inverse();
+        foreach (var (a, b) in cut)
+        {
+            var (la, lb) = (toLocal.ApplyPoint(a), toLocal.ApplyPoint(b));
+            if (la.DistanceTo(lb) > Tolerance.Length)
+                def.Entities.EdgeBetween(def.Entities.VertexAt(la), def.Entities.VertexAt(lb));
+        }
+        model.Definitions.Add(def);
+        return into.AddInstance(def, Transform.Identity);
     }
 
     private static void Collect(Entities e, Transform xf, List<WorldFace> output)
