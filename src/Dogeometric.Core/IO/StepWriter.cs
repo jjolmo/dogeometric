@@ -36,15 +36,16 @@ public static class StepWriter
 
     private static string Text(string s) => "'" + s.Replace("'", "''") + "'";
 
-    public static Result Write(Model model, string path, string name = "Dogeometric")
+    public static Result Write(Model model, string path, string name = "Dogeometric", ExportOptions? options = null)
     {
         using var w = new StreamWriter(path, false, new UTF8Encoding(false));
-        var result = Write(model, w, name);
-        return result;
+        return Write(model, w, name, options);
     }
 
-    public static Result Write(Model model, TextWriter output, string name = "Dogeometric")
+    /// <summary>Writes the model, or only <see cref="ExportOptions.Selection"/> when one is given.</summary>
+    public static Result Write(Model model, TextWriter output, string name = "Dogeometric", ExportOptions? options = null)
     {
+        options ??= new ExportOptions();
         var d = new Writer();
         var context = d.Add("APPLICATION_CONTEXT('core data for automotive mechanical design processes')");
         d.Add($"APPLICATION_PROTOCOL_DEFINITION('international standard','automotive_design',2000,#{context})");
@@ -72,9 +73,12 @@ public static class StepWriter
         var items = new List<int> { Placement(Vec3.Zero, Vec3.UnitZ, Vec3.UnitX) };
         var (solids, surfaces) = (0, 0);
 
-        foreach (var (entities, xf) in Visible(model.Entities, Transform.Identity))
+        var root = options.SelectionContext ?? model.Entities;
+        var rootXf = options.SelectionContext != null ? options.SelectionContextTransform : Transform.Identity;
+        foreach (var (entities, xf) in Visible(root, rootXf, options.Selection))
         {
-            var faces = entities.Faces.Where(f => !f.Hidden && f.Tag is not { Visible: false }).ToList();
+            var faces = entities.Faces.Where(f => !f.Hidden && f.Tag is not { Visible: false }
+                && (entities != root || options.Selection == null || options.Selection.Contains(f))).ToList();
             if (faces.Count == 0)
                 continue;
             var vertices = new Dictionary<Vertex, int>();
@@ -149,10 +153,10 @@ public static class StepWriter
     }
 
     /// <summary>Every visible collection with its world placement, nested groups and components included.</summary>
-    private static IEnumerable<(Entities, Transform)> Visible(Entities e, Transform xf)
+    private static IEnumerable<(Entities, Transform)> Visible(Entities e, Transform xf, IReadOnlySet<object>? only = null)
     {
         yield return (e, xf);
-        foreach (var i in e.Instances.Where(i => !i.Hidden && i.Tag is not { Visible: false }))
+        foreach (var i in e.Instances.Where(i => !i.Hidden && i.Tag is not { Visible: false } && (only == null || only.Contains(i))))
             foreach (var nested in Visible(i.Definition.Entities, i.Transform.Then(xf)))
                 yield return nested;
     }

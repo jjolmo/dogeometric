@@ -480,24 +480,25 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             WriteSkp(path);
             return;
         }
-        if (ext is ".step" or ".stp")
-        {
-            StepWriter.Result? step = null;
-            Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p)));
-            if (step != null)
-                status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
-            return;
-        }
         var selectionOnly = _exportOptionsDialog?.GetSelectedOptions() is { } opts && opts.TryGetValue("Export selection only", out var v) && (bool)v
             && !Document.Selection.IsEmpty;
-        var triangles = MeshExtractor.Extract(Model, selectionOnly
+        var options = selectionOnly
             ? new ExportOptions
             {
                 Selection = Document.Selection.Items.ToHashSet(),
                 SelectionContext = Document.Context.Entities,
                 SelectionContextTransform = Document.Context.ToWorld,
             }
-            : null);
+            : null;
+        if (ext is ".step" or ".stp")
+        {
+            StepWriter.Result? step = null;
+            Write(path, (m, p) => step = StepWriter.Write(m, p, System.IO.Path.GetFileNameWithoutExtension(p), options));
+            if (step != null)
+                status.SetHint($"Exported {step.Solids} solids and {step.Surfaces} open surfaces");
+            return;
+        }
+        var triangles = MeshExtractor.Extract(Model, options);
         Write(path, (m, p) =>
         {
             switch (ext)

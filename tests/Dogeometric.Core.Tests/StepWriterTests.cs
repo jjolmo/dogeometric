@@ -7,10 +7,10 @@ namespace Dogeometric.Core.Tests;
 
 public class StepWriterTests
 {
-    private static string Export(Model m, out StepWriter.Result result)
+    private static string Export(Model m, out StepWriter.Result result, ExportOptions? options = null)
     {
         using var w = new StringWriter();
-        result = StepWriter.Write(m, w, "Test");
+        result = StepWriter.Write(m, w, "Test", options);
         return w.ToString();
     }
 
@@ -52,5 +52,20 @@ public class StepWriterTests
         Assert.Equal(1, Count(step, "FACE_OUTER_BOUND"));
         Assert.Equal(1, Count(step, "FACE_BOUND"));
         Assert.DoesNotContain("500.0", step);
+    }
+
+    [Fact]
+    public void Export_selection_only_writes_just_the_selected_group()
+    {
+        var (model, _, b) = TestModels.TwoBoxGroups();
+        var all = Export(model, out var both);
+        Assert.Equal(2, both.Solids);
+        Assert.Contains("30.0", all);
+
+        var step = Export(model, out var result, new ExportOptions { Selection = new HashSet<object> { b } });
+        Assert.Equal(new StepWriter.Result(1, 0), result);
+        Assert.Equal(6, Count(step, "ADVANCED_FACE"));
+        Assert.Contains("105.0", step);
+        Assert.DoesNotContain("30.0", step);
     }
 }
