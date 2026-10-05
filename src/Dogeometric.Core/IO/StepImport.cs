@@ -411,7 +411,9 @@ public static class StepImport
             var holes = uv.Where(l => l != outer).ToList();
             var points = outer.Concat(holes.SelectMany(h => h)).ToList();
             var triangles = TriangulateUv(points, [outer.Count, .. holes.Select(h => h.Count)]);
-            Refine(surface, points, triangles);
+            // A face going all the way round meets itself at the seam, where flips can fold it; it keeps plain splitting.
+            var aroundSeam = surface.PeriodU > 0 && outer.Max(q => q.U) - outer.Min(q => q.U) > surface.PeriodU - 1e-6;
+            Refine(surface, points, triangles, flips: !aroundSeam);
 
             // ∂u × ∂v is the surface's normal, so a triangle anticlockwise in (u, v) faces it; the face's sense may flip it.
             var corners = new List<Vec3>();
@@ -585,10 +587,14 @@ public static class StepImport
 
         /// <summary>Splits interior edges (shared by two triangles) where the surface bulges away from the chord, so
         /// the boundary, shared with neighbouring faces, keeps its points.</summary>
-        private static void Refine(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles)
+        private static void Refine(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles, bool flips)
         {
+            if (flips)
+                Flip(s, points, triangles);
             for (var round = 0; round < 12; round++)
             {
+                if (round > 0 && flips)
+                    Flip(s, points, triangles);
                 var byEdge = new Dictionary<(int, int), List<int>>();
                 for (var t = 0; t < triangles.Count; t++)
                 {
@@ -638,6 +644,88 @@ public static class StepImport
         }
 
         private static bool IsEdge(int u, int v, (int, int) e) => (u, v) == e || (v, u) == e;
+
+        /// <summary>Lawson flips (Delaunay on the surface): an interior edge seen at over 180° from its opposite corners joins
+        /// them instead, clearing thin triangles; boundary edges never move, so neighbouring faces still meet.</summary>
+        private static void Flip(Surface s, List<(double U, double V)> points, List<(int A, int B, int C)> triangles)
+        {
+            var p3 = new Dictionary<int, Vec3>();
+            Vec3 P(int i) => p3.TryGetValue(i, out var v) ? v : p3[i] = s.Eval(points[i].U, points[i].V);
+            // Seams make distinct parameters one point: edges are compared by their points in space.
+            var canonical = new Dictionary<(long, long, long), int>();
+            int Canon(int i)
+            {
+                var q = P(i);
+                var key = ((long)Math.Round(q.X * 1e6), (long)Math.Round(q.Y * 1e6), (long)Math.Round(q.Z * 1e6));
+                return canonical.TryGetValue(key, out var c) ? c : canonical[key] = i;
+            }
+            (int, int) Key3(int u, int v) => Canon(u) < Canon(v) ? (Canon(u), Canon(v)) : (Canon(v), Canon(u));
+            double Uv(int a, int b, int c) =>
+                (points[b].U - points[a].U) * (points[c].V - points[a].V) - (points[c].U - points[a].U) * (points[b].V - points[a].V);
+            double Angle(int at, int a, int b)
+            {
+                var (u, v) = (P(a) - P(at), P(b) - P(at));
+                return Math.Acos(Math.Clamp(u.Dot(v) / Math.Max(u.Length * v.Length, 1e-30), -1, 1));
+            }
+            for (var pass = 0; pass < 20; pass++)
+            {
+                var byEdge = new Dictionary<(int, int), List<int>>();
+                for (var t = 0; t < triangles.Count; t++)
+                {
+                    var (a, b, c) = triangles[t];
+                    foreach (var (u, v) in new[] { (a, b), (b, c), (c, a) })
+                    {
+                        var key = u < v ? (u, v) : (v, u);
+                        if (!byEdge.TryGetValue(key, out var list))
+                            byEdge[key] = list = [];
+                        list.Add(t);
+                    }
+                }
+                var flipped = 0;
+                var touched = new HashSet<int>();
+                var made = new HashSet<(int, int)>();
+                var spatial = byEdge.Keys.Select(e => Key3(e.Item1, e.Item2)).ToHashSet();
+                foreach (var (edge, list) in byEdge)
+                {
+                    if (list.Count != 2 || touched.Contains(list[0]) || touched.Contains(list[1]))
+                        continue;
+                    int Opposite((int A, int B, int C) t) => t.A != edge.Item1 && t.A != edge.Item2 ? t.A : t.B != edge.Item1 && t.B != edge.Item2 ? t.B : t.C;
+                    var (t1, t2) = (triangles[list[0]], triangles[list[1]]);
+                    var (c, d) = (Opposite(t1), Opposite(t2));
+                    if (c == d || Angle(c, edge.Item1, edge.Item2) + Angle(d, edge.Item1, edge.Item2) <= Math.PI + 1e-9)
+                        continue;
+                    // The new diagonal must not already be an edge, or three triangles would share it.
+                    var diagonal = Key3(c, d);
+                    if (spatial.Contains(diagonal) || made.Contains(diagonal))
+                        continue;
+                    // The first triangle's own order of the shared edge, so the new pair keeps its winding.
+                    var (a, b) = (t1.A, t1.B) == (edge.Item1, edge.Item2) || (t1.B, t1.C) == (edge.Item1, edge.Item2) || (t1.C, t1.A) == (edge.Item1, edge.Item2)
+                        ? (edge.Item1, edge.Item2) : (edge.Item2, edge.Item1);
+                    var sign = Math.Sign(Uv(a, b, c));
+                    // Only a convex quad in parameter space can be flipped without folding.
+                    if (sign == 0 || Math.Sign(Uv(a, d, c)) != sign || Math.Sign(Uv(d, b, c)) != sign)
+                        continue;
+                    // At seams and poles distinct parameters share a point: flip only four distinct corners, into
+                    // triangles facing the way the old pair did.
+                    int[] quad = [a, b, c, d];
+                    if (quad.Any(i => quad.Any(j => j != i && P(i).DistanceTo(P(j)) < 1e-6)))
+                        continue;
+                    var before = (P(b) - P(a)).Cross(P(c) - P(a)) + (P(a) - P(b)).Cross(P(d) - P(b));
+                    var n1 = (P(d) - P(a)).Cross(P(c) - P(a));
+                    var n2 = (P(b) - P(d)).Cross(P(c) - P(d));
+                    if (n1.Dot(before) <= 0 || n2.Dot(before) <= 0)
+                        continue;
+                    triangles[list[0]] = (a, d, c);
+                    triangles[list[1]] = (d, b, c);
+                    touched.Add(list[0]);
+                    touched.Add(list[1]);
+                    made.Add(diagonal);
+                    flipped++;
+                }
+                if (flipped == 0)
+                    return;
+            }
+        }
 
 
         private List<Vec3> EdgeLoop(StepParser.Entity loop)

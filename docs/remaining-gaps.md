@@ -13,7 +13,7 @@ Donation entries. What remains is depth, not entries. Ordered by impact on model
 
 | Gap | Why it matters for enclosures | Notes |
 |---|---|---|
-| STEP import: triangle quality on curved faces | Curved faces are fanned and refined by splitting edges, which leaves thin triangles: volumes stay within 1.5 % but areas can read 0.5–3.5 % high, and shading shows the slivers. | Needs a constrained Delaunay (or grid-seeded) triangulation in parameter space; longest-edge bisection alone was tried and made it worse. |
+| STEP import: triangle quality on curved faces | Curved faces are fanned and refined by splitting edges, which leaves thin triangles: volumes stay within 1.5 % but areas can read 0.5–3.5 % high, and shading shows the slivers. | Faces short of a full turn now get Lawson flips (Delaunay on the surface), which brings their area within 0.3 %. Faces going all the way round still don't: flips there fold where the seam's two sides meet (seen on the loft's top edge), so they need the seam handled first (split the face at the seam, or a constrained Delaunay in parameter space). Longest-edge bisection alone made it worse. |
 | Import details | COLLADA/KMZ imports drop textures; IFC boolean cuts (openings clipped from walls) are not applied. Components come in as components from COLLADA, KMZ, DWG, DXF, 3DS (as groups), STEP and IFC. | |
 
 ## Medium impact
