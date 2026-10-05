@@ -201,16 +201,7 @@ public partial class MainWindow
         });
     }
 
-    private void Alert(string title, string text)
-    {
-        var d = new AcceptDialog { Title = title, DialogText = text, Theme = LightTheme.Create() };
-        d.GetLabel().AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        d.GetLabel().CustomMinimumSize = new Vector2(460, 0);
-        d.Confirmed += d.QueueFree;
-        d.Canceled += d.QueueFree;
-        AddChild(d);
-        d.PopupCentered();
-    }
+    private void Alert(string title, string text) => MessageDialog.Show(this, title, text);
 
     /// <summary>The Push/Pull command, which SUbD's preference swaps for Quad Push/Pull inside subdivided groups.</summary>
     private Tool PushPullTool() => AppPreferences.Current.SubdReplacePushPull && _document.Document.Context.Entities.Subdivision > 0

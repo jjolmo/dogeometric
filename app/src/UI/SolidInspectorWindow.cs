@@ -163,10 +163,6 @@ public sealed partial class SolidInspectorWindow : Window
 
     public void Message(string text)
     {
-        var dialog = new AcceptDialog { Title = "Solid Inspector²", DialogText = text, DialogAutowrap = true, Size = new Vector2I(380, 0) };
-        AddChild(dialog);
-        dialog.Confirmed += dialog.QueueFree;
-        dialog.Canceled += dialog.QueueFree;
-        dialog.PopupCentered();
+        MessageDialog.Show(this, "Solid Inspector²", text, new Vector2I(380, 0));
     }
 }

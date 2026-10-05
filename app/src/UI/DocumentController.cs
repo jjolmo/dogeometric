@@ -942,12 +942,5 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         dialog.PopupCentered(new Vector2I(900, 600));
     }
 
-    private void Alert(string title, string text)
-    {
-        var d = new AcceptDialog { Title = title, DialogText = text };
-        host.AddChild(d);
-        d.Confirmed += d.QueueFree;
-        d.Canceled += d.QueueFree;
-        d.PopupCentered();
-    }
+    private void Alert(string title, string text) => MessageDialog.Show(host, title, text);
 }

@@ -108,10 +108,6 @@ public static class CleanUpDialog
         if (!ShowStatistics)
             return;
         var lines = stats.Select(kv => $"> {kv.Key}: {kv.Value}").Append($"> Total Elapsed Time: {elapsed.TotalSeconds:0.000}s");
-        var d = new AcceptDialog { Title = "CleanUp³", DialogText = "Cleanup Statistics:\n" + string.Join("\n", lines) };
-        parent.AddChild(d);
-        d.Confirmed += d.QueueFree;
-        d.Canceled += d.QueueFree;
-        d.PopupCentered();
+        MessageDialog.Show(parent, "CleanUp³", "Cleanup Statistics:\n" + string.Join("\n", lines));
     }
 }

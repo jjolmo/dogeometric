@@ -4,6 +4,12 @@
 A private, behaviour-for-behaviour copy of SketchUp 2021, built with Godot 4.7 (C#/.NET 8).
 Main use: precise 3D modelling of electronic enclosures and similar parts for 3D printing.
 
+## Download and run
+
+Get the latest build from [Releases](https://github.com/jjolmo/dogeometric/releases) (Linux x86_64 for now), unpack it and
+run `./dogeometric.x86_64`. It needs nothing installed beyond a Vulkan graphics driver: .NET and Godot are inside.
+Cloning the repository is only for building it yourself (below), which does need the .NET SDK and Godot 4.7 .NET.
+
 ## Layout
 
 | Path | What |

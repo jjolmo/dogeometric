@@ -168,10 +168,7 @@ public partial class ModelInfoDialog : AcceptDialog
                 report = string.Join("\n", result.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key}: {kv.Value}"));
             });
             _changed();
-            var d = new AcceptDialog { Title = "Validity Check", DialogText = report.Length > 0 ? report : "No problems found." };
-            d.Confirmed += d.QueueFree;
-            AddChild(d);
-            d.PopupCentered();
+            MessageDialog.Show(this, "Validity Check", report.Length > 0 ? report : "No problems found.");
             ShowPane("Statistics");
         };
         _pane.AddChild(fix);
