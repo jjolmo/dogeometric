@@ -22,3 +22,4 @@ research/status_texts_viewerapi.txt
 
 # Native libraries built by tools/native/*.sh (per platform)
 app/native/
+dist/
