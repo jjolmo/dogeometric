@@ -53,13 +53,55 @@ public sealed class ModelRenderer
     }
 
     private bool _showProfiles;
+
+    /// <summary>View › Edge Style › Extension: edges run a few pixels past their ends. Needs a rebuild.</summary>
+    public bool ShowExtension
+    {
+        get => _extension;
+        set
+        {
+            _extension = value;
+            _profileMaterial.SetShaderParameter("extension_px", value ? 3f : 0f);
+        }
+    }
+
+    /// <summary>View › Edge Style › Depth Cue: near edges thick, far ones thin. Needs a rebuild.</summary>
+    public bool ShowDepthCue
+    {
+        get => _depthCue;
+        set
+        {
+            _depthCue = value;
+            _profileMaterial.SetShaderParameter("depth_cue_px", value ? 4f : 0f);
+        }
+    }
+
+    private bool _extension;
+    private bool _depthCue;
+
+    /// <summary>Hard edges are drawn as quads (by the profile shader) rather than lines.</summary>
+    private bool QuadEdges => _extension || _depthCue;
+
+    /// <summary>Depth Cue's range: the distances (model units) of the model's nearest and farthest points.</summary>
+    public void SetDepthRange(double near, double far) =>
+        _profileMaterial.SetShaderParameter("depth_range", new Vector2((float)(near * Space.MetersPerUnit), (float)(far * Space.MetersPerUnit)));
     private readonly ShaderMaterial _guideMaterial = new() { Shader = GD.Load<Shader>("res://shaders/guide.gdshader") };
 
     /// <summary>View › Guides.</summary>
     public bool ShowGuides { get; set; } = true;
 
     /// <summary>View › Edge Style › Edges. Needs a rebuild.</summary>
-    public bool ShowEdges { get; set; } = true;
+    public bool ShowEdges
+    {
+        get => _showEdges;
+        set
+        {
+            _showEdges = value;
+            _profileMaterial.SetShaderParameter("show_edges", value);
+        }
+    }
+
+    private bool _showEdges = true;
 
     /// <summary>View › Hidden Objects: hidden groups and components show faded. Needs a rebuild.</summary>
     public bool ShowHiddenObjects { get; set; }
@@ -209,9 +251,9 @@ public sealed class ModelRenderer
             }
             parent.AddChild(faces);
         }
-        if (mesh.Profiles != null && (ShowEdges || ShowProfiles) && FaceStyle != FaceStyle.Wireframe)
+        if (mesh.Profiles != null && (ShowEdges || ShowProfiles) && (FaceStyle != FaceStyle.Wireframe || QuadEdges))
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Profiles, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        if (mesh.Edges != null && ShowEdges)
+        if (mesh.Edges != null && ShowEdges && !QuadEdges)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Edges, CastShadow = _shadows is { Enabled: true, FromEdges: true } ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off });
         if (mesh.Hidden != null)
             parent.AddChild(new MeshInstance3D { Mesh = mesh.Hidden, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
@@ -293,7 +335,7 @@ public sealed class ModelRenderer
         return mesh;
     }
 
-    /// <summary>Edges that can be silhouettes (with one or two visible faces), as quads for profile.gdshader.</summary>
+    /// <summary>Drawn edges as quads for profile.gdshader: silhouettes, and every hard edge with Extension or Depth Cue.</summary>
     private ArrayMesh? ProfileMesh(Entities e)
     {
         var faces = new Dictionary<Edge, List<Face>>();
@@ -318,12 +360,15 @@ public sealed class ModelRenderer
             var n = Space.DirToGodot(f.Normal.Normalized());
             return [n.X, n.Y, n.Z, n.Dot(Space.ToGodot(f.OuterLoop.Edges[0].Edge.Start.Position))];
         }
-        foreach (var (edge, list) in faces)
+        foreach (var edge in e.Edges)
         {
             if ((edge.Flags & EdgeFlags.Hidden) != 0 || edge.Tag is { Visible: false })
                 continue;
+            var list = faces.GetValueOrDefault(edge) ?? [];
             var soft = (edge.Flags & EdgeFlags.Soft) != 0 ? 1f : 0f;
-            var p1 = Plane(list[0]);
+            if (list.Count == 0 && soft > 0)
+                continue;
+            var p1 = list.Count > 0 ? Plane(list[0]) : [0, 0, 0, 0];
             var p2 = list.Count > 1 ? Plane(list[1]) : [0, 0, 0, 0];
             var a = Space.ToGodot(edge.Start.Position);
             var b = Space.ToGodot(edge.End.Position);
@@ -333,7 +378,7 @@ public sealed class ModelRenderer
                 custom0.AddRange([other.X, other.Y, other.Z, side]);
                 custom1.AddRange(p1);
                 custom2.AddRange(p2);
-                custom3.AddRange([soft, list.Count > 1 ? 1 : 0, 0, 0]);
+                custom3.AddRange([soft, list.Count > 1 ? 1 : 0, list.Count > 0 ? 1 : 0, 0]);
             }
             // The shader measures sideways from each end towards the other, so B's sides are mirrored.
             Corner(a, b, -1);

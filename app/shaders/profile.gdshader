@@ -1,5 +1,6 @@
-// Silhouettes (border edges, or between a face towards the eye and one away): soft ones 1 px, all thick with Profiles.
-// One quad per edge: CUSTOM0 other end and side, CUSTOM1/2 the faces' planes, CUSTOM3 soft and second-face flags.
+// Silhouettes (border edges, or between a face towards the eye and one away): soft ones 1 px, all thick with Profiles;
+// with Extension or Depth Cue every hard edge is drawn here too. One quad per edge: CUSTOM0 other end and side,
+// CUSTOM1/2 the faces' planes, CUSTOM3 soft, second-face and any-face flags.
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled;
 #include "res://shaders/section.gdshaderinc"
@@ -7,6 +8,11 @@ instance uniform float fade = 0.0;
 
 uniform vec4 color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform float profile_width = 0.0;
+uniform float extension_px = 0.0;
+uniform bool show_edges = true;
+uniform float depth_cue_px = 0.0;
+// Distance (Godot units) of the model's nearest and farthest points: Depth Cue thins edges between them.
+uniform vec2 depth_range = vec2(0.0, 1.0);
 uniform float depth_bias = 0.0006;
 
 void vertex() {
@@ -19,11 +25,30 @@ void vertex() {
 	vec3 back = (to_model * vec4(INV_VIEW_MATRIX[2].xyz, 0.0)).xyz;
 	float f1 = perspective ? dot(CUSTOM1.xyz, eye) - CUSTOM1.w : dot(CUSTOM1.xyz, back);
 	float f2 = perspective ? dot(CUSTOM2.xyz, eye) - CUSTOM2.w : dot(CUSTOM2.xyz, back);
-	bool silhouette = CUSTOM3.y < 0.5 || (f1 > 0.0) != (f2 > 0.0);
-	float width = profile_width > 0.0 ? profile_width : (CUSTOM3.x > 0.5 ? 1.0 : 0.0);
+	bool soft = CUSTOM3.x > 0.5;
+	bool silhouette = CUSTOM3.z > 0.5 && (CUSTOM3.y < 0.5 || (f1 > 0.0) != (f2 > 0.0));
+	float width = 0.0;
+	float extension = 0.0;
+	if (soft) {
+		width = silhouette ? (profile_width > 0.0 ? profile_width : 1.0) : 0.0;
+	} else if (show_edges) {
+		if (depth_cue_px > 0.0) {
+			vec3 mid = (MODELVIEW_MATRIX * vec4((VERTEX + other) * 0.5, 1.0)).xyz;
+			float t = clamp((length(mid) - depth_range.x) / max(depth_range.y - depth_range.x, 1e-6), 0.0, 1.0);
+			width = mix(depth_cue_px, 1.0, t);
+		} else if (extension_px > 0.0) {
+			width = 1.0;
+		}
+		extension = extension_px;
+		if (silhouette && profile_width > 0.0) {
+			width = max(width, profile_width);
+		}
+	} else if (silhouette) {
+		width = profile_width;
+	}
 	vec4 a = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	vec4 b = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(other, 1.0);
-	if (!silhouette || width <= 0.0) {
+	if (width <= 0.0) {
 		POSITION = vec4(2.0, 2.0, 2.0, 1.0);
 	} else {
 		vec2 half_size = VIEWPORT_SIZE * 0.5;
@@ -31,8 +56,8 @@ void vertex() {
 		vec2 sb = b.xy / b.w * half_size;
 		vec2 d = sb - sa;
 		vec2 dir = length(d) > 1e-4 ? normalize(d) : vec2(1.0, 0.0);
-		// Out sideways by half the width and past the end by as much, so thick corners meet.
-		vec2 offset = (vec2(-dir.y, dir.x) * CUSTOM0.w - dir) * width * 0.5;
+		// Out sideways by half the width and past the end by as much (plus any extension), so thick corners meet.
+		vec2 offset = vec2(-dir.y, dir.x) * CUSTOM0.w * width * 0.5 - dir * (width * 0.5 + extension);
 		a.xy += offset / half_size * a.w;
 		if (perspective) {
 			a.z *= 1.0 + depth_bias;

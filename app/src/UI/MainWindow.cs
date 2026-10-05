@@ -710,6 +710,9 @@ public partial class MainWindow : Control
         _commands.Register(CommandIds.FieldOfView, () => _viewport.Tools.Activate(new ZoomTool()));
         _commands.Register(CommandIds.Edges, () => _document.ShowEdges = !_document.ShowEdges, () => _document.ShowEdges);
         _commands.Register(CommandIds.Profiles, () => _document.ShowProfiles = !_document.ShowProfiles, () => _document.ShowProfiles);
+        _commands.Register(CommandIds.EdgeExtension, () => _document.ShowExtension = !_document.ShowExtension, () => _document.ShowExtension);
+        _commands.Register(CommandIds.DepthCue, () => _document.ShowDepthCue = !_document.ShowDepthCue, () => _document.ShowDepthCue);
+        _viewport.CameraChanged += _document.UpdateDepthRange;
         _commands.Register(CommandIds.Shadows, () =>
         {
             var doc = Doc();

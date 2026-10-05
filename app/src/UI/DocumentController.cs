@@ -67,6 +67,43 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         }
     }
 
+    /// <summary>View › Edge Style › Extension.</summary>
+    public bool ShowExtension
+    {
+        get => _renderer.ShowExtension;
+        set
+        {
+            _renderer.ShowExtension = value;
+            Rebuild();
+        }
+    }
+
+    /// <summary>View › Edge Style › Depth Cue.</summary>
+    public bool ShowDepthCue
+    {
+        get => _renderer.ShowDepthCue;
+        set
+        {
+            _renderer.ShowDepthCue = value;
+            UpdateDepthRange();
+            Rebuild();
+        }
+    }
+
+    /// <summary>Depth Cue follows the camera: the nearest and farthest corners of the model's box.</summary>
+    public void UpdateDepthRange()
+    {
+        if (!_renderer.ShowDepthCue)
+            return;
+        var b = Model.Entities.Bounds();
+        if (b.IsEmpty)
+            return;
+        var eye = viewport.Camera.Eye;
+        var distances = Enumerable.Range(0, 8).Select(i => eye.DistanceTo(new Dogeometric.Core.Geometry.Vec3(
+            (i & 1) == 0 ? b.Min.X : b.Max.X, (i & 2) == 0 ? b.Min.Y : b.Max.Y, (i & 4) == 0 ? b.Min.Z : b.Max.Z))).ToList();
+        _renderer.SetDepthRange(Math.Max(0, eye.DistanceTo(b.Center) - b.Diagonal / 2), distances.Max());
+    }
+
     /// <summary>View › Edge Style › Profiles.</summary>
     public bool ShowProfiles
     {

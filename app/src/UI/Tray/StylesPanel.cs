@@ -19,6 +19,8 @@ public partial class StylesPanel : VBoxContainer
         p.Switch("Edges", CommandIds.Edges);
         p.Switch("Back Edges", CommandIds.BackEdges);
         p.Switch("Profiles", CommandIds.Profiles);
+        p.Switch("Depth Cue", CommandIds.DepthCue);
+        p.Switch("Extension", CommandIds.EdgeExtension);
         p.Section("Face Settings");
         foreach (var (label, id) in new[]
         {
