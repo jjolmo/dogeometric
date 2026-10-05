@@ -18,6 +18,7 @@ public sealed class MoveTool : DrawingTool
     private Vec3? _from;
     private List<object> _items = [];
     private bool _copy;
+    private bool _autofold;
 
     // Groups and components follow the cursor: their drawn nodes (or copies of them) and where those started.
     private readonly List<(Node3D Node, Transform3D Start, bool Ghost)> _following = [];
@@ -33,9 +34,10 @@ public sealed class MoveTool : DrawingTool
 
     public override string StatusText => (_from, _copy) switch
     {
-        (null, false) => "Click something to begin moving it.",
+        _ when _autofold && !_copy => _from == null ? "Click an item to auto-fold." : "Click to place the item you are auto-folding or enter distance.",
+        (null, false) => "Click something to begin moving it.  Alt = Toggle Autofold.",
         (null, true) => "Click something to begin copying it.",
-        (_, false) => "Click to place the items you're moving or enter a distance.",
+        (_, false) => "Click to place the items you're moving or enter a distance.  Alt = Toggle Autofold.",
         _ => "Click to place the items you're copying or enter a distance.",
     };
 
@@ -192,6 +194,12 @@ public sealed class MoveTool : DrawingTool
         }
         else
         {
+            // Faces moved so that faces around them would bend need Autofold (Alt), as in SketchUp; corners and edges fold freely.
+            if (!_autofold && items.OfType<Face>().Any() && Transforming.WouldBend(doc.Context.Entities, items, Transform.Translation(offset)))
+            {
+                View.ShowHint("Moving these faces would bend others: press Alt to toggle Autofold.");
+                return;
+            }
             doc.Operation("Move", e => Transforming.Move(e, items, offset));
         }
         _from = null;
@@ -239,6 +247,12 @@ public sealed class MoveTool : DrawingTool
                 Follow();
                 OnInferenceChanged();
             }
+            RefreshStatus();
+            return true;
+        }
+        if (key.Keycode == Key.Alt && !key.Echo)
+        {
+            _autofold = !_autofold;
             RefreshStatus();
             return true;
         }

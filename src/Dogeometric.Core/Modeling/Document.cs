@@ -221,6 +221,42 @@ public static class Transforming
     public static void Move(Entities e, IEnumerable<object> items, Geometry.Vec3 offset) =>
         Apply(e, items, Geometry.Transform.Translation(offset));
 
+    /// <summary>Whether transforming the items would bend a face they don't fully carry off its plane (needing auto-fold).</summary>
+    public static bool WouldBend(Entities e, IEnumerable<object> items, Geometry.Transform t)
+    {
+        var vertices = MovingVertices(items);
+        foreach (var (face, _) in AutoFold.Prepare(e, vertices))
+        {
+            var points = face.Loops.SelectMany(l => l.Vertices).Select(v => vertices.Contains(v) ? t.ApplyPoint(v.Position) : v.Position).ToList();
+            var n = Geometry.Polygon.Normal(face.OuterLoop.Vertices.Select(v => vertices.Contains(v) ? t.ApplyPoint(v.Position) : v.Position).ToList());
+            if (points.Any(p => Math.Abs((p - points[0]).Dot(n)) > Tolerance.Length))
+                return true;
+        }
+        return false;
+    }
+
+    private static HashSet<Vertex> MovingVertices(IEnumerable<object> items)
+    {
+        var vertices = new HashSet<Vertex>();
+        foreach (var item in items)
+        {
+            switch (item)
+            {
+                case Face f:
+                    vertices.UnionWith(f.Loops.SelectMany(l => l.Vertices));
+                    break;
+                case Edge edge:
+                    vertices.Add(edge.Start);
+                    vertices.Add(edge.End);
+                    break;
+                case Vertex v:
+                    vertices.Add(v);
+                    break;
+            }
+        }
+        return vertices;
+    }
+
     /// <summary>
     /// Scales by (<paramref name="sx"/>, <paramref name="sy"/>, <paramref name="sz"/>) along the axes of
     /// <paramref name="frame"/> about <paramref name="anchor"/> (a point in frame coordinates). The result works in

@@ -61,4 +61,18 @@ public class AutoFoldTests
         Transforming.Move(box, box.Faces.Cast<object>().ToList(), new Vec3(10, 20, 30));
         Assert.Equal(6, box.Faces.Count);
     }
+
+    [Fact]
+    public void A_move_that_keeps_faces_flat_needs_no_fold()
+    {
+        var e = Cube(100);
+        var corner = e.Vertices.Single(v => v.Position == new Vec3(100, 100, 100));
+        Assert.True(Transforming.WouldBend(e, [corner], Transform.Translation(new Vec3(0, 0, 50))));
+        var edge = e.Edges.Single(x => x.Start.Position.Z == 100 && x.End.Position.Z == 100 && x.Start.Position.Y == 100 && x.End.Position.Y == 100);
+        // Raised, the top just tilts into a ramp; pushed sideways as well, the sides would bend.
+        Assert.False(Transforming.WouldBend(e, [edge], Transform.Translation(new Vec3(0, 0, 30))));
+        Assert.True(Transforming.WouldBend(e, [edge], Transform.Translation(new Vec3(20, 0, 30))));
+        var top = e.Faces.Single(f => f.Normal.Dot(Vec3.UnitZ) > 0.99);
+        Assert.False(Transforming.WouldBend(e, [top], Transform.Translation(new Vec3(0, 0, 30))));
+    }
 }
