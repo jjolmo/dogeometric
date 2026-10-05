@@ -12,6 +12,9 @@ public sealed class Scene
 }
 
 /// <summary>A whole document: top-level entities plus the definitions, materials and tags they use.</summary>
+/// <summary>SketchUp's dimension endpoint styles.</summary>
+public enum DimensionEndpoint { None, Slash, Dot, ClosedArrow, OpenArrow }
+
 public sealed class Model
 {
     public Entities Entities { get; } = new();
@@ -22,6 +25,11 @@ public sealed class Model
     public LengthUnit Units { get; set; } = LengthUnit.Millimeters;
     public int UnitPrecision { get; set; } = 1;
     public ShadowSettings Shadows { get; set; } = new();
+
+    /// <summary>Model Info › Dimensions and Text: text sizes (points) and how dimension lines end.</summary>
+    public int DimensionFontSize { get; set; } = 12;
+    public DimensionEndpoint DimensionEndpoints { get; set; } = DimensionEndpoint.ClosedArrow;
+    public int TextFontSize { get; set; } = 12;
 
     /// <summary>Model Info › Animation: scene transitions (and their length in seconds) and the pause on each scene.</summary>
     public bool SceneTransitions { get; set; } = true;

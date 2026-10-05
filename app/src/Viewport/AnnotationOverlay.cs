@@ -11,7 +11,6 @@ namespace Dogeometric.App.Viewport;
 /// </summary>
 public sealed class AnnotationOverlay
 {
-    private const int FontSize = 13;
     private const float ArrowLength = 9;
     private const float ArrowHalfWidth = 3;
     private static readonly Color Ink = Colors.Black;
@@ -102,18 +101,19 @@ public sealed class AnnotationOverlay
         lines.Add((q1, q2));
         if ((q2 - q1).Length() > 2 * ArrowLength)
         {
-            Arrow(canvas, q1, (q1 - q2).Normalized(), color);
-            Arrow(canvas, q2, (q2 - q1).Normalized(), color);
+            Endpoint(canvas, q1, (q1 - q2).Normalized(), color, doc.Model.DimensionEndpoints);
+            Endpoint(canvas, q2, (q2 - q1).Normalized(), color, doc.Model.DimensionEndpoints);
         }
 
         var model = doc.Model;
+        var fontSize = Pixels(model.DimensionFontSize);
         var measured = Length.Format(d.Length, model.Units, model.UnitPrecision);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
-        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, FontSize);
+        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var mid = (q1 + q2) / 2;
         // Screen-aligned text centred over the middle of the dimension line.
         var box = new Rect2(mid - new Vector2(size.X / 2, size.Y + 2), size);
-        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, FontSize, color);
+        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, fontSize, color);
         _drawn.Add((d, owners, box, [.. lines]));
     }
 
@@ -125,26 +125,28 @@ public sealed class AnnotationOverlay
         var color = doc.Selection.Contains(d) ? Selected : Ink;
         canvas.DrawLine(tip, end, color, 1, true);
         if ((end - tip).Length() > ArrowLength)
-            Arrow(canvas, tip, (tip - end).Normalized(), color);
+            Endpoint(canvas, tip, (tip - end).Normalized(), color, doc.Model.DimensionEndpoints);
         var model = doc.Model;
+        var fontSize = Pixels(model.DimensionFontSize);
         var measured = d.Prefix + Length.Format(d.Length, model.Units, model.UnitPrecision);
         var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
-        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, FontSize);
+        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, fontSize);
         var left = end.X < tip.X;
         var box = new Rect2(new Vector2(left ? end.X - size.X - 3 : end.X + 3, end.Y - size.Y / 2), size);
-        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, FontSize, color);
+        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, fontSize, color);
         _drawn.Add((d, owners, box, [(tip, end)]));
     }
 
     private void DrawText(ModelViewport view, Control canvas, Font font, Document doc, TextLabel t, Transform xf, IReadOnlyList<Entities> owners)
     {
         var color = doc.Selection.Contains(t) ? Selected : Ink;
-        var size = font.GetStringSize(t.Text, HorizontalAlignment.Left, -1, FontSize);
+        var fontSize = Pixels(doc.Model.TextFontSize);
+        var size = font.GetStringSize(t.Text, HorizontalAlignment.Left, -1, fontSize);
         if (t.ScreenPosition is { } sp)
         {
             var at = new Vector2((float)sp.X * view.Size.X, (float)sp.Y * view.Size.Y);
             var screenBox = new Rect2(at, size);
-            canvas.DrawString(font, at + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, FontSize, color);
+            canvas.DrawString(font, at + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, fontSize, color);
             _drawn.Add((t, owners, screenBox, []));
             return;
         }
@@ -155,7 +157,7 @@ public sealed class AnnotationOverlay
         canvas.DrawCircle(anchor, 2.5f, color);
         var left = end.X < anchor.X;
         var box = new Rect2(new Vector2(left ? end.X - size.X - 3 : end.X + 3, end.Y - size.Y / 2), size);
-        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, FontSize, color);
+        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), t.Text, HorizontalAlignment.Left, -1, fontSize, color);
         _drawn.Add((t, owners, box, [(anchor, end)]));
     }
 
@@ -194,6 +196,31 @@ public sealed class AnnotationOverlay
             lines.Add((sa, sb));
         }
         _drawn.Add((s, owners, null, [.. lines]));
+    }
+
+    /// <summary>Text size in pixels for a size in points (the defaults, 12 pt, keep the 13 px used so far).</summary>
+    private static int Pixels(int points) => Math.Max(6, points + 1);
+
+    /// <summary>The end of a dimension line in the model's style.</summary>
+    private static void Endpoint(Control canvas, Vector2 tip, Vector2 outward, Color color, DimensionEndpoint style)
+    {
+        var side = new Vector2(-outward.Y, outward.X);
+        switch (style)
+        {
+            case DimensionEndpoint.ClosedArrow:
+                Arrow(canvas, tip, outward, color);
+                break;
+            case DimensionEndpoint.OpenArrow:
+                canvas.DrawLine(tip, tip - outward * ArrowLength + side * ArrowHalfWidth, color, 1, true);
+                canvas.DrawLine(tip, tip - outward * ArrowLength - side * ArrowHalfWidth, color, 1, true);
+                break;
+            case DimensionEndpoint.Slash:
+                canvas.DrawLine(tip - (outward + side) * 4, tip + (outward + side) * 4, color, 1.5f, true);
+                break;
+            case DimensionEndpoint.Dot:
+                canvas.DrawCircle(tip, 2.5f, color);
+                break;
+        }
     }
 
     private static void Arrow(Control canvas, Vector2 tip, Vector2 outward, Color color)

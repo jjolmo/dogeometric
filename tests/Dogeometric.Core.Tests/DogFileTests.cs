@@ -187,4 +187,27 @@ public class DogFileTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void Dimension_and_text_settings_are_saved_and_undone()
+    {
+        var m = new Model { DimensionFontSize = 20, DimensionEndpoints = DimensionEndpoint.Dot, TextFontSize = 9 };
+        var path = Path.Combine(Path.GetTempPath(), $"ann-{Guid.NewGuid():N}.dog");
+        try
+        {
+            DogFile.Save(m, path);
+            var back = DogFile.Load(path);
+            Assert.Equal((20, DimensionEndpoint.Dot, 9), (back.DimensionFontSize, back.DimensionEndpoints, back.TextFontSize));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+        var doc = new Document(m);
+        doc.Undo.Begin("Dimensions");
+        m.DimensionEndpoints = DimensionEndpoint.Slash;
+        doc.Undo.Commit();
+        doc.Undo.Undo();
+        Assert.Equal(DimensionEndpoint.Dot, m.DimensionEndpoints);
+    }
 }

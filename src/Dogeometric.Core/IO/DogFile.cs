@@ -56,6 +56,11 @@ public static class DogFile
             w.WriteString("sourceVersion", model.SourceVersion);
             WriteShadows(w, model.Shadows);
             w.WriteBoolean("sectionFill", model.ShowSectionFill);
+            w.WriteStartObject("annotation");
+            w.WriteNumber("dimensionFontSize", model.DimensionFontSize);
+            w.WriteString("dimensionEndpoints", model.DimensionEndpoints.ToString());
+            w.WriteNumber("textFontSize", model.TextFontSize);
+            w.WriteEndObject();
             w.WriteStartObject("animation");
             w.WriteBoolean("transitions", model.SceneTransitions);
             w.WriteNumber("transitionSeconds", model.SceneTransitionSeconds);
@@ -416,6 +421,12 @@ public static class DogFile
             UnitPrecision = r.GetProperty("unitPrecision").GetInt32(),
             SourceVersion = r.TryGetProperty("sourceVersion", out var sv) ? sv.GetString() ?? "" : "",
         };
+        if (r.TryGetProperty("annotation", out var ann))
+        {
+            model.DimensionFontSize = ann.TryGetProperty("dimensionFontSize", out var dfs) ? dfs.GetInt32() : 12;
+            model.DimensionEndpoints = ann.TryGetProperty("dimensionEndpoints", out var de) && Enum.TryParse<DimensionEndpoint>(de.GetString(), out var end) ? end : DimensionEndpoint.ClosedArrow;
+            model.TextFontSize = ann.TryGetProperty("textFontSize", out var tfs) ? tfs.GetInt32() : 12;
+        }
         if (r.TryGetProperty("animation", out var anim))
         {
             model.SceneTransitions = !anim.TryGetProperty("transitions", out var tr) || tr.GetBoolean();
