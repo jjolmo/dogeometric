@@ -16,6 +16,10 @@ public enum JointPushPullMode
 
     /// <summary>Everything moves along the faces' average normal, as one compact extrusion.</summary>
     Extrude,
+
+    /// <summary>The faces move as in Joint but their borders slide along the faces around them, which stretch (a
+    /// multi-face "smart" push-pull: no new walls).</summary>
+    Follow,
 }
 
 /// <summary>Which walls join the moved faces to where they started.</summary>
@@ -44,6 +48,8 @@ public static class JointPushPull
         var set = faces.Where(e.Faces.Contains).ToList();
         if (set.Count == 0 || Math.Abs(offset) < Tolerance.Length)
             return [];
+        if (o.Mode == JointPushPullMode.Follow)
+            return Follow(e, set, offset);
         var selected = set.ToHashSet();
         var normals = set.ToDictionary(f => f, f => f.Normal.Normalized());
 
@@ -204,6 +210,71 @@ public static class JointPushPull
             return avg.Normalized() * offset;
         // Rank-two cases (an edge between two faces) leave the component along the edge free: take none of it.
         return solved.Value;
+    }
+
+    /// <summary>
+    /// Follow: each corner of the faces moves so that every selected face around it ends at the offset while it stays
+    /// in the plane of every other face around it; those faces stretch, and any left bent split into triangles.
+    /// </summary>
+    private static List<Face> Follow(Entities e, List<Face> set, double offset)
+    {
+        var selected = set.ToHashSet();
+        var around = new Dictionary<Vertex, List<Face>>();
+        foreach (var f in e.Faces)
+            foreach (var v in f.Loops.SelectMany(l => l.Vertices))
+            {
+                if (!around.TryGetValue(v, out var list))
+                    around[v] = list = [];
+                list.Add(f);
+            }
+        var moves = new Dictionary<Vertex, Vec3>();
+        foreach (var v in set.SelectMany(f => f.Loops.SelectMany(l => l.Vertices)).Distinct())
+        {
+            var faces = around[v];
+            var rows = new List<(Vec3 N, double Target, double Weight)>();
+            foreach (var f in faces)
+            {
+                var n = f.Normal.Normalized();
+                if (rows.Any(r => Math.Abs(r.N.Dot(n)) > 1 - 1e-9))
+                    continue;
+                rows.Add(selected.Contains(f) ? (n, offset, 1) : (n, 0, 1000));
+            }
+            moves[v] = Weighted(rows) ?? JointDisplacement(faces.Where(selected.Contains).Select(f => f.Normal.Normalized()).ToList(), offset);
+        }
+        var touched = moves.Keys.SelectMany(v => around[v]).Distinct().ToList();
+        foreach (var (v, d) in moves)
+            v.Position += d;
+        foreach (var f in touched)
+            FredoScale.SplitIfBent(e, f);
+        return [.. set.Where(e.Faces.Contains)];
+    }
+
+    /// <summary>The least-squares displacement meeting each row's n·d = target, weighted; null when it is undetermined.</summary>
+    private static Vec3? Weighted(List<(Vec3 N, double Target, double Weight)> rows)
+    {
+        var m = new double[3, 3];
+        var rhs = Vec3.Zero;
+        foreach (var (n, target, w) in rows)
+        {
+            double[] v = [n.X, n.Y, n.Z];
+            for (var i = 0; i < 3; i++)
+                for (var j = 0; j < 3; j++)
+                    m[i, j] += w * v[i] * v[j];
+            rhs += n * (w * target);
+        }
+        var exact = (double[,])m.Clone();
+        for (var i = 0; i < 3; i++)
+            m[i, i] += 1e-9;
+        var solved = Solve(m, rhs);
+        for (var step = 0; step < 4 && solved is { } x; step++)
+        {
+            var ax = new Vec3(
+                exact[0, 0] * x.X + exact[0, 1] * x.Y + exact[0, 2] * x.Z,
+                exact[1, 0] * x.X + exact[1, 1] * x.Y + exact[1, 2] * x.Z,
+                exact[2, 0] * x.X + exact[2, 1] * x.Y + exact[2, 2] * x.Z);
+            solved = Solve(m, rhs - ax) is { } dx ? x + dx : x;
+        }
+        return solved;
     }
 
     private static Vec3? Solve(double[,] m, Vec3 b)

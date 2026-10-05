@@ -76,4 +76,24 @@ public class JointPushPullTests
         FaceFinder.Reverse(cavityTop);
         Assert.Contains(SolidInspector.Find(e), x => x.Kind == SolidErrorKind.ReversedFace && x.Entities[0] == cavityTop);
     }
+
+    [Fact]
+    public void Follow_stretches_the_sides_instead_of_adding_walls()
+    {
+        var m = new Model();
+        TestModels.Box(m.Entities, Vec3.Zero, new Vec3(20, 20, 20));
+        var e = m.Entities;
+        var top = e.Faces.Single(f => f.Normal.Normalized().Z > 0.99);
+        JointPushPull.Apply(m, e, [top], 10, new JointPushPull.Options { Mode = JointPushPullMode.Follow });
+        Assert.Equal(6, e.Faces.Count);
+        Assert.Equal(new Vec3(20, 20, 30), e.Bounds().Size);
+        Assert.Empty(SolidInspector.Find(e));
+
+        var side = e.Faces.Single(f => f.Normal.Normalized().X > 0.99);
+        var lid = e.Faces.Single(f => f.Normal.Normalized().Z > 0.99);
+        JointPushPull.Apply(m, e, [side, lid], 5, new JointPushPull.Options { Mode = JointPushPullMode.Follow });
+        Assert.Equal(6, e.Faces.Count);
+        Assert.Equal(new Vec3(25, 20, 35), e.Bounds().Size);
+        Assert.Equal(25 * 20 * 35, Check(e).Volume, 6);
+    }
 }

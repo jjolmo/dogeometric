@@ -272,6 +272,7 @@ public partial class MainWindow : Control
             (ExtensionIds.VectorPushPull, "Vector Push Pull", "Push-pull along a direction.", JointPushPullMode.Vector),
             (ExtensionIds.NormalPushPull, "Normal Push Pull", "Push-pull multiple faces individually.", JointPushPullMode.Normal),
             (ExtensionIds.ExtrudePushPull, "Extrude Push Pull", "Compact push-pull on average direction.", JointPushPullMode.Extrude),
+            (ExtensionIds.FollowPushPull, "Follow Push Pull", "Push pull following the directions at borders (multi-face smart push-pull).", JointPushPullMode.Follow),
         })
         {
             _commands.AddToMenu("Tools", id, label, tip, submenu: "Fredo6 Collection", groupStart: id == ExtensionIds.JointPushPull);

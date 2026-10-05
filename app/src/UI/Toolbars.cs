@@ -30,7 +30,7 @@ public static class Toolbars
         Commands.ExtensionIds.SandboxDrape, Commands.ExtensionIds.SandboxAddDetail, Commands.ExtensionIds.SandboxFlipEdge,
     ];
     public static readonly int[] BezierSpline = Enum.GetValues<Dogeometric.Core.Modeling.SplineKind>().Select(Commands.ExtensionIds.Spline).ToArray();
-    public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull];
+    public static readonly int[] JointPushPull = [Commands.ExtensionIds.JointPushPull, Commands.ExtensionIds.VectorPushPull, Commands.ExtensionIds.NormalPushPull, Commands.ExtensionIds.ExtrudePushPull, Commands.ExtensionIds.FollowPushPull];
     public static readonly int[] SelectCurve = [Commands.ExtensionIds.SelectCurve];
     public static readonly int[] SelectionToys =
     [
@@ -96,6 +96,7 @@ public static class Toolbars
         [Commands.ExtensionIds.NormalPushPull] = "jpp_normal",
         [Commands.ExtensionIds.VectorPushPull] = "jpp_vector",
         [Commands.ExtensionIds.ExtrudePushPull] = "jpp_extrude",
+        [Commands.ExtensionIds.FollowPushPull] = "jpp_follow",
         [Commands.ExtensionIds.SelectCurve] = "select_curve",
         [Commands.ExtensionIds.SelectOnlyEdges] = "select_only_edges",
         [Commands.ExtensionIds.SelectOnlyFaces] = "select_only_faces",

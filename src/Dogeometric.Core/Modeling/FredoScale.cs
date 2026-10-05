@@ -123,7 +123,7 @@ public static class FredoScale
     };
 
     /// <summary>A face whose corners no longer share a plane becomes a fan of triangles (edges between them soft).</summary>
-    private static void SplitIfBent(Entities e, Face f)
+    internal static void SplitIfBent(Entities e, Face f)
     {
         var pts = f.OuterLoop.Points.ToList();
         if (pts.Count <= 3 || f.Loops.Count > 1)

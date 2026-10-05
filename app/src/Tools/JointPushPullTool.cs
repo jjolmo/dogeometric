@@ -31,6 +31,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
         JointPushPullMode.Joint => ExtensionIds.JointPushPull,
         JointPushPullMode.Normal => ExtensionIds.NormalPushPull,
         JointPushPullMode.Vector => ExtensionIds.VectorPushPull,
+        JointPushPullMode.Follow => ExtensionIds.FollowPushPull,
         _ => ExtensionIds.ExtrudePushPull,
     };
 
@@ -49,6 +50,7 @@ public sealed class JointPushPullTool(JointPushPullMode mode) : DrawingTool
         JointPushPullMode.Joint => "Joint Push Pull",
         JointPushPullMode.Normal => "Normal Push Pull",
         JointPushPullMode.Vector => "Vector Push Pull",
+        JointPushPullMode.Follow => "Follow Push Pull",
         _ => "Extrude Push Pull",
     };
 
