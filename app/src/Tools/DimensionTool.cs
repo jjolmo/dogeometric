@@ -8,12 +8,16 @@ namespace Dogeometric.App.Tools;
 
 /// <summary>
 /// SketchUp's Dimension: click two points (or an edge), then pull the dimension line out and click to place it.
-/// The offset snaps to the red, green or blue direction when close to one.
+/// The offset snaps to the red, green or blue direction when close to one. An arc gives a radius, a circle a diameter,
+/// with a leader to where the text is placed.
 /// </summary>
 public sealed class DimensionTool : DrawingTool
 {
     private Vec3? _start;
     private Vec3? _end;
+
+    // A radial dimension being placed (context coordinates), its text following the cursor.
+    private LinearDimension? _radial;
 
     public override int CommandId => CommandIds.Dimension;
     public override string CursorImage => "dimension";
@@ -21,6 +25,7 @@ public sealed class DimensionTool : DrawingTool
 
     public override string StatusText => (_start, _end) switch
     {
+        _ when _radial != null => "Select position for dimension.",
         (null, _) => "Select an edge, curve, or two points to dimension, or drag one to move.",
         (_, null) => "Select second point for linear dimension.",
         _ => "Select position for dimension.",
@@ -30,8 +35,25 @@ public sealed class DimensionTool : DrawingTool
     {
         if (button != MouseButton.Left || Current is not { } inf || View.Document is not { } doc)
             return;
+        if (_radial is { } radial)
+        {
+            radial.Offset = RadialOffset(doc, radial);
+            doc.Operation("Dimension", ent => ent.Dimensions.Add(radial));
+            _radial = null;
+            RefreshStatus();
+            View.QueueOverlayRedraw();
+            return;
+        }
         if (_start == null)
         {
+            var toLocal = doc.Context.ToWorld.Inverse();
+            if (inf is { Kind: InferenceKind.OnEdge or InferenceKind.Midpoint, Edge: { Curve: not null } curveEdge } && doc.Context.Entities.Edges.Contains(curveEdge)
+                && RadialDimensions.For(doc.Context.Entities, curveEdge, toLocal.ApplyPoint(inf.Point)) is { } r)
+            {
+                _radial = r;
+                RefreshStatus();
+                return;
+            }
             if (inf is { Kind: InferenceKind.OnEdge, Edge: { } edge })
             {
                 // An edge dimensions its own length.
@@ -55,6 +77,17 @@ public sealed class DimensionTool : DrawingTool
         }
         RefreshStatus();
         View.QueueOverlayRedraw();
+    }
+
+    /// <summary>From the arrow point to the cursor, on the plane through it facing the viewer (context coordinates).</summary>
+    private Vec3 RadialOffset(Document doc, LinearDimension d)
+    {
+        var xf = doc.Context.ToWorld;
+        var start = xf.ApplyPoint(d.Start);
+        var ray = View.ScreenRay(Mouse);
+        return InferenceEngine.IntersectPlane(new Ray(ray.Origin, ray.Direction), View.Camera.Direction.Normalized(), start) is { } hit
+            ? xf.Inverse().ApplyVector(hit - start)
+            : Vec3.Zero;
     }
 
     /// <summary>Offset of the dimension line from the measured points, for the cursor.</summary>
@@ -102,8 +135,9 @@ public sealed class DimensionTool : DrawingTool
 
     public override bool KeyDown(InputEventKey key)
     {
-        if (key.Keycode == Key.Escape && _start != null)
+        if (key.Keycode == Key.Escape && (_start != null || _radial != null))
         {
+            _radial = null;
             _start = null;
             _end = null;
             RefreshStatus();
@@ -115,6 +149,18 @@ public sealed class DimensionTool : DrawingTool
 
     public override void Draw(Control overlay)
     {
+        if (_radial is { } r && View.Document is { } d)
+        {
+            var xf = d.Context.ToWorld;
+            var start = xf.ApplyPoint(r.Start);
+            var end = start + xf.ApplyVector(RadialOffset(d, r));
+            DrawWorldLine(overlay, start, end, Colors.Black, 1);
+            if (View.ToScreen(end) is { } at)
+            {
+                var text = r.Prefix + Core.Units.Length.Format(r.Length, d.Model.Units, d.Model.UnitPrecision);
+                overlay.DrawString(overlay.GetThemeDefaultFont(), at + new Vector2(4, 4), text, HorizontalAlignment.Left, -1, 13, Colors.Black);
+            }
+        }
         if (_start is { } s)
         {
             if (_end is { } e)

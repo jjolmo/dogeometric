@@ -315,6 +315,8 @@ public static class DogFile
                 WriteVec(w, "offset", d.Offset);
                 if (d.Text.Length > 0)
                     w.WriteString("text", d.Text);
+                if (d.Kind != DimensionKind.Linear)
+                    w.WriteString("kind", d.Kind.ToString());
                 w.WriteNumber("tag", Ref(tags, d.Tag));
                 if (d.Hidden)
                     w.WriteBoolean("hidden", true);
@@ -599,6 +601,7 @@ public static class DogFile
                     Text = d.TryGetProperty("text", out var tx) ? tx.GetString() ?? "" : "",
                     Tag = TagAt(model, d.GetProperty("tag").GetInt32()),
                     Hidden = d.TryGetProperty("hidden", out var h) && h.GetBoolean(),
+                    Kind = d.TryGetProperty("kind", out var k) && Enum.TryParse<DimensionKind>(k.GetString(), out var kind) ? kind : DimensionKind.Linear,
                 });
             }
         }

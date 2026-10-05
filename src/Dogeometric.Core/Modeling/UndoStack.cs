@@ -169,7 +169,7 @@ public sealed class UndoStack(Model model)
         private ComponentInstance[] _instances = [];
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
-        private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden)[] _dimensions = [];
+        private (LinearDimension Dim, Vec3 Start, Vec3 End, Vec3 Offset, string Text, Tag? Tag, bool Hidden, DimensionKind Kind)[] _dimensions = [];
         private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
         private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden)[] _texts = [];
@@ -188,7 +188,7 @@ public sealed class UndoStack(Model model)
             _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked, i.GluedTo)).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
-            _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden)).ToArray(),
+            _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind)).ToArray(),
             _sections = e.SectionPlanes.Select(s => (s, s.Point, s.Normal, s.Name, s.Tag, s.Hidden)).ToArray(),
             _activeSection = e.ActiveSection,
             _texts = e.Texts.Select(t => (t, t.Text, t.Point, t.Offset, t.ScreenPosition, t.Tag, t.Hidden)).ToArray(),
@@ -208,7 +208,7 @@ public sealed class UndoStack(Model model)
             foreach (var (g, pos) in _guidePoints)
                 g.Position = pos;
             Replace(_target.Dimensions, _dimensions.Select(d => d.Dim).ToArray());
-            foreach (var (d, start, end, offset, text, tag, hidden) in _dimensions)
+            foreach (var (d, start, end, offset, text, tag, hidden, kind) in _dimensions)
             {
                 d.Start = start;
                 d.End = end;
@@ -216,6 +216,7 @@ public sealed class UndoStack(Model model)
                 d.Text = text;
                 d.Tag = tag;
                 d.Hidden = hidden;
+                d.Kind = kind;
             }
             Replace(_target.SectionPlanes, _sections.Select(s => s.Plane).ToArray());
             foreach (var (s, point, normal, name, tag, hidden) in _sections)

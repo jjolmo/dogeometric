@@ -152,11 +152,22 @@ public sealed class InferenceEngine
         foreach (var c in centers)
             Consider(c.Point, InferenceKind.Center, c.Label);
 
+        // Inside an arc or circle only its ends are points to snap to, as in SketchUp: not each segment's ends and middle.
+        var curveVertices = new Dictionary<(Curve, Vertex), int>();
+        foreach (var e in context.Edges)
+            if (e.Curve is { IsPolygon: false } c)
+                foreach (var v in new[] { e.Start, e.End })
+                    curveVertices[(c, v)] = curveVertices.GetValueOrDefault((c, v)) + 1;
+        bool CurveEnd(Edge e, Vertex v) => e.Curve is not { IsPolygon: false } c || curveVertices.GetValueOrDefault((c, v)) < 2;
+
         void FromEdge(Edge e, Transform xf, string inside = "")
         {
-            Consider(xf.ApplyPoint(e.Start.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
-            Consider(xf.ApplyPoint(e.End.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
-            Consider(xf.ApplyPoint((e.Start.Position + e.End.Position) * 0.5), InferenceKind.Midpoint, "Midpoint", e, inside);
+            if (CurveEnd(e, e.Start))
+                Consider(xf.ApplyPoint(e.Start.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
+            if (CurveEnd(e, e.End))
+                Consider(xf.ApplyPoint(e.End.Position), InferenceKind.Endpoint, "Endpoint", e, inside);
+            if (e.Curve is not { IsPolygon: false })
+                Consider(xf.ApplyPoint((e.Start.Position + e.End.Position) * 0.5), InferenceKind.Midpoint, "Midpoint", e, inside);
         }
 
         foreach (var e in context.Edges)

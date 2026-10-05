@@ -56,6 +56,13 @@ public static class ContextMenu
             menu.AddSeparator();
         }
 
+        if (single is LinearDimension { Kind: not DimensionKind.Linear } radial)
+        {
+            Item(radial.Kind == DimensionKind.Radius ? "Type › Diameter" : "Type › Radius", () =>
+                doc.Operation("Dimension Type", _ => RadialDimensions.SetKind(radial,
+                    radial.Kind == DimensionKind.Radius ? DimensionKind.Diameter : DimensionKind.Radius)));
+            menu.AddSeparator();
+        }
         if (single is SectionPlane section)
         {
             Item("Reverse", () => runCommand(CommandIds.ReverseSection));

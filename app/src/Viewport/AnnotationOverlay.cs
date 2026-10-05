@@ -80,6 +80,11 @@ public sealed class AnnotationOverlay
 
     private void DrawDimension(ModelViewport view, Control canvas, Font font, Document doc, LinearDimension d, Transform xf, IReadOnlyList<Entities> owners)
     {
+        if (d.Kind != DimensionKind.Linear)
+        {
+            DrawRadial(view, canvas, font, doc, d, xf, owners);
+            return;
+        }
         if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } p1 || view.ToScreen(xf.ApplyPoint(d.End)) is not { } p2 ||
             view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } q1 || view.ToScreen(xf.ApplyPoint(d.End + d.Offset)) is not { } q2)
             return;
@@ -110,6 +115,25 @@ public sealed class AnnotationOverlay
         var box = new Rect2(mid - new Vector2(size.X / 2, size.Y + 2), size);
         canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, FontSize, color);
         _drawn.Add((d, owners, box, [.. lines]));
+    }
+
+    /// <summary>A radius or diameter: an arrow on the curve, a leader out to the text ("R 8mm", "DIA 16mm").</summary>
+    private void DrawRadial(ModelViewport view, Control canvas, Font font, Document doc, LinearDimension d, Transform xf, IReadOnlyList<Entities> owners)
+    {
+        if (view.ToScreen(xf.ApplyPoint(d.Start)) is not { } tip || view.ToScreen(xf.ApplyPoint(d.Start + d.Offset)) is not { } end)
+            return;
+        var color = doc.Selection.Contains(d) ? Selected : Ink;
+        canvas.DrawLine(tip, end, color, 1, true);
+        if ((end - tip).Length() > ArrowLength)
+            Arrow(canvas, tip, (tip - end).Normalized(), color);
+        var model = doc.Model;
+        var measured = d.Prefix + Length.Format(d.Length, model.Units, model.UnitPrecision);
+        var text = d.Text.Length == 0 ? measured : d.Text.Replace("<>", measured);
+        var size = font.GetStringSize(text, HorizontalAlignment.Left, -1, FontSize);
+        var left = end.X < tip.X;
+        var box = new Rect2(new Vector2(left ? end.X - size.X - 3 : end.X + 3, end.Y - size.Y / 2), size);
+        canvas.DrawString(font, box.Position + new Vector2(0, size.Y - 3), text, HorizontalAlignment.Left, -1, FontSize, color);
+        _drawn.Add((d, owners, box, [(tip, end)]));
     }
 
     private void DrawText(ModelViewport view, Control canvas, Font font, Document doc, TextLabel t, Transform xf, IReadOnlyList<Entities> owners)
