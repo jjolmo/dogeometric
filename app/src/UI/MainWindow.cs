@@ -380,6 +380,12 @@ public partial class MainWindow : Control
             _commands.AddToMenu("Tools", id, label, $"FredoScale: {label.ToLowerInvariant()} of the selection.", submenu: "Fredo6 Collection");
             _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind)), () => _viewport.Tools.Active.CommandId == id);
         }
+        foreach (var (kind, id) in new[]
+        {
+            (Deformation.Scale, ExtensionIds.FredoScaleScaleTarget), (Deformation.Taper, ExtensionIds.FredoScaleTaperTarget),
+            (Deformation.Shear, ExtensionIds.FredoScaleShearTarget), (Deformation.Stretch, ExtensionIds.FredoScaleStretchTarget),
+        })
+            _commands.Register(id, () => _viewport.Tools.Activate(new FredoScaleTool(kind, toTarget: true)), () => _viewport.Tools.Active.CommandId == id);
         _commands.AddToMenu("Tools", ExtensionIds.CurviloftLoft, "Curviloft - Loft by Spline", "Create loft junctions between curves, along splines through them.",
             submenu: "Fredo6 Collection", groupStart: true);
         _commands.Register(ExtensionIds.CurviloftLoft, () => Curviloft(CurviloftKind.Loft));

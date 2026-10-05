@@ -62,6 +62,46 @@ public static class FredoScale
         return vertices.Count;
     }
 
+    /// <summary>The box <see cref="Apply"/> deforms for <paramref name="items"/>.</summary>
+    public static Bounds3 BoxOf(IEnumerable<object> items)
+    {
+        var list = items.ToList();
+        var edges = list.OfType<Edge>().Concat(list.OfType<Face>().SelectMany(Topology.EdgesOf));
+        return Bounds3.FromPoints(edges.SelectMany(x => new[] { x.Start.Position, x.End.Position }));
+    }
+
+    /// <summary>
+    /// FredoScale's "to Target": the amount that takes <paramref name="from"/> (a point of the box) to
+    /// <paramref name="to"/>, for the deformations that have it (Scale, Taper, Shear, Stretch); null when it can't.
+    /// </summary>
+    public static double? TargetAmount(Deformation kind, int axis, Bounds3 box, Vec3 from, Vec3 to)
+    {
+        var (b, _) = axis switch { 0 => (1, 2), 1 => (2, 0), _ => (0, 1) };
+        var start = Get(box.Min, axis);
+        var length = Get(box.Size, axis);
+        var along = Get(from, axis) - start;
+        switch (kind)
+        {
+            case Deformation.Scale when Math.Abs(along) > Tolerance.Length:
+                return (Get(to, axis) - start) / along * 100;
+            case Deformation.Stretch:
+                return Get(to, axis) - Get(from, axis);
+            case Deformation.Shear when Math.Abs(along) > Tolerance.Length:
+                return Math.Atan((Get(to, b) - Get(from, b)) / along) * 180 / Math.PI;
+            case Deformation.Taper when length > Tolerance.Length && along > Tolerance.Length:
+            {
+                var centre = Get(box.Center, b);
+                var off = Get(from, b) - centre;
+                if (Math.Abs(off) < Tolerance.Length)
+                    return null;
+                var ratio = (Get(to, b) - centre) / off;
+                return (1 + (ratio - 1) / (along / length)) * 100;
+            }
+            default:
+                return null;
+        }
+    }
+
     private static Vec3 Move(Vec3 p, Deformation kind, int a, int b, int c, double amount, double start, double length, Vec3 centre, Bounds3 box)
     {
         var t = (Get(p, a) - start) / length;
