@@ -30,6 +30,10 @@ public partial class EntityInfoPanel : VBoxContainer
             case 0:
                 Title("No Selection");
                 return;
+            case > 1 when items.All(x => x is Edge) && items.Cast<Edge>().Select(x => x.Curve).Distinct().ToList() is [{ } curve]
+                && doc.Context.Entities.Edges.Count(x => x.Curve == curve) == items.Count:
+                CurveInfo(doc, curve, items.Cast<Edge>().ToList());
+                return;
             case > 1:
                 Title($"{items.Count} Entities");
                 return;
@@ -100,6 +104,38 @@ public partial class EntityInfoPanel : VBoxContainer
                 Check("Locked", i.Locked, v => doc.Operation("Lock", _ => i.Locked = v));
                 break;
         }
+    }
+
+    /// <summary>A whole curve selected: SketchUp's Arc, Circle, Polygon or Curve, its radius and segments editable.</summary>
+    private void CurveInfo(Document doc, Dogeometric.Core.Modeling.Curve curve, List<Edge> edges)
+    {
+        var points = Curves.Points(doc.Context.Entities, curve, out var closed);
+        var round = curve.Radius > 0;
+        Title(!round ? "Curve" : curve.IsPolygon ? "Polygon" : closed ? "Circle" : "Arc");
+        TagRow(doc, edges[0].Tag, t => doc.Operation("Change Tag", _ => edges.ForEach(x => x.Tag = t)));
+        if (round)
+        {
+            void Redraw(int segments, double radius)
+            {
+                List<Edge>? made = null;
+                doc.Operation("Edit Curve", e => made = Curves.Redraw(e, curve, segments, radius));
+                if (made != null)
+                    doc.Selection.Set(made);
+            }
+            Edit("Radius", Length.Format(curve.Radius, LengthUnit.Millimeters, 2), v =>
+            {
+                if (Length.TryParse(v, LengthUnit.Millimeters, out var r) && r > 0)
+                    Redraw(curve.Segments, r);
+            });
+            Edit("Segments", (closed ? edges.Count : curve.Segments).ToString(), v =>
+            {
+                if (int.TryParse(v, out var n) && n >= 3 && n <= 999)
+                    Redraw(n, curve.Radius);
+            });
+        }
+        Row(closed && round ? "Circumference" : "Length", Length.Format(edges.Sum(x => x.Length), LengthUnit.Millimeters, 2));
+        Check("Soft", edges.All(x => x.Flags.HasFlag(EdgeFlags.Soft)), v => doc.Operation("Soften", _ => edges.ForEach(x => x.Flags = v ? x.Flags | EdgeFlags.Soft : x.Flags & ~EdgeFlags.Soft)));
+        Check("Hidden", edges.All(x => x.Flags.HasFlag(EdgeFlags.Hidden)), v => doc.Operation("Hide", _ => edges.ForEach(x => x.Flags = v ? x.Flags | EdgeFlags.Hidden : x.Flags & ~EdgeFlags.Hidden)));
     }
 
     private static string Area(double mm2) => mm2 >= 1e6 ? $"{mm2 / 1e6:0.###} m²" : mm2 >= 100 ? $"{mm2 / 100:0.##} cm²" : $"{mm2:0.##} mm²";

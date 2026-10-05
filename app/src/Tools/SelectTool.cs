@@ -144,6 +144,8 @@ public sealed class SelectTool : Tool
         {
             2 => Topology.DoubleClickSet(doc.Context.Entities, item),
             >= 3 => Topology.Connected(doc.Context.Entities, item),
+            // An edge of a curve (an arc, a circle, a welded chain) picks the whole curve, as in SketchUp.
+            _ when item is Edge { Curve: { } curve } => doc.Context.Entities.Edges.Where(x => x.Curve == curve).Cast<object>(),
             _ => [item],
         };
         Apply(doc, items.ToList());

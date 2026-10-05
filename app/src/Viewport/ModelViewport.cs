@@ -60,6 +60,11 @@ public partial class ModelViewport : Control
     /// <summary>Raised when the Measurements box text should change (typing or tool feedback).</summary>
     public event Action<string>? VcbTextChanged;
 
+    /// <summary>A one-off message for the status bar (results such as an area).</summary>
+    public event Action<string>? HintRequested;
+
+    public void ShowHint(string text) => HintRequested?.Invoke(text);
+
     private static Godot.Viewport.Msaa MsaaFor(int samples) => samples switch
     {
         >= 8 => Godot.Viewport.Msaa.Msaa8X,

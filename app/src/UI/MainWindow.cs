@@ -205,6 +205,7 @@ public partial class MainWindow : Control
         SelectTool.EditAnnotationText = EditAnnotationText;
 
         _viewport.Tools.Changed += UpdateToolStatus;
+        _viewport.HintRequested += text => _status.SetHint(text);
         _viewport.VcbTextChanged += text => _status.Vcb.Text = text;
         _viewport.ContextMenuRequested += pos => ContextMenu.Show(_viewport, pos, _document.Document, _viewport, id => _commands.Execute(id));
         UpdateToolStatus();

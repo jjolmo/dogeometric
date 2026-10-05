@@ -66,6 +66,20 @@ public static class ContextMenu
                 Item("Make Unique", () => doc.Operation("Make Unique", _ => Grouping.MakeUnique(doc.Model, inst)));
                 Item("Change Axes", () => view.Tools.Activate(new Tools.AxesTool(inst)));
             }
+            var t = inst.Transform;
+            var scaled = Math.Abs(t.X.Length - 1) > 1e-9 || Math.Abs(t.Y.Length - 1) > 1e-9 || Math.Abs(t.Z.Length - 1) > 1e-9;
+            var skewed = Math.Abs(t.X.Normalized().Dot(t.Y.Normalized())) > 1e-9 || Math.Abs(t.X.Normalized().Dot(t.Z.Normalized())) > 1e-9
+                || Math.Abs(t.Y.Normalized().Dot(t.Z.Normalized())) > 1e-9;
+            if (scaled)
+            {
+                Item("Reset Scale", () => doc.Operation("Reset Scale", _ => ContextOps.ResetScale(inst)));
+                if (!inst.IsGroup)
+                    Item("Scale Definition", () => doc.Operation("Scale Definition", _ => ContextOps.ScaleDefinition(inst)));
+            }
+            if (skewed)
+                Item("Reset Skew", () => doc.Operation("Reset Skew", _ => ContextOps.ResetSkew(inst)));
+            if (inst.GluedTo != null)
+                Item("Unglue", () => doc.Operation("Unglue", _ => inst.GluedTo = null));
             menu.AddSeparator();
         }
         if (sel.Count > 0 && !items)
@@ -84,6 +98,26 @@ public static class ContextMenu
         }
         if (sel.Count > 0 && sel.All(x => x is Edge { Curve.Spline: not null }))
             Item("Edit Bezier Curve", () => view.Tools.Activate(new Tools.BezierEditTool()));
+        var edges = sel.OfType<Edge>().ToList();
+        if (edges.Count > 0 && edges.Count == sel.Count)
+        {
+            if (edges.Any(x => x.Curve != null))
+            {
+                Item("Explode Curve", () => doc.Operation("Explode Curve", _ => ContextOps.ExplodeCurves(edges)));
+                if (single is Edge { Curve.Radius: > 0 } arcEdge)
+                    Item("Find Center", () => doc.Operation("Find Center", e => ContextOps.FindCenter(e, arcEdge)));
+                if (edges.Any(x => x.Curve is { Radius: > 0, IsPolygon: false }))
+                    Item("Convert to Polygon", () => doc.Operation("Convert to Polygon", _ => ContextOps.ToPolygon(edges)));
+            }
+            if (edges.Count > 1)
+                Item("Weld Edges", () =>
+                {
+                    Dogeometric.Core.Modeling.Curve? made = null;
+                    doc.Operation("Weld Edges", _ => made = ContextOps.Weld(edges));
+                    if (made == null)
+                        view.ShowHint("Weld Edges: the edges must form one connected chain.");
+                });
+        }
         if (single is SectionPlane section)
         {
             Item("Reverse", () => runCommand(CommandIds.ReverseSection));
@@ -92,6 +126,26 @@ public static class ContextMenu
         }
 
         var faces = sel.OfType<Face>().ToList();
+        if (faces.Count > 0 && !items)
+        {
+            var area = new PopupMenu();
+            area.AddItem("Selection", 1);
+            area.AddItem("Tag", 2);
+            area.AddItem("Material", 3);
+            area.IdPressed += id =>
+            {
+                var first = faces[0];
+                var all = doc.Context.Entities.Faces;
+                var (name, total) = id switch
+                {
+                    2 => ($"Tag {first.Tag?.Name ?? Tag.UntaggedName}", ContextOps.Area(all.Where(f => f.Tag == first.Tag))),
+                    3 => ($"Material {first.FrontMaterial?.Name ?? "Default"}", ContextOps.Area(all.Where(f => f.FrontMaterial == first.FrontMaterial))),
+                    _ => ("Selection", ContextOps.Area(faces)),
+                };
+                view.ShowHint($"Area of {name}: {total / 100:0.##} cm² ({total:0.#} mm²)");
+            };
+            menu.AddSubmenuNodeItem("Area", area);
+        }
         if (faces.Count > 0)
         {
             Item("Reverse Faces", () => doc.Operation("Reverse Faces", _ =>
