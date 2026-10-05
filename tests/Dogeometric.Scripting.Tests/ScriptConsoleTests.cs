@@ -32,4 +32,13 @@ public class ScriptConsoleTests
         Assert.Empty(document.Model.Entities.Faces);
         Assert.True(console.Run("nonsense(").Failed);
     }
+
+    [Fact]
+    public void Lines_after_a_failing_one_still_see_the_earlier_variables()
+    {
+        var console = new ScriptConsole(new Document(new Model()));
+        console.Run("var n = 21;");
+        Assert.True(console.Run("throw new Exception(\"no\");").Failed);
+        Assert.Equal("=> 42\n", console.Run("n * 2").Output);
+    }
 }

@@ -38,7 +38,7 @@ public partial class MainWindow
         var mono = new SystemFont { FontNames = ["monospace"] };
         log.AddThemeFontOverride("font", mono);
         log.AddThemeColorOverride("font_readonly_color", new Color(0.1f, 0.1f, 0.1f));
-        var input = new LineEdit { PlaceholderText = "AddFace(Pt(0, 0), Pt(100, 0), Pt(100, 50), Pt(0, 50))" };
+        var input = new LineEdit { PlaceholderText = "AddFace(Pt(0, 0), Pt(100, 0), Pt(100, 50), Pt(0, 50))", KeepEditingOnTextSubmit = true };
         input.AddThemeFontOverride("font", mono);
         var history = new List<string>();
         var at = 0;

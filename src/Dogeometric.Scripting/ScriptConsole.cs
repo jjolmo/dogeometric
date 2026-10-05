@@ -1,10 +1,12 @@
+using System.Collections.Immutable;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Text;
 using Dogeometric.Core.Geometry;
 using Dogeometric.Core.Modeling;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
-using Microsoft.CodeAnalysis.Scripting.Hosting;
 
 namespace Dogeometric.Scripting;
 
@@ -34,7 +36,8 @@ public sealed class ScriptGlobals
 public sealed class ScriptConsole(Document document)
 {
     private readonly ScriptGlobals _globals = new(document);
-    private ScriptState<object?>? _state;
+    private Script<object?>? _last;
+    private readonly List<object?> _submissions = [];
 
     /// <summary>Folders to find an assembly's file in when it was loaded from memory (Godot loads the game's that way),
     /// since the compiler references assemblies by file.</summary>
@@ -47,13 +50,42 @@ public sealed class ScriptConsole(Document document)
         .AddImports("System", "System.Linq", "System.Collections.Generic",
             "Dogeometric.Core.Geometry", "Dogeometric.Core.Modeling", "Dogeometric.Core.IO");
 
-    // The script must see the assemblies already loaded, or a second copy of ScriptGlobals would not be the same type.
-    private static InteractiveAssemblyLoader Loader()
+    /// <summary>
+    /// Compiles the submission and runs it in the load context the console itself lives in (Godot's for the game), so
+    /// its ScriptGlobals is the one the script sees; Roslyn's own loader would bring in a second copy.
+    /// </summary>
+    private object? Execute(Script<object?> script)
     {
-        var loader = new InteractiveAssemblyLoader();
-        loader.RegisterDependency(typeof(ScriptGlobals).Assembly);
-        loader.RegisterDependency(typeof(Model).Assembly);
-        return loader;
+        var compilation = script.GetCompilation();
+        using var image = new MemoryStream();
+        var emitted = compilation.Emit(image);
+        if (!emitted.Success)
+            throw new CompilationErrorException("The line does not compile", emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray());
+        image.Position = 0;
+        var context = AssemblyLoadContext.GetLoadContext(typeof(ScriptGlobals).Assembly) ?? AssemblyLoadContext.Default;
+        var assembly = context.LoadFromStream(image);
+        var type = assembly.GetType(compilation.ScriptClass!.MetadataName, throwOnError: true)!;
+        var factory = type.GetMethod("<Factory>", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!;
+        // Slot 0 holds the globals, then one slot per earlier submission.
+        if (_submissions.Count == 0)
+            _submissions.Add(_globals);
+        _submissions.Add(null);
+        var states = _submissions.ToArray();
+        object? result;
+        try
+        {
+            result = ((Task<object?>)factory.Invoke(null, [states])!).GetAwaiter().GetResult();
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            // A failed line is not part of the chain: the next one takes its slot.
+            _submissions.RemoveAt(_submissions.Count - 1);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
+        for (var i = 0; i < states.Length; i++)
+            _submissions[i] = states[i];
+        return result;
     }
 
     private static MetadataReference Reference(System.Reflection.Assembly assembly)
@@ -75,11 +107,13 @@ public sealed class ScriptConsole(Document document)
         document.Undo.Begin("Ruby Console", document.Context.Entities);
         try
         {
-            _state = _state == null
-                ? CSharpScript.Create<object?>(code, Options, typeof(ScriptGlobals), Loader()).RunAsync(_globals).GetAwaiter().GetResult()
-                : _state.ContinueWithAsync<object?>(code, Options).GetAwaiter().GetResult();
+            var script = _last == null
+                ? CSharpScript.Create<object?>(code, Options, typeof(ScriptGlobals))
+                : _last.ContinueWith<object?>(code, Options);
+            var value = Execute(script);
+            _last = script;
             document.Undo.Commit();
-            if (_state.ReturnValue is { } value)
+            if (value != null)
                 _globals.Output.Append("=> ").AppendLine(value.ToString());
             return new Result(_globals.Output.ToString(), false);
         }
