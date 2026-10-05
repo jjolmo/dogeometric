@@ -48,6 +48,8 @@ public partial class EntityInfoPanel : VBoxContainer
                 Row("Front", f.FrontMaterial?.Name ?? "Default");
                 Row("Back", f.BackMaterial?.Name ?? "Default");
                 Check("Hidden", f.Hidden, v => doc.Operation("Hide", _ => f.Hidden = v));
+                Check("Cast Shadows", f.CastShadows, v => doc.Operation("Cast Shadows", _ => f.CastShadows = v));
+                Check("Receive Shadows", f.ReceiveShadows, v => doc.Operation("Receive Shadows", _ => f.ReceiveShadows = v));
                 break;
             case Edge e:
                 Title("Edge");
@@ -124,6 +126,8 @@ public partial class EntityInfoPanel : VBoxContainer
                 Row("Material", i.Material?.Name ?? "Default");
                 Check("Hidden", i.Hidden, v => doc.Operation("Hide", _ => i.Hidden = v));
                 Check("Locked", i.Locked, v => doc.Operation("Lock", _ => i.Locked = v));
+                Check("Cast Shadows", i.CastShadows, v => doc.Operation("Cast Shadows", _ => i.CastShadows = v));
+                Check("Receive Shadows", i.ReceiveShadows, v => doc.Operation("Receive Shadows", _ => i.ReceiveShadows = v));
                 break;
         }
     }

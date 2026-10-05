@@ -595,7 +595,8 @@ public static class DogFile
             w.WriteNumberValue(Ref(mats, f.FrontMaterial));
             w.WriteNumberValue(Ref(mats, f.BackMaterial));
             w.WriteNumberValue(Ref(tags, f.Tag));
-            w.WriteNumberValue(f.Hidden ? 1 : 0);
+            // Bits: 1 hidden, 2 casts no shadows, 4 receives none.
+            w.WriteNumberValue((f.Hidden ? 1 : 0) | (f.CastShadows ? 0 : 2) | (f.ReceiveShadows ? 0 : 4));
             // Optional: positioned textures for the front and back (SketchUp's 3×3 UV matrices).
             if (f.FrontMapping != null || f.BackMapping != null)
             {
@@ -633,6 +634,10 @@ public static class DogFile
                 w.WriteBoolean("hidden", true);
             if (inst.Locked)
                 w.WriteBoolean("locked", true);
+            if (!inst.CastShadows)
+                w.WriteBoolean("castShadows", false);
+            if (!inst.ReceiveShadows)
+                w.WriteBoolean("receiveShadows", false);
             if (inst.GluedTo is { } glued && e.Faces.IndexOf(glued) is var gi and >= 0)
                 w.WriteNumber("gluedTo", gi);
             w.WriteEndObject();
@@ -1052,7 +1057,9 @@ public static class DogFile
                 FrontMaterial = MaterialAt(model, a[1].GetInt32()),
                 BackMaterial = MaterialAt(model, a[2].GetInt32()),
                 Tag = TagAt(model, a[3].GetInt32()),
-                Hidden = a[4].GetInt32() != 0,
+                Hidden = (a[4].GetInt32() & 1) != 0,
+                CastShadows = (a[4].GetInt32() & 2) == 0,
+                ReceiveShadows = (a[4].GetInt32() & 4) == 0,
                 FrontMapping = a.Length > 5 ? ReadMapping(a[5]) : null,
                 BackMapping = a.Length > 6 ? ReadMapping(a[6]) : null,
             };
@@ -1078,6 +1085,8 @@ public static class DogFile
             inst.Material = MaterialAt(model, ij.GetProperty("material").GetInt32());
             inst.Hidden = ij.TryGetProperty("hidden", out var h) && h.GetBoolean();
             inst.Locked = ij.TryGetProperty("locked", out var l) && l.GetBoolean();
+            inst.CastShadows = !ij.TryGetProperty("castShadows", out var cs) || cs.GetBoolean();
+            inst.ReceiveShadows = !ij.TryGetProperty("receiveShadows", out var rs) || rs.GetBoolean();
             if (ij.TryGetProperty("gluedTo", out var gt) && gt.GetInt32() is var gi && gi >= 0 && gi < e.Faces.Count)
                 inst.GluedTo = e.Faces[gi];
         }

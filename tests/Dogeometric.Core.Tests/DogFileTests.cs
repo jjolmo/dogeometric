@@ -463,4 +463,29 @@ public class DogFileTests
         Assert.True(back.Entities.Instances[0].Hidden);
         Assert.Equal(SceneProperties.Camera, back.Scenes[1].Saves);
     }
+
+    [Fact]
+    public void Shadow_flags_of_faces_and_instances_round_trip_and_undo()
+    {
+        var m = new Model();
+        var face = m.Entities.AddFace([Vec3.Zero, new Vec3(100, 0, 0), new Vec3(100, 100, 0)]);
+        var def = new ComponentDefinition { Name = "Tree" };
+        m.Definitions.Add(def);
+        var tree = m.Entities.AddInstance(def, Transform.Identity);
+        var doc = new Document(m);
+        doc.Operation("Shadows", _ =>
+        {
+            face.CastShadows = false;
+            tree.ReceiveShadows = false;
+        });
+        var back = RoundTrip(m);
+        Assert.False(back.Entities.Faces[0].CastShadows);
+        Assert.True(back.Entities.Faces[0].ReceiveShadows);
+        Assert.False(back.Entities.Faces[0].Hidden);
+        Assert.False(back.Entities.Instances[0].ReceiveShadows);
+        Assert.True(back.Entities.Instances[0].CastShadows);
+        doc.Undo.Undo();
+        Assert.True(face.CastShadows);
+        Assert.True(tree.ReceiveShadows);
+    }
 }

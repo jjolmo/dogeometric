@@ -254,11 +254,11 @@ public sealed class ModelRenderer
     // SketchUp's default template style shows textures.
     private FaceStyle _faceStyle = FaceStyle.ShadedWithTextures;
 
-    private readonly Dictionary<(Material?, Material?, bool), ShaderMaterial> _faceMaterials = [];
+    private readonly Dictionary<(Material?, Material?, bool, bool, bool), ShaderMaterial> _faceMaterials = [];
     private readonly Dictionary<Entities, DefinitionMesh> _meshes = [];
 
     /// <summary>Mesh data of one entity collection. Surfaces are keyed by (front, back) material; null = default.</summary>
-    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides, ArrayMesh? Hidden = null, ArrayMesh? Profiles = null);
+    private sealed record DefinitionMesh(ArrayMesh? Faces, List<(Material? Front, Material? Back, bool Cast, bool Receive)> Surfaces, ArrayMesh? Edges, ArrayMesh? Guides, ArrayMesh? Hidden = null, ArrayMesh? Profiles = null);
 
     /// <summary>
     /// Replaces the children of <paramref name="root"/> with the model's geometry. Meshes of collections that did
@@ -347,16 +347,16 @@ public sealed class ModelRenderer
             var faces = new MeshInstance3D { Mesh = mesh.Faces, CastShadow = _shadows.Enabled ? GeometryInstance3D.ShadowCastingSetting.DoubleSided : GeometryInstance3D.ShadowCastingSetting.Off };
             for (var i = 0; i < mesh.Surfaces.Count; i++)
             {
-                var (front, back) = mesh.Surfaces[i];
+                var (front, back, cast, receive) = mesh.Surfaces[i];
                 // Default-material faces take the material of the group/component they are in.
                 var f = front ?? inherited;
                 var b = back ?? inherited;
                 // A mirrored instance turns its triangles' winding around, so the shader sees fronts as backs:
                 // swapping the colours shows each side as SketchUp does.
                 if (mirrored)
-                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b, flipped: true));
+                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b, flipped: true, cast, receive));
                 else if (inherited != null && (front == null || back == null))
-                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b));
+                    faces.SetSurfaceOverrideMaterial(i, FaceMaterial(f, b, cast: cast, receive: receive));
             }
             parent.AddChild(faces);
         }
@@ -389,6 +389,24 @@ public sealed class ModelRenderer
             if (inst.Definition.IsImage)
                 foreach (var face in node.GetChildren().OfType<MeshInstance3D>())
                     face.SetInstanceShaderParameter("pull", 1f);
+            if (!inst.CastShadows || !inst.ReceiveShadows)
+                QuietShadows(node, inst.CastShadows, inst.ReceiveShadows);
+        }
+    }
+
+    /// <summary>A group or component with Cast or Receive Shadows off: everything drawn inside it follows.</summary>
+    private static void QuietShadows(Node node, bool cast, bool receive)
+    {
+        foreach (var child in node.GetChildren())
+        {
+            if (child is MeshInstance3D mesh)
+            {
+                if (!cast)
+                    mesh.CastShadow = GeometryInstance3D.ShadowCastingSetting.Off;
+                if (!receive)
+                    mesh.SetInstanceShaderParameter("no_receive", 1f);
+            }
+            QuietShadows(child, cast, receive);
         }
     }
 
@@ -399,21 +417,22 @@ public sealed class ModelRenderer
         if (e.Subdivision > 0 && Subdivide && e.Faces.Count > 0)
             return _meshes[e] = SubdividedMesh(e);
 
-        var groups = new Dictionary<(Material?, Material?), SurfaceData>();
+        var groups = new Dictionary<(Material?, Material?, bool, bool), SurfaceData>();
         var smooth = SmoothNormals.For(e);
         var openings = Gluing.Openings(e, MovingInstances);
         foreach (var face in e.Faces)
         {
             if (face.Hidden || face.Tag is { Visible: false })
                 continue;
-            var key = _colorByTag ? (TagMaterial(face.Tag), TagMaterial(face.Tag)) : (face.FrontMaterial, face.BackMaterial);
+            var key = _colorByTag ? (TagMaterial(face.Tag), TagMaterial(face.Tag), face.CastShadows, face.ReceiveShadows)
+                : (face.FrontMaterial, face.BackMaterial, face.CastShadows, face.ReceiveShadows);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
             data.AddFace(face, key.Item1, key.Item2, smooth, openings.GetValueOrDefault(face));
         }
 
         ArrayMesh? faces = null;
-        var surfaces = new List<(Material?, Material?)>();
+        var surfaces = new List<(Material?, Material?, bool, bool)>();
         foreach (var (key, data) in groups)
         {
             if (data.Vertices.Count == 0)
@@ -426,7 +445,7 @@ public sealed class ModelRenderer
             arrays[(int)Mesh.ArrayType.TexUV] = data.Uvs.ToArray();
             arrays[(int)Mesh.ArrayType.TexUV2] = data.Uv2s.ToArray();
             faces.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2));
+            faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2, cast: key.Item3, receive: key.Item4));
             surfaces.Add(key);
         }
 
@@ -497,13 +516,13 @@ public sealed class ModelRenderer
             }
         // Neighbours bent less than this share a normal; creases are much sharper.
         const double smoothCos = 0.5;
-        var groups = new Dictionary<(Material?, Material?), SurfaceData>();
+        var groups = new Dictionary<(Material?, Material?, bool, bool), SurfaceData>();
         for (var f = 0; f < polygons.Count; f++)
         {
             var (corners, src) = polygons[f];
             if (src.Hidden || src.Tag is { Visible: false })
                 continue;
-            var key = (src.FrontMaterial, src.BackMaterial);
+            var key = (src.FrontMaterial, src.BackMaterial, src.CastShadows, src.ReceiveShadows);
             if (!groups.TryGetValue(key, out var data))
                 groups[key] = data = new SurfaceData();
             var n = normals[f];
@@ -518,7 +537,7 @@ public sealed class ModelRenderer
                 }
         }
         ArrayMesh? faces = null;
-        var surfaces = new List<(Material?, Material?)>();
+        var surfaces = new List<(Material?, Material?, bool, bool)>();
         foreach (var (key, data) in groups)
         {
             faces ??= new ArrayMesh();
@@ -529,7 +548,7 @@ public sealed class ModelRenderer
             arrays[(int)Mesh.ArrayType.TexUV] = data.Uvs.ToArray();
             arrays[(int)Mesh.ArrayType.TexUV2] = data.Uv2s.ToArray();
             faces.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-            faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2));
+            faces.SurfaceSetMaterial(faces.GetSurfaceCount() - 1, FaceMaterial(key.Item1, key.Item2, cast: key.Item3, receive: key.Item4));
             surfaces.Add(key);
         }
 
@@ -725,9 +744,9 @@ public sealed class ModelRenderer
         return mesh;
     }
 
-    private ShaderMaterial FaceMaterial(Material? front, Material? back, bool flipped = false)
+    private ShaderMaterial FaceMaterial(Material? front, Material? back, bool flipped = false, bool cast = true, bool receive = true)
     {
-        if (_faceMaterials.TryGetValue((front, back, flipped), out var m))
+        if (_faceMaterials.TryGetValue((front, back, flipped, cast, receive), out var m))
             return m;
         // Monochrome and Hidden Line ignore materials; X-ray makes every face see-through.
         if (FaceStyle is FaceStyle.Monochrome or FaceStyle.HiddenLine)
@@ -782,6 +801,10 @@ public sealed class ModelRenderer
         // Hidden Line draws faces flat white, without shading.
         if (FaceStyle == FaceStyle.HiddenLine)
             Set("light_dir", Vector3.Zero);
+        if (!cast)
+            Set("cast_shadows", false);
+        if (!receive)
+            Set("receive_shadows", false);
         if (m.Shader == _faceNicerShader)
         {
             var near = new ShaderMaterial { Shader = _faceNearShader, RenderPriority = 1 };
@@ -789,7 +812,7 @@ public sealed class ModelRenderer
                 near.SetShaderParameter(name, value);
             m.NextPass = near;
         }
-        _faceMaterials[(front, back, flipped)] = m;
+        _faceMaterials[(front, back, flipped, cast, receive)] = m;
         return m;
     }
 

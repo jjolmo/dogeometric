@@ -188,7 +188,7 @@ public sealed class UndoStack(Model model)
         private Edge[] _edges = [];
         private (Vertex Start, Vertex End, EdgeFlags Flags, Tag? Tag, Material? Material)[] _edgeData = [];
         private Face[] _faces = [];
-        private (List<(Edge, bool)>[] Loops, Material? Front, Material? Back, Tag? Tag, bool Hidden, TextureMapping? FrontMap, TextureMapping? BackMap)[] _faceData = [];
+        private (List<(Edge, bool)>[] Loops, Material? Front, Material? Back, Tag? Tag, bool Hidden, TextureMapping? FrontMap, TextureMapping? BackMap, (bool, bool) Shadows)[] _faceData = [];
         private ComponentInstance[] _instances = [];
         private (GuideLine Guide, Geometry.Vec3 Point, Geometry.Vec3 Dir, Geometry.Vec3? Start, Geometry.Vec3? End)[] _guideLines = [];
         private (GuidePoint Guide, Geometry.Vec3 Position)[] _guidePoints = [];
@@ -196,7 +196,7 @@ public sealed class UndoStack(Model model)
         private (SectionPlane Plane, Vec3 Point, Vec3 Normal, string Name, string Symbol, Tag? Tag, bool Hidden)[] _sections = [];
         private SectionPlane? _activeSection;
         private (TextLabel Label, string Text, Vec3 Point, Vec3 Offset, (double, double)? Screen, Tag? Tag, bool Hidden, TextStyle? Style, (double, double)? Leader)[] _texts = [];
-        private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked, Face? Glued)[] _instanceData = [];
+        private (ComponentDefinition Def, Transform Xf, string Name, Tag? Tag, Material? Material, bool Hidden, bool Locked, Face? Glued, (bool, bool) Shadows)[] _instanceData = [];
 
         public static EntitiesState Capture(Entities e) => new()
         {
@@ -210,9 +210,9 @@ public sealed class UndoStack(Model model)
             _edges = [.. e.Edges],
             _edgeData = e.Edges.Select(x => (x.Start, x.End, x.Flags, x.Tag, x.Material)).ToArray(),
             _faces = [.. e.Faces],
-            _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden, f.FrontMapping, f.BackMapping)).ToArray(),
+            _faceData = e.Faces.Select(f => (f.Loops.Select(l => l.Edges.ToList()).ToArray(), f.FrontMaterial, f.BackMaterial, f.Tag, f.Hidden, f.FrontMapping, f.BackMapping, (f.CastShadows, f.ReceiveShadows))).ToArray(),
             _instances = [.. e.Instances],
-            _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked, i.GluedTo)).ToArray(),
+            _instanceData = e.Instances.Select(i => (i.Definition, i.Transform, i.Name, i.Tag, i.Material, i.Hidden, i.Locked, i.GluedTo, (i.CastShadows, i.ReceiveShadows))).ToArray(),
             _guideLines = e.GuideLines.Select(g => (g, g.Point, g.Direction, g.Start, g.End)).ToArray(),
             _guidePoints = e.GuidePoints.Select(g => (g, g.Position)).ToArray(),
             _dimensions = e.Dimensions.Select(d => (d, d.Start, d.End, d.Offset, d.Text, d.Tag, d.Hidden, d.Kind, d.Style)).ToArray(),
@@ -295,8 +295,9 @@ public sealed class UndoStack(Model model)
             Replace(_target.Faces, _faces);
             for (var i = 0; i < _faces.Length; i++)
             {
-                var (loops, front, back, tag, hidden, frontMap, backMap) = _faceData[i];
+                var (loops, front, back, tag, hidden, frontMap, backMap, shadows) = _faceData[i];
                 var face = _faces[i];
+                (face.CastShadows, face.ReceiveShadows) = shadows;
                 face.FrontMapping = frontMap;
                 face.BackMapping = backMap;
                 face.Loops.Clear();
@@ -315,8 +316,9 @@ public sealed class UndoStack(Model model)
             Replace(_target.Instances, _instances);
             for (var i = 0; i < _instances.Length; i++)
             {
-                var (def, xf, name, tag, mat, hidden, locked, glued) = _instanceData[i];
+                var (def, xf, name, tag, mat, hidden, locked, glued, shadows) = _instanceData[i];
                 var inst = _instances[i];
+                (inst.CastShadows, inst.ReceiveShadows) = shadows;
                 inst.Definition = def;
                 inst.Transform = xf;
                 inst.Name = name;

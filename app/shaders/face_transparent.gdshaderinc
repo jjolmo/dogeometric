@@ -5,6 +5,10 @@
 // How far this fades while another group is open for editing (Model Info › Components), as in SketchUp.
 instance uniform float fade = 0.0;
 instance uniform float pull = 0.0;
+// Entity Info › Receive Shadows off on an enclosing group or component.
+instance uniform float no_receive = 0.0;
+// Entity Info › Cast Shadows off: the face is left out of the shadow pass.
+uniform bool cast_shadows = true;
 
 uniform vec4 front_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 back_color : source_color = vec4(0.643, 0.698, 0.733, 1.0);
@@ -33,7 +37,7 @@ void vertex() {
 }
 
 void fragment() {
-	if (SECTION_CUT) {
+	if (SECTION_CUT || IN_SHADOW_PASS && !cast_shadows) {
 		discard;
 	}
 	vec4 c = FRONT_FACING ? front_color : back_color;

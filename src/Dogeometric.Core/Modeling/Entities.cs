@@ -86,6 +86,10 @@ public sealed class Face
     public Tag? Tag { get; set; }
     public bool Hidden { get; set; }
 
+    /// <summary>Entity Info › Cast Shadows / Receive Shadows.</summary>
+    public bool CastShadows { get; set; } = true;
+    public bool ReceiveShadows { get; set; } = true;
+
     /// <summary>Positioned textures (SketchUp's pins) for each side; null uses the default projection.</summary>
     public TextureMapping? FrontMapping { get; set; }
     public TextureMapping? BackMapping { get; set; }
@@ -128,6 +132,10 @@ public sealed class ComponentInstance(ComponentDefinition definition)
 
     public bool Hidden { get; set; }
     public bool Locked { get; set; }
+
+    /// <summary>Entity Info › Cast Shadows / Receive Shadows, for everything inside.</summary>
+    public bool CastShadows { get; set; } = true;
+    public bool ReceiveShadows { get; set; } = true;
 
     /// <summary>The face (in the same collection) it is glued to, or null.</summary>
     public Face? GluedTo { get; set; }
