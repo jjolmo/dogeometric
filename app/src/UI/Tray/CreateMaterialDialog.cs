@@ -22,9 +22,13 @@ public partial class CreateMaterialDialog : ConfirmationDialog
     private string _imageName = "";
     private double _aspect = 1;
 
-    public static void Show(Node parent, int index, Action<Material> created)
+    /// <summary>Edit Material: the same dialog filled with <paramref name="material"/>; on OK, <paramref name="change"/> runs
+    /// the edit (so the caller can make it one undoable step).</summary>
+    public static void Edit(Node parent, Material material, Action<Action> change) => Show(parent, 0, _ => { }, material, change);
+
+    public static void Show(Node parent, int index, Action<Material> created, Material? editing = null, Action<Action>? change = null)
     {
-        var d = new CreateMaterialDialog { Title = "Create Material", OkButtonText = "OK" };
+        var d = new CreateMaterialDialog { Title = editing == null ? "Create Material" : "Edit Material", OkButtonText = "OK" };
         var box = new VBoxContainer { CustomMinimumSize = new Vector2(360, 0) };
         d._name = new LineEdit { Text = $"Material{index}" };
         box.AddChild(d._name);
@@ -66,6 +70,23 @@ public partial class CreateMaterialDialog : ConfirmationDialog
         box.AddChild(opacityRow);
         d.AddChild(box);
 
+        if (editing != null)
+        {
+            d._name.Text = editing.Name;
+            d._color.Color = Color.Color8(editing.Color.R, editing.Color.G, editing.Color.B);
+            d._opacity.Value = editing.Opacity * 100;
+            if (editing.Texture is { } tex)
+            {
+                d._image = tex.Data;
+                d._imageName = tex.FileName;
+                d._file.Text = tex.FileName;
+                d._useTexture.ButtonPressed = true;
+                d._width.Text = Length.Format(tex.WidthMm, LengthUnit.Millimeters, 1);
+                d._height.Text = Length.Format(tex.HeightMm, LengthUnit.Millimeters, 1);
+                d._aspect = tex.HeightMm / Math.Max(tex.WidthMm, 1e-9);
+            }
+        }
+
         browse.Pressed += () =>
         {
             var picker = new FileDialog
@@ -90,18 +111,23 @@ public partial class CreateMaterialDialog : ConfirmationDialog
         {
             d.KeepAspect(fromWidth: true);
             var c = d._color.Color;
-            var m = new Material
+            var m = editing ?? new Material();
+            void Apply()
             {
-                Name = d._name.Text.Trim().Length > 0 ? d._name.Text.Trim() : $"Material{index}",
-                Color = new Rgba((byte)(c.R * 255), (byte)(c.G * 255), (byte)(c.B * 255)),
-                Opacity = d._opacity.Value / 100,
-            };
-            if (d._useTexture.ButtonPressed && d._image != null)
-            {
-                Length.TryParse(d._width.Text, LengthUnit.Millimeters, out var w);
-                Length.TryParse(d._height.Text, LengthUnit.Millimeters, out var h);
-                m.Texture = new TextureImage { FileName = d._imageName, Data = d._image, WidthMm = w > 0 ? w : 100, HeightMm = h > 0 ? h : 100 };
+                (m.Name, m.Color, m.Opacity) = (d._name.Text.Trim().Length > 0 ? d._name.Text.Trim() : editing?.Name ?? $"Material{index}",
+                    new Rgba((byte)(c.R * 255), (byte)(c.G * 255), (byte)(c.B * 255)), d._opacity.Value / 100);
+                m.Texture = null;
+                if (d._useTexture.ButtonPressed && d._image != null)
+                {
+                    Length.TryParse(d._width.Text, LengthUnit.Millimeters, out var w);
+                    Length.TryParse(d._height.Text, LengthUnit.Millimeters, out var h);
+                    m.Texture = new TextureImage { FileName = d._imageName, Data = d._image, WidthMm = w > 0 ? w : 100, HeightMm = h > 0 ? h : 100 };
+                }
             }
+            if (change != null)
+                change(Apply);
+            else
+                Apply();
             created(m);
             d.QueueFree();
         };

@@ -528,11 +528,21 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 viewport.ApplyShadows(Model.Shadows);
                 ShadowsChanged?.Invoke();
             }
+            // Undo and redo can change a material's look, which the renderer caches.
+            var looks = MaterialLooks();
+            if (looks != _materialLooks)
+            {
+                _materialLooks = looks;
+                _renderer.ForgetMaterials();
+                changed = null;
+                MaterialsChanged?.Invoke();
+            }
             _renderer.Build(Model, viewport.ModelRoot, changed);
             RebuildSelection();
             viewport.UpdateSection();
             viewport.UpdateAxes();
         };
+        _materialLooks = MaterialLooks();
         Document.Selection.Changed += RebuildSelection;
         Document.Context.Changed += RebuildSelection;
         Document.Context.Changed += ShowCage;
@@ -611,6 +621,19 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
         _renderer.LookingThrough = camera;
         Rebuild();
     }
+
+    /// <summary>A material's colour, opacity or picture changed: cached looks are dropped and the view redrawn.</summary>
+    public void MaterialsEdited()
+    {
+        _materialLooks = MaterialLooks();
+        _renderer.ForgetMaterials();
+        Rebuild();
+    }
+
+    private string _materialLooks = "";
+
+    private string MaterialLooks() => string.Join("|", Model.Materials.Select(m =>
+        $"{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m)}:{m.Color}:{m.Opacity}:{(m.Texture == null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(m.Texture))}"));
 
     /// <summary>Raised when a material's picture changed outside an operation's own refresh (Edit Texture Image).</summary>
     public event Action? MaterialsChanged;

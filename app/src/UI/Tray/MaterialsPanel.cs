@@ -77,6 +77,14 @@ public partial class MaterialsPanel : VBoxContainer
             b.AddThemeStyleboxOverride("hover", new StyleBoxTexture { Texture = thumb, ModulateColor = new Color(0.85f, 0.85f, 1f) });
         }
         b.Pressed += () => Use(m);
+        if (m != null)
+            b.GuiInput += e =>
+            {
+                if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } mb)
+                    MaterialMenu(m, b.GetScreenPosition() + mb.Position);
+                else if (e is InputEventMouseButton { Pressed: true, DoubleClick: true, ButtonIndex: MouseButton.Left })
+                    EditMaterial(m);
+            };
         _grid.AddChild(b);
     }
 
@@ -103,6 +111,59 @@ public partial class MaterialsPanel : VBoxContainer
         doc.Model.Materials.Add(m);
         Refresh();
         return m;
+    }
+
+    /// <summary>Raised when a material changed look, so the view redraws it.</summary>
+    public event Action? MaterialEdited;
+
+    private void EditMaterial(Material m) => CreateMaterialDialog.Edit(this, m, apply =>
+    {
+        var doc = _doc();
+        doc.Undo.Begin("Edit Material");
+        apply();
+        doc.Undo.Commit();
+        Refresh();
+        MaterialEdited?.Invoke();
+    });
+
+    /// <summary>A material's right-click menu in the model's list, as SketchUp's: Edit, Delete, Select, Purge Unused.</summary>
+    private void MaterialMenu(Material m, Vector2 at)
+    {
+        var doc = _doc();
+        var menu = new PopupMenu();
+        menu.AddItem("Edit...", 0);
+        menu.AddItem("Delete", 1);
+        menu.AddItem("Select", 2);
+        menu.AddSeparator();
+        menu.AddItem("Purge Unused", 3);
+        menu.IdPressed += id =>
+        {
+            switch (id)
+            {
+                case 0:
+                    EditMaterial(m);
+                    break;
+                case 1:
+                    doc.Operation("Delete Material", _ => Painting.DeleteMaterial(doc.Model, m));
+                    if (CurrentMaterial == m)
+                        Use(null);
+                    Refresh();
+                    MaterialEdited?.Invoke();
+                    break;
+                case 2:
+                    var ents = doc.Context.Entities;
+                    doc.Selection.Set(ents.Faces.Where(f => f.FrontMaterial == m || f.BackMaterial == m).Cast<object>()
+                        .Concat(ents.Instances.Where(i => i.Material == m)));
+                    break;
+                case 3:
+                    doc.Operation("Purge Materials", _ => Painting.PurgeMaterials(doc.Model));
+                    Refresh();
+                    break;
+            }
+        };
+        menu.PopupHide += menu.QueueFree;
+        AddChild(menu);
+        menu.Popup(new Rect2I((Vector2I)at, Vector2I.Zero));
     }
 
     /// <summary>Sets the Paint Bucket's material (the Alt sampler uses this).</summary>

@@ -1203,6 +1203,7 @@ public partial class MainWindow : Control
         _entityInfo = EntityInfoPanel.Create(() => _document.Document);
         _materials = MaterialsPanel.Create(() => _document.Document);
         _document.MaterialsChanged += _materials.Refresh;
+        _materials.MaterialEdited += _document.MaterialsEdited;
         _tags = TagsPanel.Create(() => _document.Document, () => _document.RebuildAll());
         _components = ComponentsPanel.Create(() => _document.Document, def => _viewport.Tools.Activate(new ComponentPlaceTool(def)));
         _components.SaveAsRequested += _document.SaveComponentAs;
