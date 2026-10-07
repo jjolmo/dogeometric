@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.IO.Compression;
+using System.Net.Http;
+using HttpClient = System.Net.Http.HttpClient;
 using System.Text;
+using System.Text.Json;
 using Dogeometric.App.UI;
 using Dogeometric.App.Viewport;
 using Dogeometric.Core.IO;
@@ -10,9 +13,16 @@ using Godot;
 namespace Dogeometric.App.Diagnostics;
 
 /// <summary>Help › Report a Problem (F12): a screenshot with the user's marks and words, what lies under each mark, the
-/// app's state, the journal and the model, saved as a folder and a zip under Documents › Dogeometric Reports.</summary>
+/// app's state, the journal and the model, saved as a folder and a zip under Documents › Dogeometric Reports, and the
+/// zip sent to the developers.</summary>
 public static partial class ProblemReport
 {
+    private const string UploadUrl = "https://reports.cidwel.com/upload";
+    // Ships in a public repo, so it only keeps off stray spam; the server also caps size and rate.
+    private const string UploadKey = "6fcf8a76d299734f73aa2b1497f23690";
+    private const long MaxUploadBytes = 50L * 1024 * 1024;
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
+
     public static async void Show(Control host, ModelViewport viewport, Document doc, string? modelPath)
     {
         // Two frames let the menu that opened this close, so the picture shows the model, not the menu.
@@ -31,24 +41,32 @@ public static partial class ProblemReport
         var withModel = new CheckBox { Text = "Include the model", ButtonPressed = true };
         box.AddChild(withModel);
         dialog.AddChild(box);
-        dialog.Confirmed += () =>
+        dialog.Confirmed += async () =>
         {
+            string folder;
             try
             {
-                var folder = Save(shot, canvas.Marks, words.Text.Trim(), withModel.ButtonPressed, viewport, doc, modelPath);
-                Journal.Log("report", $"saved to {folder}");
-                var done = MessageDialog.Show(host, "Report a Problem", $"Saved to:\n{folder}\n\nand as {Path.GetFileName(folder)}.zip beside it, to send.");
-                done.AddButton("Open Folder", false, "open");
-                done.CustomAction += action =>
-                {
-                    if (action == "open")
-                        OS.ShellOpen(folder);
-                };
+                folder = Save(shot, canvas.Marks, words.Text.Trim(), withModel.ButtonPressed, viewport, doc, modelPath);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 MessageDialog.Show(host, "Report a Problem", $"Could not save the report:\n{ex.Message}");
+                return;
             }
+            Journal.Log("report", $"saved to {folder}");
+            var saved = $"Saved to:\n{folder}\n\nand as {Path.GetFileName(folder)}.zip beside it.";
+            var done = MessageDialog.Show(host, "Report a Problem", $"{saved}\n\nSending it to the developers…");
+            done.AddButton("Open Folder", false, "open");
+            done.CustomAction += action =>
+            {
+                if (action == "open")
+                    OS.ShellOpen(folder);
+            };
+            var sent = await Upload(folder + ".zip");
+            Journal.Log("report", sent);
+            // The dialog may have been closed while the upload ran.
+            if (GodotObject.IsInstanceValid(done) && done.GetChildren().OfType<RichTextLabel>().FirstOrDefault() is { } body)
+                body.Text = $"{saved}\n\n{sent}";
         };
         dialog.Canceled += () => Journal.Log("report", "cancelled");
         dialog.VisibilityChanged += () =>
@@ -59,6 +77,33 @@ public static partial class ProblemReport
         host.AddChild(dialog);
         dialog.PopupCentered();
         words.GrabFocus();
+    }
+
+    /// <summary>Posts the zip and says how it went; never throws, so being offline only costs a line in the message.</summary>
+    private static async Task<string> Upload(string zip)
+    {
+        try
+        {
+            var bytes = new FileInfo(zip).Length;
+            if (bytes > MaxUploadBytes)
+                return $"Not sent: the report is {bytes / 1048576} MB, over the {MaxUploadBytes / 1048576} MB limit; the zip is kept, to send by hand.";
+            await using var stream = File.OpenRead(zip);
+            using var request = new HttpRequestMessage(HttpMethod.Post, UploadUrl) { Content = new StreamContent(stream) };
+            request.Content.Headers.ContentType = new("application/zip");
+            request.Headers.Add("X-Upload-Key", UploadKey);
+            request.Headers.Add("X-Client", $"Dogeometric {ProjectSettings.GetSetting("application/config/version")} on {OS.GetName()} {OS.GetVersion()}");
+            using var response = await Http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                return $"Not sent: the server answered {(int)response.StatusCode} {body}. The zip is kept, to send by hand.";
+            var id = JsonDocument.Parse(body).RootElement.GetProperty("id").GetString();
+            return $"Sent to the developers as report {id}.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException
+                                       or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return $"Not sent ({ex.Message}). The zip is kept, to send by hand.";
+        }
     }
 
     private static string Save(Image shot, IReadOnlyList<Rect2I> marks, string words, bool withModel, ModelViewport viewport, Document doc, string? modelPath)
