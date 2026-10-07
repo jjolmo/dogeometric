@@ -147,4 +147,7 @@ public static class OwnIds
 
     /// <summary>Help › Report a Problem.</summary>
     public const int ReportProblem = 95010;
+
+    /// <summary>Help › Check for Updates, also the Updates toolbar's button.</summary>
+    public const int CheckForUpdates = 95011;
 }
