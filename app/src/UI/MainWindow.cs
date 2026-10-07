@@ -38,7 +38,7 @@ public partial class MainWindow : Control
     public override void _Ready()
     {
         Diagnostics.Journal.Start();
-        GetWindow().Title = $"Untitled - Dogeometric {Updater.CurrentVersion}";
+        GetWindow().Title = $"Untitled - Dogeometric {Updater.DisplayVersion}";
         _commands = new CommandRegistry("res://data/sketchup_commands.json");
         Theme = LightTheme.Create();
 

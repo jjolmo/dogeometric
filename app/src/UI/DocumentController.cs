@@ -187,7 +187,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
     public string? Path { get; private set; }
 
     public string Title => (Path != null ? System.IO.Path.GetFileName(Path)
-        : _recoveredFrom != null ? $"{System.IO.Path.GetFileName(_recoveredFrom)} (recovered)" : "Untitled") + $" - Dogeometric {Updater.CurrentVersion}";
+        : _recoveredFrom != null ? $"{System.IO.Path.GetFileName(_recoveredFrom)} (recovered)" : "Untitled") + $" - Dogeometric {Updater.DisplayVersion}";
 
     private int _savedRevision;
 

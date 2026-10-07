@@ -22,6 +22,9 @@ public static class Updater
 
     public static string CurrentVersion => (string)ProjectSettings.GetSetting("application/config/version");
 
+    /// <summary>The version for the window title: a copy run from source says so.</summary>
+    public static string DisplayVersion => OS.HasFeature("template") ? CurrentVersion : CurrentVersion + "-dev";
+
     private enum Kind { Source, AppImage, LinuxFolder, WindowsFolder, MacApp }
 
     private sealed record Release(string Tag, Version Version, string Notes, Dictionary<string, string> Assets);
