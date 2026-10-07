@@ -19,8 +19,9 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-22.04, rid: linux-x64 }
-          - { os: windows-2022, rid: win-x64 }
-          - { os: macos-14, rid: osx }
+          # Windows and macOS are off for now, to keep builds fast.
+          # - { os: windows-2022, rid: win-x64 }
+          # - { os: macos-14, rid: osx }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +52,9 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-22.04, rid: linux-x64 }
-          - { os: windows-2022, rid: win-x64 }
-          - { os: macos-14, rid: osx }
+          # Windows and macOS are off for now, to keep builds fast.
+          # - { os: windows-2022, rid: win-x64 }
+          # - { os: macos-14, rid: osx }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -88,7 +90,7 @@ jobs:
           path: artifacts
       - name: Place native libraries
         run: |
-          for rid in linux-x64 win-x64 osx; do
+          for rid in linux-x64; do
             mkdir -p app/native/$rid
             cp -a artifacts/native-$rid/. app/native/$rid/
           done
@@ -118,10 +120,11 @@ jobs:
         run: |
           version=$(sed -n 's/^config\/version="\(.*\)"/\1/p' app/project.godot)
           [ "v$version" = "${GITHUB_REF_NAME}" ] || { echo "tag ${GITHUB_REF_NAME} but app/project.godot says $version"; exit 1; }
-      - name: Export Linux, Windows and macOS
+      - name: Export Linux
         run: |
           export GODOT=$(ls ~/godot/Godot_v*_mono_linux_x86_64/Godot_v*_mono_linux.x86_64)
-          scripts/release.sh linux windows macos
+          scripts/release.sh linux
+          shopt -s nullglob
           cd dist && for f in *.tar.gz *.zip *.AppImage; do sha256sum "$f" > "$f.sha256"; done && ls -la
       - uses: actions/upload-artifact@v4
         with:
