@@ -6,14 +6,14 @@ namespace Dogeometric.App.Viewport;
 
 /// <summary>
 /// Draws the selection like SketchUp: selected edges in blue, selected faces with a blue dot pattern, selected
-/// groups/components with a blue bounding box (red when locked); and the box of the group being edited, dashed grey.
+/// groups/components with a blue bounding box (red when locked). The group being edited gets no box: its edges are
+/// what is being worked on, and a box around them only gets in the way.
 /// The colours are the style's (Styles › Modeling).
 /// </summary>
 public sealed class SelectionRenderer
 {
     private readonly ShaderMaterial _lines = Lines(new Color(0, 0, 1));
     private readonly ShaderMaterial _lockedLines = Lines(new Color(1, 0, 0));
-    private readonly ShaderMaterial _contextLines = Lines(new Color(0.45f, 0.45f, 0.45f));
     private readonly ShaderMaterial _faces = new() { Shader = GD.Load<Shader>("res://shaders/selection_face.gdshader") };
 
     private static ShaderMaterial Lines(Color c)
@@ -67,16 +67,6 @@ public sealed class SelectionRenderer
         AddMesh(root, lines, Mesh.PrimitiveType.Lines, _lines);
         AddMesh(root, locked, Mesh.PrimitiveType.Lines, _lockedLines);
         AddMesh(root, tris, Mesh.PrimitiveType.Triangles, _faces);
-
-        // The group/component being edited gets a grey box, as in SketchUp.
-        if (doc.Context.Path.Count > 0)
-        {
-            var active = doc.Context.Path[^1];
-            var parent = doc.Context.Path.Take(doc.Context.Path.Count - 1).Aggregate(Transform.Identity, (acc, i) => i.Transform.Then(acc));
-            var box = new List<Vector3>();
-            AddBox(box, active.Definition.Entities.Bounds(), active.Transform.Then(parent));
-            AddMesh(root, box, Mesh.PrimitiveType.Lines, _contextLines);
-        }
     }
 
     /// <summary>The drawn edges inside a group, nested ones too, up to <paramref name="budget"/> lines for big models.</summary>

@@ -460,11 +460,22 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Alert("Import", $"Could not import {System.IO.Path.GetFileName(path)}:\n{ex.Message}");
             return;
         }
+        // Into an empty model there is nothing to place it against: it goes where it was drawn, its origin on the
+        // model's, and the view frames it. Otherwise it hangs on the cursor, as in SketchUp.
+        var empty = Model.Entities.Bounds().IsEmpty;
         ComponentDefinition? def = null;
-        Document.Operation("Import", _ => def = Grouping.ImportAsComponent(Model, other, System.IO.Path.GetFileNameWithoutExtension(path)));
+        Document.Operation("Import", e =>
+        {
+            def = Grouping.ImportAsComponent(Model, other, System.IO.Path.GetFileNameWithoutExtension(path));
+            if (empty)
+                e.AddInstance(def, Dogeometric.Core.Geometry.Transform.Identity);
+        });
         Rebuild();
         Changed?.Invoke();
-        ComponentImportRequested?.Invoke(def!);
+        if (empty)
+            viewport.ZoomExtents();
+        else
+            ComponentImportRequested?.Invoke(def!);
     }
 
     public void ImportFile(string path) => Import(path);
@@ -491,6 +502,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 Merge(ifc.Model);
                 Document.Undo.Clear();
                 Rebuild();
+                viewport.ZoomExtents();
                 Changed?.Invoke();
                 status.SetHint($"Imported {ifc.Elements} IFC elements" + (ifc.SkippedItems > 0 ? $", {ifc.SkippedItems} items of unsupported kinds left out or approximated" : ""));
                 return;
@@ -501,6 +513,7 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
                 Merge(step.Model);
                 Document.Undo.Clear();
                 Rebuild();
+                viewport.ZoomExtents();
                 Changed?.Invoke();
                 var note = step.SkippedFaces > 0 ? $", {step.SkippedFaces} faces of unsupported kinds left out" : "";
                 status.SetHint($"Imported {step.Faces} STEP faces{note}");
@@ -521,6 +534,8 @@ public sealed class DocumentController(Control host, ModelViewport viewport, Sta
             Merge(imported);
             Document.Undo.Clear();
             Rebuild();
+            // Imported geometry keeps its file's coordinates, often far from the view or tiny in it: frame it.
+            viewport.ZoomExtents();
             Changed?.Invoke();
         }
         catch (Exception ex)

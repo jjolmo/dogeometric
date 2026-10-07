@@ -179,21 +179,49 @@ public partial class ModelViewport : Control
 
     // ---------------------------------------------------------------- camera operations (used by tools/commands)
 
-    public void BeginNavigation() => History.Record(Camera.Save());
+    public void BeginNavigation()
+    {
+        History.Record(Camera.Save());
+        _navBounds = ModelBounds();
+    }
+
+    // The model's box, measured when a gesture starts: big models are slow to measure on every camera move.
+    private Bounds3 _navBounds = Bounds3.Empty;
 
     public void BeginOrbit(Vector2 screen)
     {
         BeginNavigation();
-        _navPivot = PickGeometry(screen) ?? Camera.Target;
+        var hit = PickGeometry(screen);
+        _navPivot = hit ?? NavigationFallback();
         _navDepth = 0;
+        Diagnostics.Journal.Log("camera", $"orbit about {Diagnostics.Describe.P(_navPivot)} ({(hit != null ? "under the cursor" : "nothing under the cursor")}), {CameraSummary()}");
     }
 
     public void BeginPan(Vector2 screen)
     {
         BeginNavigation();
-        var anchor = PickGeometry(screen) ?? Camera.Target;
-        _navDepth = Math.Max(Camera.DepthOf(anchor), 1);
+        var hit = PickGeometry(screen);
+        var anchor = hit ?? NavigationFallback();
+        _navDepth = Math.Max(Camera.DepthOf(anchor), 1e-3);
+        Diagnostics.Journal.Log("camera", $"pan holding {Diagnostics.Describe.P(anchor)} ({(hit != null ? "under the cursor" : "nothing under the cursor")}), {CameraSummary()}");
     }
+
+    /// <summary>Eye, target and distance, for the journal.</summary>
+    private string CameraSummary() =>
+        $"eye {Diagnostics.Describe.P(Camera.Eye)}, target {Diagnostics.Describe.P(Camera.Target)}, {Camera.Distance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} mm away";
+
+    /// <summary>What orbit and pan hold on to with nothing under the cursor: the camera target, or the model's centre
+    /// once the target has wandered far off the model (a small part would swing about a point metres away).</summary>
+    private Vec3 NavigationFallback()
+    {
+        var target = Camera.Target;
+        if (_navBounds.IsEmpty || DistanceToBox(target, _navBounds) <= Math.Max(_navBounds.Diagonal, 1))
+            return target;
+        return _navBounds.Center;
+    }
+
+    private static double DistanceToBox(Vec3 p, Bounds3 b) => p.DistanceTo(new Vec3(
+        Math.Clamp(p.X, b.Min.X, b.Max.X), Math.Clamp(p.Y, b.Min.Y, b.Max.Y), Math.Clamp(p.Z, b.Min.Z, b.Max.Z)));
 
     public void OrbitBy(Vector2 relative, bool gravity)
     {
@@ -204,7 +232,7 @@ public partial class ModelViewport : Control
     public void PanBy(Vector2 relative)
     {
         if (_navDepth <= 0)
-            _navDepth = Math.Max(Camera.Distance, 1);
+            _navDepth = Math.Max(Camera.Distance, 1e-3);
         Camera.Pan(relative.X, relative.Y, Size.Y, _navDepth);
         SyncCamera();
     }
@@ -348,8 +376,11 @@ public partial class ModelViewport : Control
         {
             _camera.Projection = Camera3D.ProjectionType.Perspective;
             _camera.Fov = (float)Camera.FovDegrees;
-            // Near plane scales with the viewing distance; reverse-Z keeps depth precision with a far plane this large.
-            _camera.Near = (float)Math.Clamp(Camera.Distance * Space.MetersPerUnit * 0.001, 1e-5, 1);
+            // Near plane scales with the viewing distance, or with the model's nearest side when that is closer, so a
+            // small part in front of a far target is not clipped; reverse-Z keeps depth precision with a far plane this large.
+            var nearest = _navBounds.IsEmpty ? 0 : DistanceToBox(Camera.Eye, _navBounds);
+            var depth = nearest > 0 ? Math.Min(Camera.Distance, nearest) : Camera.Distance;
+            _camera.Near = (float)Math.Clamp(depth * Space.MetersPerUnit * 0.001, 1e-5, 1);
             if (Camera.TwoPointShift is { } shift)
             {
                 // A shifted lens: the same field of view, its centre moved up or down at the near plane.
@@ -791,6 +822,17 @@ public partial class ModelViewport : Control
         return Core.Inference.InferenceEngine.IntersectPlane(new Core.Picking.Ray(origin, direction), axes.Z.Normalized(), axes.Origin);
     }
 
+    /// <summary>The point the wheel zooms about: what is under the cursor. Zooming out from a face almost touching the
+    /// eye would barely move, so out it goes about the target's depth at least.</summary>
+    private Vec3 WheelAnchor(Vector2 screen, bool zoomIn)
+    {
+        var point = PickPoint(screen);
+        if (zoomIn || !Camera.Perspective || Camera.DepthOf(point) >= Camera.Distance)
+            return point;
+        var (origin, direction) = ScreenRay(screen);
+        return origin + direction * (Camera.Distance / Math.Max(direction.Dot(Camera.Direction), 1e-6));
+    }
+
     public Vec3 PickPoint(Vector2 screen)
     {
         if (PickGeometry(screen) is { } hit)
@@ -852,13 +894,20 @@ public partial class ModelViewport : Control
 
         switch (mb.ButtonIndex)
         {
-            case MouseButton.WheelUp or MouseButton.WheelDown when mb.Pressed:
+            // Pressing the wheel to orbit easily turns it a notch too, which zoomed in the middle of the orbit.
+            case MouseButton.WheelUp or MouseButton.WheelDown when mb.Pressed && !_middleDragging:
                 var now = Time.GetTicksMsec();
+                var zoomIn = (mb.ButtonIndex == MouseButton.WheelUp) != UI.AppPreferences.Current.InvertWheelZoom;
+                // Touchpads and high-resolution wheels send fractions of a notch.
+                var notches = mb.Factor > 0 ? Math.Min(mb.Factor, 4) : 1;
+                var anchor = WheelAnchor(mb.Position, zoomIn);
                 if (now - _lastWheelMs > WheelGestureMs)
+                {
                     BeginNavigation();
+                    Diagnostics.Journal.Log("camera", $"wheel {(zoomIn ? "in" : "out")} at ({mb.Position.X:0},{mb.Position.Y:0}) about {Diagnostics.Describe.P(anchor)}, {CameraSummary()}");
+                }
                 _lastWheelMs = now;
-                var factor = (mb.ButtonIndex == MouseButton.WheelUp) != UI.AppPreferences.Current.InvertWheelZoom ? WheelZoomFactor : 1 / WheelZoomFactor;
-                ZoomAt(PickPoint(mb.Position), factor);
+                ZoomAt(anchor, Math.Pow(WheelZoomFactor, zoomIn ? notches : -notches));
                 break;
 
             case MouseButton.Middle when mb.Pressed && mb.DoubleClick:
@@ -874,6 +923,8 @@ public partial class ModelViewport : Control
                 break;
 
             case MouseButton.Middle:
+                if (_middleDragging)
+                    Diagnostics.Journal.Log("camera", $"orbit/pan done, {CameraSummary()}");
                 _middleDragging = false;
                 break;
 

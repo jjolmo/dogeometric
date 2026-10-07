@@ -56,20 +56,6 @@ public sealed class AnnotationOverlay
 
         Walk(doc.Model.Entities, Transform.Identity, [doc.Model.Entities]);
 
-        // The group or component being edited: its bounding box, dashed, as SketchUp outlines it.
-        if (doc.Context.Path.Count > 0)
-        {
-            var b = doc.Context.Entities.Bounds();
-            if (!b.IsEmpty)
-            {
-                var toWorld = doc.Context.ToWorld;
-                Vec3 C(int i) => toWorld.ApplyPoint(new Vec3((i & 1) == 0 ? b.Min.X : b.Max.X, (i & 2) == 0 ? b.Min.Y : b.Max.Y, (i & 4) == 0 ? b.Min.Z : b.Max.Z));
-                foreach (var (i, j) in new[] { (0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7) })
-                    if (view.ToScreen(C(i)) is { } a && view.ToScreen(C(j)) is { } c)
-                        canvas.DrawDashedLine(a, c, new Color(0.35f, 0.35f, 0.35f), 1, 4);
-            }
-        }
-
         void Walk(Entities e, Transform xf, IReadOnlyList<Entities> owners)
         {
             foreach (var d in e.Dimensions)
